@@ -26,9 +26,21 @@ export const router = createBrowserRouter([
         lazy: () => import("@/pages/clients/Client").then(({ Client }) => ({ Component: Client })),
       },
       {
+        path: "/dashboard/clients/:id",
+        lazy: () => import("@/pages/clients/ClientDetail").then(({ ClientDetail }) => ({ Component: ClientDetail })),
+      },
+      {
         path: "/dashboard/availability",
         lazy: () => import("@/pages/availability/Availability").then(({ Availability }) => ({ Component: Availability })),
       },
     ],
   },
+  {
+    path: "/providers/:publicToken/client",
+    lazy: () => import("@/pages/clients/ClientSignUp").then(({ClientSignUp}) => ({ Component: ClientSignUp })),
+  },
+  {
+    path: "/providers/:publicToken/clients/:id",
+    lazy: () => import("@/pages/clients/ClientPortal").then(({ClientPortal}) => ({ Component: ClientPortal })),
+  }
 ])
