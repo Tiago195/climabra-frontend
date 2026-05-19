@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/authContext";
 import { Link, useNavigate } from "react-router-dom";
 import { Loader2, Wind, ShieldCheck } from "lucide-react";
-import { providerService } from "@/services/auth";
+import { authService } from "@/services/auth";
 import { toast } from "sonner";
 
 export default function Register() {
@@ -32,8 +32,8 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      const provider = await providerService.save(form);
-      const { token } = await providerService.login(form)
+      const provider = await authService.save(form);
+      const { token } = await authService.login(form)
       login(provider, token);
       toast.success("Conta criada! Bem-vindo.");
       navigate("/dashboard");

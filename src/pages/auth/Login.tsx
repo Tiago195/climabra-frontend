@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/authContext";
 import { Link, useNavigate } from "react-router-dom";
-import { providerService } from "@/services/auth";
+import { authService } from "@/services/auth";
 import { Loader2, Wind } from "lucide-react";
 import { toast } from "sonner";
 
@@ -41,7 +41,7 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      const data = await providerService.login({ email, password });
+      const data = await authService.login({ email, password });
       login(data.provider, data.token);
       toast.success(`Bem-vindo, ${data.provider.name ?? data.provider.email}!`);
       navigate("/dashboard");
@@ -117,7 +117,7 @@ export default function Login() {
             Resetar banco e recriar dados de teste (dev)
           </Button> */}
           <p className="text-center text-xs text-gray-400 mt-2">
-            Login de teste: joao@teste.com / 123456
+            Login de teste: provider@email.com / senha1234
           </p>
         </div>
       </div>

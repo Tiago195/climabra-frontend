@@ -5,7 +5,7 @@ const auth = axios.create({
   baseURL: `${DEFAULT_URL}/providers`
 }) 
 
-export const providerService = {
+export const authService = {
   async save(request: IAuthRequest) {
     const { data } = await auth.post<IProviderResponse>("", request)
 
@@ -29,7 +29,7 @@ export interface IProviderResponse {
   name: string
   phone: string
   companyName: string
-  status: string
+  status: 'PENDING' | 'BLOCKED' | 'ACTIVE' | 'CANCELED'
   publicToken: string
   createdAt: string
   updatedAt: string

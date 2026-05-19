@@ -1,35 +1,24 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, type ReactNode } from "react"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
-
-interface AuthProvider {
-  id: string
-  email: string
-  publicToken: string
-  name?: string
-  phone?: string
-  companyName?: string
-  status?: string
-  createdAt: string
-  updatedAt: string
-}
+import type { IProviderResponse } from "@/services/auth"
 
 interface AuthContextType {
-  provider: AuthProvider | null
+  provider: IProviderResponse | null
   token: string | null
   isAuthenticated: boolean
-  login: (provider: AuthProvider, token: string) => void
+  login: (provider: IProviderResponse, token: string) => void
   logout: () => void
-  updateProvider: (patch: Partial<AuthProvider>) => void
+  updateProvider: (patch: Partial<IProviderResponse>) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [provider, setProvider] = useLocalStorage<AuthProvider>("auth_provider")
+  const [provider, setProvider] = useLocalStorage<IProviderResponse>("auth_provider")
   const [token, setToken] = useLocalStorage<string>("auth_token")
 
-  const login = (newProvider: AuthProvider, newToken: string) => {
+  const login = (newProvider: IProviderResponse, newToken: string) => {
     setProvider(newProvider)
     setToken(newToken)
   }
@@ -39,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null)
   }
 
-  const updateProvider = (patch: Partial<AuthProvider>) => {
+  const updateProvider = (patch: Partial<IProviderResponse>) => {
     if (!provider) return
     setProvider({ ...provider, ...patch })
   }
