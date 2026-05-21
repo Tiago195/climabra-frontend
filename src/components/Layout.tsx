@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 const navItems = [
   { to: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "dashboard/clients", label: "Clientes", icon: Users },
-  { to: "/requests", label: "Solicitações", icon: ClipboardList },
+  { to: "dashboard/requests", label: "Solicitações", icon: ClipboardList },
   { to: "dashboard/availability", label: "Agenda", icon: CalendarDays },
 ];
 
@@ -52,7 +52,7 @@ export function Layout() {
           </nav>
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-600 hidden sm:block">
-              {provider?.companyName ?? provider?.name}
+              {provider?.companyName ?? provider?.name ?? provider?.email}
             </span>
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="w-4 h-4" />

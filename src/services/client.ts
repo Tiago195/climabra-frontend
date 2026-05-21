@@ -112,6 +112,18 @@ export interface IClientPortalResponse {
   reports: IPortalReport[]
 }
 
+export interface IAppointmentRequestPayload {
+  equipmentId?: string
+  equipmentType?: string
+  equipmentBrand?: string
+  equipmentModel?: string
+  equipmentLabel?: string
+  description: string
+  photoUrls: string[]
+  problemType?: string
+  scheduledAt: string
+}
+
 export const clientService = {
   async list(token: string): Promise<IClientResponse[]> {
     const { data } = await api.get("", authHeader(token))
@@ -135,5 +147,9 @@ export const clientService = {
   async getPortal(publicToken: string, clientId: string): Promise<IClientPortalResponse> {
     const { data } = await api.get(`/providers/${publicToken}/clients/${clientId}`)
     return data
+  },
+
+  async requestAppointment(publicToken: string, clientId: string, payload: IAppointmentRequestPayload): Promise<void> {
+    await api.post(`/providers/${publicToken}/clients/${clientId}/appointments`, payload)
   },
 }

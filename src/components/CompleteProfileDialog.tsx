@@ -26,7 +26,7 @@ function formatPhone(value: string) {
 
 export function ProfileGateProvider({ children }: { children: ReactNode }) {
   const { provider, token, updateProvider } = useAuth();
-  const [open, setOpen] = useState(() => provider?.status === 'PENDING');
+  const [open, setOpen] = useState(() => provider?.status === 'pending');
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: provider?.name ?? "",
@@ -37,7 +37,7 @@ export function ProfileGateProvider({ children }: { children: ReactNode }) {
 
   const requireProfile = useCallback((action: () => void) => {
     console.log(provider)
-    if (provider?.status !== 'PENDING') {
+    if (provider?.status !== 'pending') {
       action();
       return;
     }

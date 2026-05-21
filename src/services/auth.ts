@@ -29,7 +29,7 @@ export interface IProviderResponse {
   name: string
   phone: string
   companyName: string
-  status: 'PENDING' | 'BLOCKED' | 'ACTIVE' | 'CANCELED'
+  status: 'pending' | 'blocked' | 'active' | 'canceled'
   publicToken: string
   createdAt: string
   updatedAt: string

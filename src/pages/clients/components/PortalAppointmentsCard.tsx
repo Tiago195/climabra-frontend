@@ -1,6 +1,8 @@
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar, Plus } from "lucide-react";
 import type { IPortalAppointment, IPortalEquipment } from "@/services/client";
 
 const STATUS: Record<string, { label: string; color: string }> = {
@@ -17,9 +19,11 @@ function fmt(iso: string) {
 interface Props {
   appointments: IPortalAppointment[];
   equipments: IPortalEquipment[];
+  publicToken: string;
+  clientId: string;
 }
 
-export function PortalAppointmentsCard({ appointments, equipments }: Props) {
+export function PortalAppointmentsCard({ appointments, equipments, publicToken, clientId }: Props) {
   const equipmentById = new Map(equipments.map(e => [e.id, e]));
   const sorted = [...appointments].sort(
     (a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()
@@ -27,10 +31,15 @@ export function PortalAppointmentsCard({ appointments, equipments }: Props) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base flex items-center gap-2">
           <Calendar className="w-4 h-4" /> Visitas ({appointments.length})
         </CardTitle>
+        <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 gap-1">
+          <Link to={`/providers/${publicToken}/clients/${clientId}/request`}>
+            <Plus className="w-3.5 h-3.5" /> Nova visita
+          </Link>
+        </Button>
       </CardHeader>
       <CardContent className="space-y-3">
         {sorted.length === 0 ? (

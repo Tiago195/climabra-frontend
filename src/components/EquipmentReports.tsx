@@ -56,7 +56,7 @@ export default function EquipmentReports({ equipment }: { equipment: any }) {
       setOpen(false);
       setDiagnosis("");
       setItems([""]);
-      navigate(`/reports/${created.id}`);
+      navigate(`/dashboard/reports/${created.id}`);
     } catch (e: any) {
       toast.error(e.message ?? "Erro ao criar laudo");
     } finally {
@@ -86,7 +86,7 @@ export default function EquipmentReports({ equipment }: { equipment: any }) {
             return (
               <button
                 key={r.id}
-                onClick={() => navigate(`/reports/${r.id}`)}
+                onClick={() => navigate(`/dashboard/reports/${r.id}`)}
                 className="w-full text-left px-3 py-2 rounded border hover:bg-gray-50 flex items-center justify-between gap-2"
               >
                 <div className="flex-1 min-w-0">

@@ -56,7 +56,7 @@ export function ClientPortal() {
         appointments={appointments}
         reports={reports}
       />
-      <PortalAppointmentsCard appointments={appointments} equipments={equipments} />
+      <PortalAppointmentsCard appointments={appointments} equipments={equipments} publicToken={publicToken!} clientId={id!} />
       <PortalReportsCard reports={reports} equipments={equipments} />
       <PortalSubmissionsCard submissions={submissions} equipments={equipments} />
       <PortalContactFooter phone={provider.phone} email={provider.email} />
