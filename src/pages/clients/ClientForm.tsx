@@ -111,7 +111,7 @@ export default function ClientForm() {
     try {
       await clientService.requestAppointment(publicToken, id, {
         equipmentId: selectedEquipmentId !== "new" ? selectedEquipmentId : undefined,
-        equipmentType: selectedEquipmentId === "new" ? newEquipment.type : undefined,
+        equipmentType: selectedEquipmentId === "new" && newEquipment.type ? newEquipment.type : undefined,
         equipmentBrand: selectedEquipmentId === "new" && newEquipment.brand ? newEquipment.brand : undefined,
         equipmentModel: selectedEquipmentId === "new" && newEquipment.model ? newEquipment.model : undefined,
         equipmentLabel: selectedEquipmentId === "new" && newEquipment.label ? newEquipment.label : undefined,

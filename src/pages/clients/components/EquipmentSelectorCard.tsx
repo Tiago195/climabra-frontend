@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AirVent, Plus } from "lucide-react";
 import type { IPortalEquipment } from "@/services/client";
+import type { EquipmentType } from "@/services/enums";
 
 const EQUIPMENT_TYPES = [
   { value: "split", label: "Split" },
@@ -14,7 +15,7 @@ const EQUIPMENT_TYPES = [
 ];
 
 export interface NewEquipmentData {
-  type: string;
+  type: EquipmentType | "";
   brand: string;
   model: string;
   label: string;

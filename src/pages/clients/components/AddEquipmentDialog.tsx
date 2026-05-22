@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { clientService, type IPortalEquipment } from "@/services/client";
+import type { EquipmentType } from "@/services/enums";
 
 const EQUIPMENT_TYPES = [
   { value: "split", label: "Split" },
@@ -25,7 +26,7 @@ interface Props {
 }
 
 export function AddEquipmentDialog({ open, onClose, publicToken, clientId, onAdded }: Props) {
-  const [type, setType] = useState("");
+  const [type, setType] = useState<EquipmentType | "">("");
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
   const [label, setLabel] = useState("");
@@ -76,7 +77,7 @@ export function AddEquipmentDialog({ open, onClose, publicToken, clientId, onAdd
             <select
               className="w-full text-sm border rounded-md px-3 py-2 bg-white"
               value={type}
-              onChange={e => setType(e.target.value)}
+              onChange={e => setType(e.target.value as EquipmentType | "")}
             >
               <option value="">Selecionar...</option>
               {EQUIPMENT_TYPES.map(t => (

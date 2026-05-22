@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { User, AirVent, MapPin, Upload, X } from "lucide-react";
 import AddressFieldsForm, { emptyAddress, type AddressData } from "@/components/AddressFieldsForm";
 import { toast } from "sonner";
+import type { EquipmentType } from "@/services/enums";
 
 const EQUIPMENT_TYPES = [
   { value: "split", label: "Split" },
@@ -31,7 +32,7 @@ export interface SignUpFormData {
   phone: string;
   email: string;
   address: AddressData;
-  equipmentType: string;
+  equipmentType: EquipmentType | "";
   equipmentBrand: string;
   equipmentModel: string;
   equipmentLabel: string;
@@ -49,7 +50,7 @@ export function SignUpDataForm({ onSubmit }: Props) {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState<AddressData>(emptyAddress);
-  const [equipmentType, setEquipmentType] = useState("");
+  const [equipmentType, setEquipmentType] = useState<EquipmentType | "">("");
   const [equipmentBrand, setEquipmentBrand] = useState("");
   const [equipmentModel, setEquipmentModel] = useState("");
   const [equipmentLabel, setEquipmentLabel] = useState("");
@@ -130,7 +131,7 @@ export function SignUpDataForm({ onSubmit }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Tipo *</Label>
-              <select className="w-full text-sm border rounded-md px-3 py-2 bg-white" value={equipmentType} onChange={e => setEquipmentType(e.target.value)} required>
+              <select className="w-full text-sm border rounded-md px-3 py-2 bg-white" value={equipmentType} onChange={e => setEquipmentType(e.target.value as EquipmentType | "")} required>
                 <option value="">Selecionar...</option>
                 {EQUIPMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>

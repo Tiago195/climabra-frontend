@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { clientService } from "@/services/client";
+import type { EquipmentType } from "@/services/enums";
 import { availabilityService, type ISignUpProviderResponse } from "@/services/availability";
 import { SignUpHeader } from "./components/SignUpHeader";
 import { SignUpStepIndicator } from "./components/SignUpStepIndicator";
@@ -78,7 +79,7 @@ export function ClientSignUp() {
         state: formData.address.state,
         description: formData.description,
         photoUrls: formData.photoUrls,
-        equipmentType: formData.equipmentType,
+        equipmentType: formData.equipmentType as EquipmentType,
         equipmentBrand: formData.equipmentBrand || undefined,
         equipmentModel: formData.equipmentModel || undefined,
         equipmentLabel: formData.equipmentLabel || undefined,
