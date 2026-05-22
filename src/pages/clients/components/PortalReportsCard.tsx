@@ -42,6 +42,7 @@ export function PortalReportsCard({ reports, equipments }: Props) {
           sorted.map(r => {
             const eq = equipmentById.get(r.equipmentId);
             const st = STATUS[r.status] ?? { label: r.status, color: "bg-gray-100 text-gray-600" };
+
             return (
               <div key={r.id} className="border rounded-lg p-3 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -53,7 +54,7 @@ export function PortalReportsCard({ reports, equipments }: Props) {
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge className={`text-xs ${st.color}`}>{st.label}</Badge>
                   {VISIBLE.has(r.status) && (
-                    <Link to={`/r/laudo/${r.publicToken}`} className="text-blue-600 hover:text-blue-700">
+                    <Link to={`equipment/${r.equipmentId}/laudo/${r.publicToken}`} className="text-blue-600 hover:text-blue-700">
                       <ExternalLink className="w-4 h-4" />
                     </Link>
                   )}

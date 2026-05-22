@@ -5,7 +5,6 @@ import { clientService, type IClientPortalResponse } from "@/services/client";
 import { PortalHeroCard } from "./components/PortalHeroCard";
 import { PortalEquipmentsCard } from "./components/PortalEquipmentsCard";
 import { PortalAppointmentsCard } from "./components/PortalAppointmentsCard";
-import { PortalReportsCard } from "./components/PortalReportsCard";
 import { PortalSubmissionsCard } from "./components/PortalSubmissionsCard";
 import { PortalContactFooter } from "./components/PortalContactFooter";
 
@@ -43,6 +42,7 @@ export function ClientPortal() {
   );
 
   const { client, provider, equipments, appointments, submissions, reports } = data;
+  const pendingReportsCount = reports.filter(r => r.status === "sent").length;
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-6">
@@ -50,15 +50,18 @@ export function ClientPortal() {
         clientName={client.name}
         providerName={provider.companyName || provider.name}
         providerPhone={provider.phone}
+        pendingReportsCount={pendingReportsCount}
       />
       <PortalEquipmentsCard
         equipments={equipments}
         appointments={appointments}
         reports={reports}
+        publicToken={publicToken!}
+        clientId={id!}
+        onEquipmentAdded={eq => setData(prev => prev ? { ...prev, equipments: [...prev.equipments, eq] } : prev)}
       />
       <PortalAppointmentsCard appointments={appointments} equipments={equipments} publicToken={publicToken!} clientId={id!} />
-      <PortalReportsCard reports={reports} equipments={equipments} />
-      <PortalSubmissionsCard submissions={submissions} equipments={equipments} />
+      <PortalSubmissionsCard submissions={submissions} equipments={equipments} appointments={appointments} />
       <PortalContactFooter phone={provider.phone} email={provider.email} />
     </div>
   );

@@ -198,6 +198,7 @@ export function Requests() {
     try {
       const report = await reportService.create(token, {
         equipmentId: appt.equipmentId,
+        appointmentId: appt.id,
         items: [{ description: "Inspeção geral" }],
       });
       navigate(`/dashboard/reports/${report.id}`);
@@ -340,16 +341,23 @@ export function Requests() {
 
                     {isScheduled && (
                       <div className="flex flex-col gap-2 shrink-0">
-                        <Button size="sm" variant="outline" className="text-xs"
-                          onClick={() => handleCreateReport(appt)}
-                          disabled={creatingReportFor === appt.id || !appt.equipmentId}
-                          title={!appt.equipmentId ? "Vincule um ar-condicionado para criar laudo" : "Criar laudo desta visita"}
-                        >
-                          {creatingReportFor === appt.id
-                            ? <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                            : <FileText className="w-3 h-3 mr-1" />}
-                          Criar laudo
-                        </Button>
+                        {report ? (
+                          <Button size="sm" variant="outline" className="text-xs"
+                            onClick={() => navigate(`/dashboard/reports/${report.id}`)}>
+                            <FileText className="w-3 h-3 mr-1" /> Ver laudo
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" className="text-xs"
+                            onClick={() => handleCreateReport(appt)}
+                            disabled={creatingReportFor === appt.id || !appt.equipmentId}
+                            title={!appt.equipmentId ? "Vincule um ar-condicionado para criar laudo" : "Criar laudo desta visita"}
+                          >
+                            {creatingReportFor === appt.id
+                              ? <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                              : <FileText className="w-3 h-3 mr-1" />}
+                            Criar laudo
+                          </Button>
+                        )}
                         <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs"
                           onClick={() => handleComplete(appt, report)}
                           // disabled={!canComplete}
@@ -469,7 +477,7 @@ export function Requests() {
                       Você ainda não configurou sua agenda. Acesse sua {" "}
                       <button
                         type="button"
-                        onClick={() => { closeDialog(); navigate("/availability"); }}
+                        onClick={() => { closeDialog(); navigate("/dashboard/availability"); }}
                         className="underline font-medium"
                       >
                         Agenda

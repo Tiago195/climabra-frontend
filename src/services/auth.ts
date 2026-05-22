@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { DEFAULT_URL } from '.'
+import type { ProviderStatus } from './enums'
 
 const auth = axios.create({
   baseURL: `${DEFAULT_URL}/providers`
@@ -29,7 +30,7 @@ export interface IProviderResponse {
   name: string
   phone: string
   companyName: string
-  status: 'pending' | 'blocked' | 'active' | 'canceled'
+  status: ProviderStatus
   publicToken: string
   createdAt: string
   updatedAt: string

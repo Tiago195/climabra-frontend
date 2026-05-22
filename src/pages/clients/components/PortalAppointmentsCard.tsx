@@ -25,7 +25,7 @@ interface Props {
 
 export function PortalAppointmentsCard({ appointments, equipments, publicToken, clientId }: Props) {
   const equipmentById = new Map(equipments.map(e => [e.id, e]));
-  const sorted = [...appointments].sort(
+  const sorted = [...appointments].filter(appointment => appointment.status === 'scheduled').sort(
     (a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()
   );
 
@@ -33,7 +33,7 @@ export function PortalAppointmentsCard({ appointments, equipments, publicToken, 
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base flex items-center gap-2">
-          <Calendar className="w-4 h-4" /> Visitas ({appointments.length})
+          <Calendar className="w-4 h-4" /> Visitas ({sorted.length})
         </CardTitle>
         <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 gap-1">
           <Link to={`/providers/${publicToken}/clients/${clientId}/request`}>

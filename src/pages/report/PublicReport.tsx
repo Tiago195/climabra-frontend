@@ -22,6 +22,13 @@ export function PublicReport() {
   const [loading, setLoading] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (data?.report.status === "sent") {
+      setSelectedIds(new Set(data.items.map(i => i.id)));
+    }
+  }, [data]);
 
   const fetchReport = useCallback(async () => {
     if (!providerToken || !clientId || !equipmentId || !reportToken) return;
@@ -54,7 +61,7 @@ export function PublicReport() {
     if (!providerToken || !clientId || !equipmentId || !reportToken) return;
     setApproving(true);
     try {
-      setData(await reportService.approve(providerToken, clientId, equipmentId, reportToken));
+      setData(await reportService.approve(providerToken, clientId, equipmentId, reportToken, Array.from(selectedIds)));
       toast.success("Serviço autorizado!");
       setConfirmOpen(false);
     } catch {
@@ -130,44 +137,117 @@ export function PublicReport() {
         )}
 
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">
-              {isCompleted ? "Serviços executados" : "Serviços a executar"}
-            </CardTitle>
+          <CardHeader className="pb-1">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">
+                {isCompleted ? "Serviços executados" : "Serviços a executar"}
+              </CardTitle>
+              {isSent && (
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-400">
+                    {selectedIds.size}/{items.length} selecionado{selectedIds.size !== 1 ? "s" : ""}
+                  </span>
+                  <button
+                    type="button"
+                    className="text-xs text-blue-600 underline underline-offset-2"
+                    onClick={() =>
+                      setSelectedIds(
+                        selectedIds.size === items.length
+                          ? new Set()
+                          : new Set(items.map(i => i.id))
+                      )
+                    }
+                  >
+                    {selectedIds.size === items.length ? "Desmarcar todos" : "Marcar todos"}
+                  </button>
+                </div>
+              )}
+            </div>
+            {isSent && (
+              <p className="text-xs text-gray-500 mt-1">
+                Desmarque os serviços que não deseja autorizar.
+              </p>
+            )}
           </CardHeader>
-          <CardContent className="space-y-3">
-            {items.map((item, idx) => (
-              <div key={idx} className="border rounded-lg p-3">
-                <div className="flex items-start gap-2 mb-2">
-                  <span className="text-sm font-semibold text-gray-500">{idx + 1}.</span>
-                  <p className="text-sm flex-1">{item.description}</p>
-                  {item.photoBefore && item.photoAfter && (
-                    <Badge className="bg-green-100 text-green-800 shrink-0">
-                      <CheckCircle2 className="w-3 h-3 mr-1" /> Concluído
-                    </Badge>
+          <CardContent className="space-y-2 pt-3">
+            {items.map((item, idx) => {
+              const isSelected = selectedIds.has(item.id);
+              const isDeselected = isSent && !isSelected;
+              return (
+                <label
+                  key={idx}
+                  className={`flex items-start gap-3 rounded-xl border p-4 transition-all cursor-default ${
+                    item.rejected
+                      ? "border-gray-200 bg-gray-50"
+                      : isDeselected
+                        ? "border-dashed border-gray-200 bg-gray-50"
+                        : isSent
+                          ? "border-blue-200 bg-blue-50 cursor-pointer"
+                          : "border-gray-100 bg-white"
+                  }`}
+                >
+                  {isSent && (
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={e => {
+                        setSelectedIds(prev => {
+                          const next = new Set(prev);
+                          e.target.checked ? next.add(item.id) : next.delete(item.id);
+                          return next;
+                        });
+                      }}
+                      className="mt-0.5 w-4 h-4 accent-blue-600 shrink-0"
+                    />
+                  )}
+
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2">
+                        <span className={`text-xs font-bold mt-0.5 shrink-0 ${isDeselected || item.rejected ? "text-gray-300" : "text-blue-400"}`}>
+                          {String(idx + 1).padStart(2, "0")}
+                        </span>
+                        <p className={`text-sm font-medium leading-snug ${
+                          item.rejected ? "line-through text-gray-400" : isDeselected ? "text-gray-400" : "text-gray-800"
+                        }`}>
+                          {item.description}
+                        </p>
+                      </div>
+                      {item.rejected && (
+                        <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full shrink-0 font-medium">
+                          Não autorizado
+                        </span>
+                      )}
+                      {!item.rejected && item.photoBefore && item.photoAfter && (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full shrink-0 font-medium flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Concluído
+                        </span>
+                      )}
+                    </div>
+
+                  {!item.rejected && (item.photoBefore || item.photoAfter) && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {item.photoBefore && (
+                        <figure>
+                          <img src={item.photoBefore} alt="Antes" className="w-full aspect-video object-cover rounded-lg" />
+                          <figcaption className="text-xs text-center text-gray-400 mt-1">Antes</figcaption>
+                        </figure>
+                      )}
+                      {item.photoAfter && (
+                        <figure>
+                          <img src={item.photoAfter} alt="Depois" className="w-full aspect-video object-cover rounded-lg" />
+                          <figcaption className="text-xs text-center text-gray-400 mt-1">Depois</figcaption>
+                        </figure>
+                      )}
+                    </div>
+                  )}
+                  {item.notes && !item.rejected && (
+                    <p className="text-xs text-gray-500 italic border-l-2 border-gray-200 pl-2">{item.notes}</p>
                   )}
                 </div>
-                {(item.photoBefore || item.photoAfter) && (
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    {item.photoBefore && (
-                      <figure>
-                        <img src={item.photoBefore} alt="Antes" className="w-full aspect-video object-cover rounded" />
-                        <figcaption className="text-xs text-center text-gray-500 mt-1">Antes</figcaption>
-                      </figure>
-                    )}
-                    {item.photoAfter && (
-                      <figure>
-                        <img src={item.photoAfter} alt="Depois" className="w-full aspect-video object-cover rounded" />
-                        <figcaption className="text-xs text-center text-gray-500 mt-1">Depois</figcaption>
-                      </figure>
-                    )}
-                  </div>
-                )}
-                {item.notes && (
-                  <p className="text-xs text-gray-600 mt-2 italic">{item.notes}</p>
-                )}
-              </div>
-            ))}
+                </label>
+              );
+            })}
           </CardContent>
         </Card>
 
@@ -182,8 +262,9 @@ export function PublicReport() {
               </div>
               {!confirmOpen ? (
                 <Button className="w-full bg-blue-600 hover:bg-blue-700" size="lg"
-                  onClick={() => setConfirmOpen(true)}>
-                  Autorizar serviço
+                  onClick={() => setConfirmOpen(true)}
+                  disabled={selectedIds.size === 0}>
+                  {selectedIds.size === 0 ? "Selecione ao menos um serviço" : "Autorizar serviço"}
                 </Button>
               ) : (
                 <div className="space-y-2">

@@ -5,10 +5,10 @@ import { LayoutDashboard, Users, CalendarDays, ClipboardList, LogOut, Wind } fro
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { to: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "dashboard/clients", label: "Clientes", icon: Users },
-  { to: "dashboard/requests", label: "Solicitações", icon: ClipboardList },
-  { to: "dashboard/availability", label: "Agenda", icon: CalendarDays },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/dashboard/clients", label: "Clientes", icon: Users },
+  { to: "/dashboard/requests", label: "Solicitações", icon: ClipboardList },
+  { to: "/dashboard/availability", label: "Agenda", icon: CalendarDays },
 ];
 
 export function Layout() {

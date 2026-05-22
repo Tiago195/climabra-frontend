@@ -3,23 +3,15 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Wind, Loader2, Upload, X, AlertCircle, Plus, AirVent } from "lucide-react";
+import { Wind, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { clientService, type IPortalEquipment } from "@/services/client";
+import { clientService } from "@/services/client";
 import { availabilityService } from "@/services/availability";
+import { SignUpStepIndicator } from "./components/SignUpStepIndicator";
 import { SignUpCalendarCard } from "./components/SignUpCalendarCard";
 import { SignUpTimeSlotsCard } from "./components/SignUpTimeSlotsCard";
-
-const EQUIPMENT_TYPES = [
-  { value: "split", label: "Split" },
-  { value: "janela", label: "Janela" },
-  { value: "central", label: "Central" },
-  { value: "cassete", label: "Cassete" },
-  { value: "piso_teto", label: "Piso-teto" },
-  { value: "portatil", label: "Portátil" },
-];
+import { EquipmentSelectorCard, type NewEquipmentData } from "./components/EquipmentSelectorCard";
+import { PhotoUploadGrid } from "./components/PhotoUploadGrid";
 
 const PROBLEM_TYPES = [
   { value: "nao_gela", label: "Não está gelando" },
@@ -39,15 +31,13 @@ export default function ClientForm() {
   const [error, setError] = useState<string | null>(null);
   const [providerName, setProviderName] = useState("");
   const [clientName, setClientName] = useState("");
-  const [equipments, setEquipments] = useState<IPortalEquipment[]>([]);
+  const [equipments, setEquipments] = useState<Parameters<typeof EquipmentSelectorCard>[0]["equipments"]>([]);
   const [activeDays, setActiveDays] = useState<number[]>([]);
 
   const [step, setStep] = useState<1 | 2>(1);
-  const [selectedEquipmentId, setSelectedEquipmentId] = useState<string>("new");
-  const [equipmentType, setEquipmentType] = useState("");
-  const [equipmentBrand, setEquipmentBrand] = useState("");
-  const [equipmentModel, setEquipmentModel] = useState("");
-  const [equipmentLabel, setEquipmentLabel] = useState("");
+  const [scheduledEquipmentIds, setScheduledEquipmentIds] = useState<string[]>([]);
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState("new");
+  const [newEquipment, setNewEquipment] = useState<NewEquipmentData>({ type: "", brand: "", model: "", label: "" });
   const [problemType, setProblemType] = useState("");
   const [description, setDescription] = useState("");
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
@@ -72,9 +62,12 @@ export default function ClientForm() {
         setClientName(portal.client.name);
         setEquipments(portal.equipments);
         setActiveDays(providerData.activeDaysOfWeek);
-        if (portal.equipments.length > 0) {
-          setSelectedEquipmentId(portal.equipments[0].id);
-        }
+        const blocked = portal.appointments
+          .filter(a => a.status === "scheduled" && a.equipmentId)
+          .map(a => a.equipmentId!);
+        setScheduledEquipmentIds(blocked);
+        const firstAvailable = portal.equipments.find(e => !blocked.includes(e.id));
+        setSelectedEquipmentId(firstAvailable?.id ?? "new");
       })
       .catch(() => setError("Link inválido ou expirado."))
       .finally(() => setLoadingData(false));
@@ -96,12 +89,7 @@ export default function ClientForm() {
     }
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (photoUrls.length + files.length > 5) {
-      toast.error("Máximo de 5 fotos");
-      return;
-    }
+  const handlePhotosSelected = (files: File[]) => {
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = ev => setPhotoUrls(prev => [...prev, ev.target?.result as string]);
@@ -111,14 +99,8 @@ export default function ClientForm() {
 
   const handleStep1Next = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!description.trim()) {
-      toast.error("Descreva o problema");
-      return;
-    }
-    if (selectedEquipmentId === "new" && !equipmentType) {
-      toast.error("Selecione o tipo do ar-condicionado");
-      return;
-    }
+    if (!description.trim()) { toast.error("Descreva o problema"); return; }
+    if (selectedEquipmentId === "new" && !newEquipment.type) { toast.error("Selecione o tipo do ar-condicionado"); return; }
     setStep(2);
     window.scrollTo(0, 0);
   };
@@ -129,10 +111,10 @@ export default function ClientForm() {
     try {
       await clientService.requestAppointment(publicToken, id, {
         equipmentId: selectedEquipmentId !== "new" ? selectedEquipmentId : undefined,
-        equipmentType: selectedEquipmentId === "new" ? equipmentType : undefined,
-        equipmentBrand: selectedEquipmentId === "new" && equipmentBrand ? equipmentBrand : undefined,
-        equipmentModel: selectedEquipmentId === "new" && equipmentModel ? equipmentModel : undefined,
-        equipmentLabel: selectedEquipmentId === "new" && equipmentLabel ? equipmentLabel : undefined,
+        equipmentType: selectedEquipmentId === "new" ? newEquipment.type : undefined,
+        equipmentBrand: selectedEquipmentId === "new" && newEquipment.brand ? newEquipment.brand : undefined,
+        equipmentModel: selectedEquipmentId === "new" && newEquipment.model ? newEquipment.model : undefined,
+        equipmentLabel: selectedEquipmentId === "new" && newEquipment.label ? newEquipment.label : undefined,
         description,
         photoUrls,
         problemType: problemType || undefined,
@@ -172,141 +154,30 @@ export default function ClientForm() {
     );
   }
 
-  const isNewEquipment = selectedEquipmentId === "new";
-
   return (
     <div className="min-h-dvh bg-linear-to-br from-blue-50 to-slate-100 px-4 py-8">
       <div className="max-w-lg mx-auto space-y-6">
+
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 text-white shadow-lg">
             <Wind className="w-7 h-7" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">{providerName}</h1>
-          <p className="text-gray-500 text-sm">
-            Olá, {clientName}! Solicite um novo agendamento abaixo.
-          </p>
+          <p className="text-gray-500 text-sm">Olá, {clientName}! Solicite um novo agendamento abaixo.</p>
         </div>
 
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${step === 1 ? "bg-blue-600 text-white" : "bg-green-500 text-white"}`}>1</div>
-            <span className={step === 1 ? "font-medium text-blue-600" : "text-green-600"}>Problema</span>
-          </div>
-          <div className="flex-1 h-0.5 bg-gray-200 mx-3" />
-          <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${step === 2 ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-400"}`}>2</div>
-            <span className={step === 2 ? "font-medium text-blue-600" : "text-gray-400"}>Agendamento</span>
-          </div>
-        </div>
+        <SignUpStepIndicator step={step} step1Label="Problema" />
 
         {step === 1 && (
           <form onSubmit={handleStep1Next} className="space-y-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <AirVent className="w-4 h-4 text-blue-600" /> Ar-condicionado
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {equipments.length > 0 && (
-                  <div className="space-y-2">
-                    {equipments.map(eq => (
-                      <label
-                        key={eq.id}
-                        className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                          selectedEquipmentId === eq.id
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-gray-200 hover:border-blue-300"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="equipment"
-                          checked={selectedEquipmentId === eq.id}
-                          onChange={() => setSelectedEquipmentId(eq.id)}
-                          className="mt-1"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm text-gray-900">
-                            {eq.label || (EQUIPMENT_TYPES.find(t => t.value === eq.type)?.label ?? eq.type ?? "Ar-condicionado")}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {[EQUIPMENT_TYPES.find(t => t.value === eq.type)?.label, eq.brand, eq.model]
-                              .filter(Boolean).join(" • ") || "Sem detalhes"}
-                          </p>
-                        </div>
-                      </label>
-                    ))}
-                    <label
-                      className={`flex items-center gap-3 p-3 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
-                        isNewEquipment ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-blue-400"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="equipment"
-                        checked={isNewEquipment}
-                        onChange={() => setSelectedEquipmentId("new")}
-                      />
-                      <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                        <Plus className="w-4 h-4" /> Adicionar outro ar-condicionado
-                      </div>
-                    </label>
-                  </div>
-                )}
-
-                {isNewEquipment && (
-                  <div className="space-y-3 pt-2">
-                    {equipments.length === 0 && (
-                      <p className="text-xs text-gray-500">
-                        Cadastre seu ar-condicionado. Nas próximas vezes você poderá só selecioná-lo.
-                      </p>
-                    )}
-                    <div className="space-y-1">
-                      <Label className="text-xs">Apelido (opcional)</Label>
-                      <Input
-                        placeholder="Ex: Ar da sala, Quarto principal..."
-                        value={equipmentLabel}
-                        onChange={e => setEquipmentLabel(e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Tipo *</Label>
-                        <select
-                          className="w-full text-sm border rounded-md px-3 py-2 bg-white"
-                          value={equipmentType}
-                          onChange={e => setEquipmentType(e.target.value)}
-                          required={isNewEquipment}
-                        >
-                          <option value="">Selecionar...</option>
-                          {EQUIPMENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Marca</Label>
-                        <Input
-                          placeholder="Ex: LG, Samsung..."
-                          value={equipmentBrand}
-                          onChange={e => setEquipmentBrand(e.target.value)}
-                          className="text-sm"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Modelo</Label>
-                      <Input
-                        placeholder="Ex: 9000 BTUs, Inverter..."
-                        value={equipmentModel}
-                        onChange={e => setEquipmentModel(e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <EquipmentSelectorCard
+              equipments={equipments}
+              selectedId={selectedEquipmentId}
+              onSelect={setSelectedEquipmentId}
+              newData={newEquipment}
+              onNewDataChange={(field, value) => setNewEquipment(prev => ({ ...prev, [field]: value }))}
+              scheduledEquipmentIds={scheduledEquipmentIds}
+            />
 
             <Card>
               <CardHeader className="pb-2">
@@ -328,29 +199,12 @@ export default function ClientForm() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Fotos do equipamento</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-3 gap-2">
-                  {photoUrls.map((url, idx) => (
-                    <div key={idx} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
-                      <img src={url} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => setPhotoUrls(prev => prev.filter((_, i) => i !== idx))}
-                        className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                  {photoUrls.length < 5 && (
-                    <label className="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
-                      <Upload className="w-5 h-5 text-gray-400 mb-1" />
-                      <span className="text-xs text-gray-400">Adicionar</span>
-                      <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden" />
-                    </label>
-                  )}
-                </div>
-                <p className="text-xs text-gray-400">Até 5 fotos do equipamento e do local</p>
+              <CardContent>
+                <PhotoUploadGrid
+                  photos={photoUrls}
+                  onFilesSelected={handlePhotosSelected}
+                  onRemove={idx => setPhotoUrls(prev => prev.filter((_, i) => i !== idx))}
+                />
               </CardContent>
             </Card>
 
@@ -406,12 +260,13 @@ export default function ClientForm() {
                 disabled={!selectedSlot || submitting}
                 onClick={handleConfirm}
               >
-                {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Confirmar agendamento
               </Button>
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

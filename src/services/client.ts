@@ -1,5 +1,6 @@
 import axios from "axios"
 import { DEFAULT_URL } from "."
+import type { AppointmentStatus, EquipmentType, ReportStatus } from "./enums"
 
 const api = axios.create({ baseURL: `${DEFAULT_URL}/clients` })
 
@@ -37,7 +38,7 @@ export interface IClientCreateRequest {
 export interface IEquipmentResponse {
   id: string
   clientId: string
-  type: string
+  type: EquipmentType
   brand: string
   model: string
   label: string
@@ -62,7 +63,7 @@ export interface ISignUpSubmitRequest {
   state: string
   description: string
   photoUrls: string[]
-  equipmentType: string
+  equipmentType: EquipmentType
   equipmentBrand?: string
   equipmentModel?: string
   equipmentLabel?: string
@@ -72,7 +73,7 @@ export interface ISignUpSubmitRequest {
 
 export interface IPortalEquipment {
   id: string
-  type: string
+  type: EquipmentType
   brand: string
   model: string
   label: string
@@ -81,9 +82,10 @@ export interface IPortalEquipment {
 export interface IPortalAppointment {
   id: string
   scheduledAt: string
-  status: string
+  status: AppointmentStatus
   equipmentId: string | null
   notes: string | null
+  submissionId: string | null
 }
 
 export interface IPortalSubmission {
@@ -97,7 +99,7 @@ export interface IPortalSubmission {
 export interface IPortalReport {
   id: string
   title: string | null
-  status: string
+  status: ReportStatus
   publicToken: string
   equipmentId: string
   createdAt: string
@@ -114,7 +116,7 @@ export interface IClientPortalResponse {
 
 export interface IAppointmentRequestPayload {
   equipmentId?: string
-  equipmentType?: string
+  equipmentType?: EquipmentType
   equipmentBrand?: string
   equipmentModel?: string
   equipmentLabel?: string
@@ -122,6 +124,13 @@ export interface IAppointmentRequestPayload {
   photoUrls: string[]
   problemType?: string
   scheduledAt: string
+}
+
+export interface IAddEquipmentPayload {
+  type: EquipmentType
+  brand?: string
+  model?: string
+  label?: string
 }
 
 export const clientService = {
@@ -146,6 +155,11 @@ export const clientService = {
 
   async getPortal(publicToken: string, clientId: string): Promise<IClientPortalResponse> {
     const { data } = await api.get(`/providers/${publicToken}/clients/${clientId}`)
+    return data
+  },
+
+  async addEquipment(publicToken: string, clientId: string, payload: IAddEquipmentPayload): Promise<IPortalEquipment> {
+    const { data } = await api.post(`/providers/${publicToken}/clients/${clientId}/equipment`, payload)
     return data
   },
 

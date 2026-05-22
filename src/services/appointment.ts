@@ -1,5 +1,6 @@
 import axios from "axios"
 import { DEFAULT_URL } from "."
+import type { AppointmentStatus, EquipmentType, ReportStatus } from "./enums"
 
 const api = axios.create({ baseURL: `${DEFAULT_URL}/appointments` })
 
@@ -8,7 +9,7 @@ const authHeader = (token: string) => ({ headers: { Authorization: `Bearer ${tok
 export interface IAppointmentInfo {
   id: string
   scheduledAt: string
-  status: string
+  status: AppointmentStatus
   equipmentId: string | null
   submissionId: string | null
   notes: string | null
@@ -23,7 +24,7 @@ export interface IAppointmentClientInfo {
 
 export interface IAppointmentEquipmentInfo {
   id: string
-  type: string
+  type: EquipmentType
   brand: string
   model: string
   label: string
@@ -38,7 +39,7 @@ export interface IAppointmentSubmissionInfo {
 
 export interface IAppointmentReportInfo {
   id: string
-  status: "draft" | "sent" | "approved" | "completed"
+  status: ReportStatus
 }
 
 export interface IAppointmentDetailResponse {

@@ -35,6 +35,7 @@ export function ReportEditor() {
   const [sending, setSending] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [confirmSend, setConfirmSend] = useState(false);
 
   useEffect(() => {
     if (!token || !id) return;
@@ -123,7 +124,8 @@ export function ReportEditor() {
   const isDraft = report.status === "draft";
   const canExecute = report.status === "approved";
   const isCompleted = report.status === "completed";
-  const itemsCompleted = items.filter(i => i.photoBefore && i.photoAfter).length;
+  const activeItems = items.filter(i => !i.rejected);
+  const itemsCompleted = activeItems.filter(i => i.photoBefore && i.photoAfter).length;
   const publicLink = `${window.location.origin}/providers/${provider?.publicToken}/clients/${client.id}/equipment/${equipment.id}/laudo/${report.publicToken}`;
 
   const equipLabel = equipment.label
@@ -170,7 +172,7 @@ export function ReportEditor() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            Itens do serviço {!isDraft && `(${itemsCompleted}/${items.length} concluídos)`}
+            Itens do serviço {!isDraft && `(${itemsCompleted}/${activeItems.length} concluídos)`}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -209,11 +211,28 @@ export function ReportEditor() {
       </Card>
 
       {isDraft && items.length > 0 && (
-        <Button className="w-full bg-blue-600 hover:bg-blue-700" size="lg"
-          onClick={handleSend} disabled={sending}>
-          {sending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-          Enviar pré-laudo para o cliente aprovar
-        </Button>
+        !confirmSend ? (
+          <Button className="w-full bg-blue-600 hover:bg-blue-700" size="lg"
+            onClick={() => setConfirmSend(true)}>
+            <Send className="w-4 h-4 mr-2" />
+            Enviar pré-laudo para o cliente aprovar
+          </Button>
+        ) : (
+          <div className="border border-blue-200 bg-blue-50 rounded-lg p-4 space-y-3">
+            <p className="text-sm text-blue-900 font-medium">
+              Após o envio, não será mais possível editar os itens do laudo. Confirma?
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setConfirmSend(false)} disabled={sending}>
+                Cancelar
+              </Button>
+              <Button className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={handleSend} disabled={sending}>
+                {sending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                Confirmar envio
+              </Button>
+            </div>
+          </div>
+        )
       )}
 
       {report.status === "sent" && (
@@ -227,10 +246,10 @@ export function ReportEditor() {
       {canExecute && (
         <Button className="w-full bg-green-600 hover:bg-green-700" size="lg"
           onClick={handleComplete}
-          disabled={completing || itemsCompleted < items.length}>
+          disabled={completing || itemsCompleted < activeItems.length}>
           {completing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-          {itemsCompleted < items.length
-            ? `Faltam ${items.length - itemsCompleted} item(ns) com fotos`
+          {itemsCompleted < activeItems.length
+            ? `Faltam ${activeItems.length - itemsCompleted} item(ns) com fotos`
             : "Finalizar laudo"}
         </Button>
       )}
@@ -298,8 +317,13 @@ function ItemCard({ item, index, isDraft, canExecute, isCompleted, token, report
     <div className={`border rounded-lg p-3 space-y-2 ${done ? "bg-green-50 border-green-200" : ""}`}>
       <div className="flex items-start gap-2">
         <span className="text-sm font-semibold text-gray-500 mt-0.5">{index}.</span>
-        <p className="text-sm flex-1">{item.description}</p>
-        {done && <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />}
+        <p className={`text-sm flex-1 ${item.rejected ? "line-through text-gray-400" : ""}`}>
+          {item.description}
+        </p>
+        {item.rejected && (
+          <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full shrink-0">Não autorizado</span>
+        )}
+        {!item.rejected && done && <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />}
         {isDraft && (
           <Button variant="ghost" size="sm" onClick={onDelete}>
             <Trash2 className="w-4 h-4 text-red-500" />
@@ -307,7 +331,7 @@ function ItemCard({ item, index, isDraft, canExecute, isCompleted, token, report
         )}
       </div>
 
-      {!isDraft && (
+      {!isDraft && !item.rejected && (
         <>
           <div className="grid grid-cols-2 gap-2 pt-1">
             <PhotoSlot

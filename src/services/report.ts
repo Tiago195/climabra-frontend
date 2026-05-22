@@ -1,5 +1,6 @@
 import axios from "axios"
 import { DEFAULT_URL } from "."
+import type { EquipmentType, ReportStatus } from "./enums"
 
 const api = axios.create({ baseURL: `${DEFAULT_URL}/reports` })
 
@@ -11,7 +12,7 @@ export interface IReportResponse {
   providerId: string
   clientId: string
   publicToken: string
-  status: "draft" | "sent" | "approved" | "completed"
+  status: ReportStatus
   title?: string
   diagnosis?: string
   finalNotes?: string
@@ -28,32 +29,36 @@ export interface IReportItemResponse {
   photoAfter: string | null
   notes: string | null
   orderIndex: number
+  rejected: boolean
 }
 
 export interface IReportDetailResponse {
   report: IReportResponse
   items: IReportItemResponse[]
-  equipment: { id: string; type: string; brand: string; model: string; label: string }
+  equipment: { id: string; type: EquipmentType; brand: string; model: string; label: string }
   client: { id: string; name: string; phone: string; email: string }
 }
 
 export interface IReportCreateRequest {
   equipmentId: string
+  appointmentId?: string
   diagnosis?: string
   items: { description: string }[]
 }
 
 export interface IPublicReportItemResponse {
+  id: string
   description: string
   photoBefore: string | null
   photoAfter: string | null
   notes: string | null
+  rejected: boolean
 }
 
 export interface IPublicReportResponse {
-  report: { status: string; diagnosis: string | null; finalNotes: string | null; completedAt: string | null }
+  report: { status: ReportStatus; diagnosis: string | null; finalNotes: string | null; completedAt: string | null }
   items: IPublicReportItemResponse[]
-  equipment: { type: string; label: string; brand: string; model: string } | null
+  equipment: { type: EquipmentType; label: string; brand: string; model: string } | null
   client: { name: string }
   provider: { name: string; companyName: string | null; phone: string | null }
 }
@@ -109,8 +114,8 @@ export const reportService = {
     return data
   },
 
-  async approve(providerToken: string, clientId: string, equipmentId: string, reportToken: string): Promise<IPublicReportResponse> {
-    const { data } = await api.put(`/public/${providerToken}/${clientId}/${equipmentId}/${reportToken}/approve`, {})
+  async approve(providerToken: string, clientId: string, equipmentId: string, reportToken: string, approvedItemIds: string[]): Promise<IPublicReportResponse> {
+    const { data } = await api.put(`/public/${providerToken}/${clientId}/${equipmentId}/${reportToken}/approve`, { approvedItemIds })
     return data
   },
 }
