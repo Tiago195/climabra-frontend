@@ -7,6 +7,7 @@ import { Wind, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { clientService } from "@/services/client";
 import { availabilityService } from "@/services/availability";
+import { uploadService } from "@/services/upload";
 import { SignUpStepIndicator } from "./components/SignUpStepIndicator";
 import { SignUpCalendarCard } from "./components/SignUpCalendarCard";
 import { SignUpTimeSlotsCard } from "./components/SignUpTimeSlotsCard";
@@ -41,6 +42,7 @@ export default function ClientForm() {
   const [problemType, setProblemType] = useState("");
   const [description, setDescription] = useState("");
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
 
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -89,12 +91,16 @@ export default function ClientForm() {
     }
   };
 
-  const handlePhotosSelected = (files: File[]) => {
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = ev => setPhotoUrls(prev => [...prev, ev.target?.result as string]);
-      reader.readAsDataURL(file);
-    });
+  const handlePhotosSelected = async (files: File[]) => {
+    setUploadingPhotos(true);
+    try {
+      const uploaded = await Promise.all(files.map(f => uploadService.uploadPublic(f)));
+      setPhotoUrls(prev => [...prev, ...uploaded]);
+    } catch {
+      toast.error("Erro ao enviar foto. Tente novamente.");
+    } finally {
+      setUploadingPhotos(false);
+    }
   };
 
   const handleStep1Next = (e: React.SyntheticEvent) => {
@@ -204,6 +210,7 @@ export default function ClientForm() {
                   photos={photoUrls}
                   onFilesSelected={handlePhotosSelected}
                   onRemove={idx => setPhotoUrls(prev => prev.filter((_, i) => i !== idx))}
+                  uploading={uploadingPhotos}
                 />
               </CardContent>
             </Card>
@@ -257,7 +264,7 @@ export default function ClientForm() {
               </Button>
               <Button
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
-                disabled={!selectedSlot || submitting}
+                disabled={!selectedSlot || submitting || uploadingPhotos}
                 onClick={handleConfirm}
               >
                 {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
