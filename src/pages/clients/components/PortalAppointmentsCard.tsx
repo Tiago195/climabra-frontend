@@ -53,7 +53,7 @@ export function PortalAppointmentsCard({ appointments, equipments, publicToken, 
                 <div>
                   <p className="text-sm font-medium">{fmt(a.scheduledAt)}</p>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {eq ? eq.label || eq.type || "Equipamento" : "Sem ar-condicionado vinculado"}
+                    {eq ? eq.label || eq.type || "Equipamento" : "Sem equipamento vinculado"}
                   </p>
                   {a.notes && <p className="text-xs text-gray-400 mt-1">{a.notes}</p>}
                 </div>

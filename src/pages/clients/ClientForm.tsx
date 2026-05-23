@@ -106,7 +106,7 @@ export default function ClientForm() {
   const handleStep1Next = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!description.trim()) { toast.error("Descreva o problema"); return; }
-    if (selectedEquipmentId === "new" && !newEquipment.type) { toast.error("Selecione o tipo do ar-condicionado"); return; }
+    if (selectedEquipmentId === "new" && !newEquipment.type) { toast.error("Selecione o tipo do equipamento"); return; }
     setStep(2);
     window.scrollTo(0, 0);
   };

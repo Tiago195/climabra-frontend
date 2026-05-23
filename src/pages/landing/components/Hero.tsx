@@ -16,10 +16,10 @@ export function Hero() {
       <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 items-center">
         <div>
           <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 text-xs font-medium px-3 py-1 rounded-full mb-4">
-            <Sparkles className="w-3.5 h-3.5" /> Feito pra técnicos de ar e refrigeração
+            <Sparkles className="w-3.5 h-3.5" /> Feito pra técnicos de manutenção e refrigeração
           </div>
           <h1 className="text-3xl md:text-5xl font-extrabold leading-tight tracking-tight">
-            Organize seus serviços de <span className="text-blue-600">ar-condicionado</span> e refrigeração em um só lugar
+            Organize seus serviços de <span className="text-blue-600">manutenção</span> e refrigeração em um só lugar
           </h1>
           <p className="text-lg text-gray-600 mt-5">
             Agendamentos, clientes, financeiro e controle total — sem complicação.

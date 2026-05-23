@@ -191,7 +191,7 @@ export function Requests() {
 
   const handleCreateReport = async (appt: IAppointmentDetailResponse["appointment"]) => {
     if (!token || !appt.equipmentId) {
-      toast.error("Esta visita não tem ar-condicionado vinculado.");
+      toast.error("Esta visita não tem equipamento vinculado.");
       return;
     }
     setCreatingReportFor(appt.id);
@@ -309,7 +309,7 @@ export function Requests() {
                         </span>
                         {!appt.equipmentId && isScheduled && (
                           <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded-full font-medium">
-                            <AlertCircle className="w-3 h-3" /> Sem ar-condicionado vinculado
+                            <AlertCircle className="w-3 h-3" /> Sem equipamento vinculado
                           </span>
                         )}
                       </div>
@@ -327,7 +327,7 @@ export function Requests() {
                         <div className="flex items-center gap-2 text-sm text-gray-700 mt-1">
                           <AirVent className="w-4 h-4 text-blue-500" />
                           <span className="font-medium">
-                            {equipment.label || EQUIPMENT_TYPE_LABELS[equipment.type] || "Ar-condicionado"}
+                            {equipment.label || EQUIPMENT_TYPE_LABELS[equipment.type] || "Equipamento"}
                           </span>
                           {(equipment.brand || equipment.model) && (
                             <span className="text-gray-400 text-xs">
@@ -350,7 +350,7 @@ export function Requests() {
                           <Button size="sm" variant="outline" className="text-xs"
                             onClick={() => handleCreateReport(appt)}
                             disabled={creatingReportFor === appt.id || !appt.equipmentId}
-                            title={!appt.equipmentId ? "Vincule um ar-condicionado para criar laudo" : "Criar laudo desta visita"}
+                            title={!appt.equipmentId ? "Vincule um equipamento para criar laudo" : "Criar laudo desta visita"}
                           >
                             {creatingReportFor === appt.id
                               ? <Loader2 className="w-3 h-3 mr-1 animate-spin" />
@@ -447,7 +447,7 @@ export function Requests() {
 
             {form.clientId && (
               <div className="space-y-2">
-                <Label>Ar-condicionado</Label>
+                <Label>Equipamento</Label>
                 <select
                   className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"
                   value={form.equipmentId}
@@ -456,7 +456,7 @@ export function Requests() {
                   <option value="">Sem equipamento específico</option>
                   {clientEquipments.filter(Boolean).map(eq => eq && (
                     <option key={eq.id} value={eq.id}>
-                      {eq.label || EQUIPMENT_TYPE_LABELS[eq.type] || "Ar-condicionado"}
+                      {eq.label || EQUIPMENT_TYPE_LABELS[eq.type] || "Equipamento"}
                       {eq.brand ? ` — ${eq.brand}` : ""}
                       {eq.model ? ` ${eq.model}` : ""}
                     </option>

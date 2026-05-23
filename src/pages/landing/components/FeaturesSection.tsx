@@ -27,7 +27,7 @@ export function FeaturesSection() {
         </div>
         <h2 className="text-2xl md:text-4xl font-bold">Tudo o que você precisa numa tela só</h2>
         <p className="text-gray-600 mt-4">
-          Criado para quem trabalha com ar-condicionado, geladeiras e freezers no dia a dia.
+          Criado para quem presta serviços técnicos em equipamentos no dia a dia.
           Simples no celular, organizado no escritório.
         </p>
       </div>

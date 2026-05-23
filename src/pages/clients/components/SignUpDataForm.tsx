@@ -61,10 +61,11 @@ export function SignUpDataForm({ onSubmit }: Props) {
   const [description, setDescription] = useState("");
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = "";
+  const uploadFiles = async (incoming: File[]) => {
+    const files = incoming.filter(f => f.type.startsWith("image/"));
+    if (files.length === 0) return;
     if (photoUrls.length + files.length > 5) {
       toast.info("Máximo de 5 fotos");
       return;
@@ -78,6 +79,18 @@ export function SignUpDataForm({ onSubmit }: Props) {
     } finally {
       setUploadingPhotos(false);
     }
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    uploadFiles(Array.from(e.target.files ?? []));
+    e.target.value = "";
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (uploadingPhotos) return;
+    uploadFiles(Array.from(e.dataTransfer.files));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -133,7 +146,7 @@ export function SignUpDataForm({ onSubmit }: Props) {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <AirVent className="w-4 h-4 text-blue-600" /> Ar-condicionado
+            <AirVent className="w-4 h-4 text-blue-600" /> Equipamento
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -189,9 +202,18 @@ export function SignUpDataForm({ onSubmit }: Props) {
               </div>
             ))}
             {photoUrls.length < 5 && (
-              <label className={`aspect-square rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center transition-colors ${
-                uploadingPhotos ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:border-blue-400"
-              }`}>
+              <label
+                onDragOver={e => { e.preventDefault(); if (!uploadingPhotos) setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+                className={`aspect-square rounded-lg border-2 border-dashed flex flex-col items-center justify-center transition-colors ${
+                  uploadingPhotos
+                    ? "border-gray-300 opacity-60 cursor-not-allowed"
+                    : dragOver
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-300 cursor-pointer hover:border-blue-400"
+                }`}
+              >
                 {uploadingPhotos ? (
                   <>
                     <Loader2 className="w-5 h-5 text-gray-400 mb-1 animate-spin" />
@@ -199,8 +221,10 @@ export function SignUpDataForm({ onSubmit }: Props) {
                   </>
                 ) : (
                   <>
-                    <Upload className="w-5 h-5 text-gray-400 mb-1" />
-                    <span className="text-xs text-gray-400">Adicionar</span>
+                    <Upload className={`w-5 h-5 mb-1 ${dragOver ? "text-blue-500" : "text-gray-400"}`} />
+                    <span className={`text-xs ${dragOver ? "text-blue-600" : "text-gray-400"}`}>
+                      {dragOver ? "Solte aqui" : "Adicionar"}
+                    </span>
                   </>
                 )}
                 <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} disabled={uploadingPhotos} className="hidden" />

@@ -41,7 +41,7 @@ export function ClientPortalCard({ providerPublicToken, clientId }: Props) {
           <Copy className="w-4 h-4" /> Copiar link do portal
         </Button>
         <p className="text-xs text-gray-400">
-          Com este link, o cliente vê todos os ar-condicionados, visitas e laudos dele.
+          Com este link, o cliente vê todos os equipamentos, visitas e laudos dele.
         </p>
       </CardContent>
     </Card>
