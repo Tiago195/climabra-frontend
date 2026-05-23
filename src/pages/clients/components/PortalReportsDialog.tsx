@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,9 +19,23 @@ function fmt(iso: string) {
   return new Date(iso).toLocaleDateString("pt-BR");
 }
 
-function ReportRow({ r, accent = false }: { r: IPortalReport; accent?: boolean }) {
+function ReportRow({
+  r,
+  accent = false,
+  publicToken,
+  clientId,
+}: {
+  r: IPortalReport;
+  accent?: boolean;
+  publicToken?: string;
+  clientId?: string;
+}) {
   const st = REPORT_STATUS[r.status] ?? { label: r.status, color: "bg-gray-100 text-gray-600" };
   const visible = VISIBLE_STATUSES.has(r.status);
+  const reportHref =
+    publicToken && clientId
+      ? `/providers/${publicToken}/clients/${clientId}/equipment/${r.equipmentId}/laudo/${r.publicToken}`
+      : `equipment/${r.equipmentId}/laudo/${r.publicToken}`;
   return (
     <div className={`border rounded-lg p-3 ${accent ? "border-yellow-300 bg-yellow-50/60" : "bg-white"}`}>
       <div className="flex items-start justify-between gap-2">
@@ -39,7 +53,7 @@ function ReportRow({ r, accent = false }: { r: IPortalReport; accent?: boolean }
             variant={accent ? "default" : "ghost"}
             className={accent ? "h-7 text-xs" : "h-7 text-xs text-blue-600 hover:text-blue-700"}
           >
-            <Link to={`equipment/${r.equipmentId}/laudo/${r.publicToken}`}>
+            <Link to={reportHref}>
               {accent ? "Ver e aprovar" : "Abrir laudo"}
               <ExternalLink className="w-3 h-3 ml-1" />
             </Link>
@@ -57,6 +71,7 @@ interface Props {
 
 export function PortalReportsDialog({ equipment, reports }: Props) {
   const [showAll, setShowAll] = useState(false);
+  const { publicToken, id: clientId } = useParams<{ publicToken: string; id: string }>();
 
   const pending = reports.filter(r => r.status === "sent");
   const history = reports
@@ -90,7 +105,7 @@ export function PortalReportsDialog({ equipment, reports }: Props) {
               Revise o orçamento e libere o serviço.
             </p>
             <div className="space-y-2">
-              {pending.map(r => <ReportRow key={r.id} r={r} accent />)}
+              {pending.map(r => <ReportRow key={r.id} r={r} accent publicToken={publicToken} clientId={clientId} />)}
             </div>
           </section>
         )}
@@ -109,7 +124,7 @@ export function PortalReportsDialog({ equipment, reports }: Props) {
             </p>
           ) : (
             <div className="space-y-2">
-              {visibleHistory.map(r => <ReportRow key={r.id} r={r} />)}
+              {visibleHistory.map(r => <ReportRow key={r.id} r={r} publicToken={publicToken} clientId={clientId} />)}
               {hiddenCount > 0 && (
                 <button
                   onClick={() => setShowAll(true)}
