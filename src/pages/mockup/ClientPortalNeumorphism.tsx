@@ -139,12 +139,12 @@ export function ClientPortalNeumorphism() {
         </NeuCard>
 
         {/* EQUIPMENTS */}
-        <NeuCard className="space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="relative pt-2">
+          <div className="flex items-center justify-between px-1 pb-3">
             <div className="flex items-center gap-2.5">
               <div
                 className="w-9 h-9 rounded-2xl flex items-center justify-center text-slate-500"
-                style={{ background: NEU_BG, boxShadow: NEU_SHADOW_PRESSED_SM }}
+                style={{ background: NEU_BG, boxShadow: NEU_SHADOW_OUT_SM }}
               >
                 <Wind className="w-4 h-4" />
               </div>
@@ -158,6 +158,7 @@ export function ClientPortalNeumorphism() {
             </NeuButton>
           </div>
 
+        <NeuCard className="space-y-4">
           <div className="space-y-3">
             {mock.equipments.map((eq) => (
               <NeuInset key={eq.id} className="flex items-start gap-3">
@@ -203,14 +204,15 @@ export function ClientPortalNeumorphism() {
             ))}
           </div>
         </NeuCard>
+        </div>
 
         {/* APPOINTMENTS */}
-        <NeuCard className="space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="relative pt-2">
+          <div className="flex items-center justify-between px-1 pb-3">
             <div className="flex items-center gap-2.5">
               <div
                 className="w-9 h-9 rounded-2xl flex items-center justify-center text-slate-500"
-                style={{ background: NEU_BG, boxShadow: NEU_SHADOW_PRESSED_SM }}
+                style={{ background: NEU_BG, boxShadow: NEU_SHADOW_OUT_SM }}
               >
                 <Calendar className="w-4 h-4" />
               </div>
@@ -225,26 +227,28 @@ export function ClientPortalNeumorphism() {
               style={{
                 background: "linear-gradient(145deg, #3b82f6, #2563eb)",
                 boxShadow:
-                  "4px 4px 10px rgba(163, 177, 198, 0.55), -4px -4px 10px rgba(255, 255, 255, 0.9)",
+                  "6px 6px 14px rgba(163, 177, 198, 0.6), -6px -6px 14px rgba(255, 255, 255, 0.95)",
               }}
             >
               <Plus className="w-3 h-3" /> Nova visita
             </button>
           </div>
 
-          <div className="space-y-3">
-            {mock.appointments.map((a) => (
-              <NeuInset key={a.id} className="space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-700">{a.date}</p>
-                  <StatusPill tone="blue">{a.status}</StatusPill>
-                </div>
-                <p className="text-[11px] text-slate-500">{a.equipment}</p>
-                {a.notes && <p className="text-[11px] text-slate-400 italic">{a.notes}</p>}
-              </NeuInset>
-            ))}
-          </div>
-        </NeuCard>
+          <NeuCard>
+            <div className="space-y-3">
+              {mock.appointments.map((a) => (
+                <NeuInset key={a.id} className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-700">{a.date}</p>
+                    <StatusPill tone="blue">{a.status}</StatusPill>
+                  </div>
+                  <p className="text-[11px] text-slate-500">{a.equipment}</p>
+                  {a.notes && <p className="text-[11px] text-slate-400 italic">{a.notes}</p>}
+                </NeuInset>
+              ))}
+            </div>
+          </NeuCard>
+        </div>
 
         {/* SUBMISSIONS */}
         <NeuCard className="space-y-4">
