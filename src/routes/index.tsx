@@ -79,4 +79,16 @@ export const router = createBrowserRouter([
     path: "/mockup/client-portal-neu-v3",
     lazy: () => import("@/pages/mockup/ClientPortalNeuV3").then(m => ({ Component: m.default })),
   },
+  {
+    path: "/mockup/availability-exceptions-v1",
+    lazy: () => import("@/pages/mockup/availability/ExceptionsV1Calendar").then(m => ({ Component: m.default })),
+  },
+  {
+    path: "/mockup/availability-exceptions-v2",
+    lazy: () => import("@/pages/mockup/availability/ExceptionsV2List").then(m => ({ Component: m.default })),
+  },
+  {
+    path: "/mockup/availability-exceptions-v3",
+    lazy: () => import("@/pages/mockup/availability/ExceptionsV3Timeline").then(m => ({ Component: m.default })),
+  },
 ])
