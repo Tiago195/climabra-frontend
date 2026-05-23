@@ -91,4 +91,16 @@ export const router = createBrowserRouter([
     path: "/mockup/availability-exceptions-v3",
     lazy: () => import("@/pages/mockup/availability/ExceptionsV3Timeline").then(m => ({ Component: m.default })),
   },
+  {
+    path: "/mockup/exceptions-calendar",
+    lazy: () => import("@/pages/mockup/exceptions/ExceptionsCalendarCard").then(m => ({ Component: m.default })),
+  },
+  {
+    path: "/mockup/exceptions-dialog",
+    lazy: () => import("@/pages/mockup/exceptions/AddExceptionDialog").then(m => ({ Component: m.default })),
+  },
+  {
+    path: "/mockup/exceptions-list",
+    lazy: () => import("@/pages/mockup/exceptions/ExceptionsList").then(m => ({ Component: m.default })),
+  },
 ])
