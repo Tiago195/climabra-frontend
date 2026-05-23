@@ -58,5 +58,9 @@ export const router = createBrowserRouter([
   {
     path: "/providers/:publicToken/clients/:id/request",
     lazy: () => import("@/pages/clients/ClientForm").then(m => ({ Component: m.default })),
+  },
+  {
+    path: "/mockup/client-portal-neumorphism",
+    lazy: () => import("@/pages/mockup/ClientPortalNeumorphism").then(m => ({ Component: m.default })),
   }
 ])
