@@ -66,5 +66,17 @@ export const router = createBrowserRouter([
   {
     path: "/mockup/client-portal-neumorphism",
     lazy: () => import("@/pages/mockup/ClientPortalNeumorphism").then(m => ({ Component: m.default })),
-  }
+  },
+  {
+    path: "/mockup/client-portal-neu-v1",
+    lazy: () => import("@/pages/mockup/ClientPortalNeuV1").then(m => ({ Component: m.default })),
+  },
+  {
+    path: "/mockup/client-portal-neu-v2",
+    lazy: () => import("@/pages/mockup/ClientPortalNeuV2").then(m => ({ Component: m.default })),
+  },
+  {
+    path: "/mockup/client-portal-neu-v3",
+    lazy: () => import("@/pages/mockup/ClientPortalNeuV3").then(m => ({ Component: m.default })),
+  },
 ])
