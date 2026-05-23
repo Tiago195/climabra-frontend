@@ -140,7 +140,10 @@ export function ClientPortalNeumorphism() {
 
         {/* EQUIPMENTS */}
         <div className="relative pt-2">
-          <div className="flex items-center justify-between px-1 pb-3">
+          <div
+            className="relative z-10 mx-3 -mb-4 flex items-center justify-between rounded-2xl px-4 py-2.5"
+            style={{ background: NEU_BG, boxShadow: NEU_SHADOW_OUT }}
+          >
             <div className="flex items-center gap-2.5">
               <div
                 className="w-9 h-9 rounded-2xl flex items-center justify-center text-slate-500"
@@ -158,7 +161,7 @@ export function ClientPortalNeumorphism() {
             </NeuButton>
           </div>
 
-        <NeuCard className="space-y-4">
+        <NeuCard className="space-y-4 pt-7">
           <div className="space-y-3">
             {mock.equipments.map((eq) => (
               <NeuInset key={eq.id} className="flex items-start gap-3">
@@ -208,7 +211,10 @@ export function ClientPortalNeumorphism() {
 
         {/* APPOINTMENTS */}
         <div className="relative pt-2">
-          <div className="flex items-center justify-between px-1 pb-3">
+          <div
+            className="relative z-10 mx-3 -mb-4 flex items-center justify-between rounded-2xl px-4 py-2.5"
+            style={{ background: NEU_BG, boxShadow: NEU_SHADOW_OUT }}
+          >
             <div className="flex items-center gap-2.5">
               <div
                 className="w-9 h-9 rounded-2xl flex items-center justify-center text-slate-500"
@@ -234,7 +240,7 @@ export function ClientPortalNeumorphism() {
             </button>
           </div>
 
-          <NeuCard>
+          <NeuCard className="pt-7">
             <div className="space-y-3">
               {mock.appointments.map((a) => (
                 <NeuInset key={a.id} className="space-y-1.5">
