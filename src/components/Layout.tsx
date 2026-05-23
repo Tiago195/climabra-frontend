@@ -21,6 +21,10 @@ export function Layout() {
     navigate("/auth/login");
   };
 
+  const activeTo = [...navItems]
+    .sort((a, b) => b.to.length - a.to.length)
+    .find(item => pathname === item.to || pathname.startsWith(item.to + "/"))?.to;
+
   return (
     <ProfileGateProvider>
     <div className="min-h-[100dvh] flex flex-col bg-gray-50">
@@ -35,7 +39,7 @@ export function Layout() {
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.to || pathname.startsWith(item.to + "/");
+              const isActive = item.to === activeTo;
               return (
                 <Link
                   key={item.to}

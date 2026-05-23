@@ -75,7 +75,7 @@ export default function AddressFieldsForm({ value, onChange, compact = false }: 
         neighborhood: latest.neighborhood || (data.bairro ?? ""),
         city: latest.city || (data.localidade ?? ""),
         state: latest.state || (data.uf ?? ""),
-        complement: latest.complement || (data.complemento ?? ""),
+        complement: latest.complement,
       });
     } catch (err: any) {
       if (err?.name !== "AbortError") setCepError("Erro ao buscar CEP");

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,15 +29,6 @@ export function PublicReport() {
     }
   }, [data]);
 
-  const fetchReport = useCallback(async () => {
-    if (!providerToken || !clientId || !equipmentId || !reportToken) return;
-    try {
-      setData(await reportService.getPublic(providerToken, clientId, equipmentId, reportToken));
-    } catch {
-      // silencia erros de polling
-    }
-  }, [providerToken, clientId, equipmentId, reportToken]);
-
   useEffect(() => {
     if (!providerToken || !clientId || !equipmentId || !reportToken) return;
     reportService.getPublic(providerToken, clientId, equipmentId, reportToken)
@@ -45,16 +36,6 @@ export function PublicReport() {
       .catch(() => toast.error("Laudo não encontrado"))
       .finally(() => setLoading(false));
   }, [providerToken, clientId, equipmentId, reportToken]);
-
-  // Polling enquanto o status ainda pode mudar
-  useEffect(() => {
-    if (!data) return;
-    const { status } = data.report;
-    if (status !== "sent" && status !== "approved") return;
-
-    const interval = setInterval(fetchReport, 10000);
-    return () => clearInterval(interval);
-  }, [data, fetchReport]);
 
   const handleApprove = async () => {
     if (!providerToken || !clientId || !equipmentId || !reportToken) return;

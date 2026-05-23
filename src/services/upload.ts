@@ -13,4 +13,13 @@ export const uploadService = {
     })
     return data.url as string
   },
+
+  async uploadPublic(file: File): Promise<string> {
+    const formData = new FormData()
+    formData.append("file", file)
+    const { data } = await axios.post(`${DEFAULT_URL}/uploads/public`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    return data.url as string
+  },
 }

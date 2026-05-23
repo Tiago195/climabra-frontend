@@ -8,6 +8,9 @@ import { User, AirVent, MapPin, Upload, X } from "lucide-react";
 import AddressFieldsForm, { emptyAddress, type AddressData } from "@/components/AddressFieldsForm";
 import { toast } from "sonner";
 import type { EquipmentType } from "@/services/enums";
+import { formatPhone } from "@/lib/utils";
+import { uploadService } from "@/services/upload";
+import { Loader2 } from "lucide-react";
 
 const EQUIPMENT_TYPES = [
   { value: "split", label: "Split" },
@@ -57,22 +60,32 @@ export function SignUpDataForm({ onSubmit }: Props) {
   const [problemType, setProblemType] = useState("");
   const [description, setDescription] = useState("");
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
     if (photoUrls.length + files.length > 5) {
       toast.info("Máximo de 5 fotos");
       return;
     }
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (ev) => setPhotoUrls(prev => [...prev, ev.target?.result as string]);
-      reader.readAsDataURL(file);
-    });
+    setUploadingPhotos(true);
+    try {
+      const uploaded = await Promise.all(files.map(f => uploadService.uploadPublic(f)));
+      setPhotoUrls(prev => [...prev, ...uploaded]);
+    } catch {
+      toast.error("Erro ao enviar foto. Tente novamente.");
+    } finally {
+      setUploadingPhotos(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (uploadingPhotos) {
+      toast.info("Aguarde o envio das fotos");
+      return;
+    }
     if (!name.trim() || !phone.trim() || !email.trim() || !equipmentType || !description.trim()) {
       toast.error("Preencha os campos obrigatórios");
       return;
@@ -96,7 +109,7 @@ export function SignUpDataForm({ onSubmit }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Telefone *</Label>
-              <Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="(11) 99999-9999" required />
+              <Input type="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} placeholder="(11) 99999-9999" maxLength={15} required />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Email *</Label>
@@ -176,10 +189,21 @@ export function SignUpDataForm({ onSubmit }: Props) {
               </div>
             ))}
             {photoUrls.length < 5 && (
-              <label className="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-blue-400">
-                <Upload className="w-5 h-5 text-gray-400 mb-1" />
-                <span className="text-xs text-gray-400">Adicionar</span>
-                <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden" />
+              <label className={`aspect-square rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center transition-colors ${
+                uploadingPhotos ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:border-blue-400"
+              }`}>
+                {uploadingPhotos ? (
+                  <>
+                    <Loader2 className="w-5 h-5 text-gray-400 mb-1 animate-spin" />
+                    <span className="text-xs text-gray-400">Enviando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-5 h-5 text-gray-400 mb-1" />
+                    <span className="text-xs text-gray-400">Adicionar</span>
+                  </>
+                )}
+                <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} disabled={uploadingPhotos} className="hidden" />
               </label>
             )}
           </div>

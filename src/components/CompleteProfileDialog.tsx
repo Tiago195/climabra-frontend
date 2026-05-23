@@ -9,20 +9,12 @@ import { useAuth } from "@/contexts/authContext";
 import { providerService } from "@/services/provider";
 import { Loader2, UserCheck } from "lucide-react";
 import { toast } from "sonner";
+import { formatPhone } from "@/lib/utils";
 
 interface Ctx {
   requireProfile: (action: () => void) => void;
 }
 const ProfileGateContext = createContext<Ctx | null>(null);
-
-function formatPhone(value: string) {
-  const d = value.replace(/\D/g, "").slice(0, 11)
-  if (d.length === 0) return ""
-  if (d.length <= 2) return `(${d}`
-  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
-  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
-  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
-}
 
 export function ProfileGateProvider({ children }: { children: ReactNode }) {
   const { provider, token, updateProvider } = useAuth();
@@ -36,7 +28,6 @@ export function ProfileGateProvider({ children }: { children: ReactNode }) {
   const pendingAction = useRef<(() => void) | null>(null);
 
   const requireProfile = useCallback((action: () => void) => {
-    console.log(provider)
     if (provider?.status !== 'pending') {
       action();
       return;

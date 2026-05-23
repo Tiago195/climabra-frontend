@@ -1,4 +1,4 @@
-import { Upload, X } from "lucide-react";
+import { Upload, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -6,9 +6,10 @@ interface Props {
   onFilesSelected: (files: File[]) => void;
   onRemove: (index: number) => void;
   max?: number;
+  uploading?: boolean;
 }
 
-export function PhotoUploadGrid({ photos, onFilesSelected, onRemove, max = 5 }: Props) {
+export function PhotoUploadGrid({ photos, onFilesSelected, onRemove, max = 5, uploading = false }: Props) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (photos.length + files.length > max) {
@@ -28,17 +29,29 @@ export function PhotoUploadGrid({ photos, onFilesSelected, onRemove, max = 5 }: 
             <button
               type="button"
               onClick={() => onRemove(idx)}
-              className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center"
+              disabled={uploading}
+              className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center disabled:opacity-50"
             >
               <X className="w-3 h-3" />
             </button>
           </div>
         ))}
         {photos.length < max && (
-          <label className="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
-            <Upload className="w-5 h-5 text-gray-400 mb-1" />
-            <span className="text-xs text-gray-400">Adicionar</span>
-            <input type="file" accept="image/*" multiple onChange={handleChange} className="hidden" />
+          <label className={`aspect-square rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center transition-colors ${
+            uploading ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:border-blue-400 hover:bg-blue-50"
+          }`}>
+            {uploading ? (
+              <>
+                <Loader2 className="w-5 h-5 text-gray-400 mb-1 animate-spin" />
+                <span className="text-xs text-gray-400">Enviando...</span>
+              </>
+            ) : (
+              <>
+                <Upload className="w-5 h-5 text-gray-400 mb-1" />
+                <span className="text-xs text-gray-400">Adicionar</span>
+              </>
+            )}
+            <input type="file" accept="image/*" multiple onChange={handleChange} disabled={uploading} className="hidden" />
           </label>
         )}
       </div>

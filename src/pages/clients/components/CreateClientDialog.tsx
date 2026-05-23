@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import AddressFieldsForm, { emptyAddress, type AddressData } from "@/components/AddressFieldsForm";
 import { clientService, type IClientResponse } from "@/services/client";
 import { toast } from "sonner";
+import { formatPhone } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -78,7 +79,8 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
               type="tel"
               placeholder="(11) 99999-9999"
               value={form.phone}
-              onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+              onChange={e => setForm(p => ({ ...p, phone: formatPhone(e.target.value) }))}
+              maxLength={15}
             />
           </div>
           <div className="space-y-2">
