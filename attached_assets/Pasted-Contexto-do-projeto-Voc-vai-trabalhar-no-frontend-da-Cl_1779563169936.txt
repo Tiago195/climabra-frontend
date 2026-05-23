@@ -1,0 +1,116 @@
+Contexto do projeto
+Você vai trabalhar no frontend da Climabra, um SaaS para prestadores de serviço (técnicos que prestam manutenção em equipamentos como ar-condicionado, geladeira, etc.).
+
+Stack do frontend:
+
+React 19 + TypeScript + Vite
+Tailwind CSS v4 (com @tailwindcss/vite plugin)
+shadcn/ui components em src/components/ui/ (Card, Button, Input, Label, Dialog, Switch, Skeleton, etc.)
+lucide-react para ícones
+sonner para toasts
+react-router-dom v7 (roteamento)
+Path alias: @/* aponta pra src/*
+Padrão de fetch: useState + useEffect + .then().catch().finally() (não usa react-query)
+Você não tem acesso à API — ela já existe e é mantida separadamente em Java/Spring Boot. Sua tarefa é só consumir os endpoints que vou descrever.
+
+Página atual: /dashboard/availability
+Hoje essa página tem o componente Availability.tsx que renderiza 7 cards (um por dia da semana — DayCard.tsx), onde o provider configura:
+
+Toggle on/off do dia
+Horário de início (ex: 08:00)
+Horário de fim (ex: 18:00)
+Duração do slot em minutos (default 60)
+Tudo é staging local (localConfig state) e tem um FloatingSaveButton que aparece quando há mudanças não salvas.
+
+Feature nova a adicionar: Exceções
+O provider precisa poder bloquear:
+
+Dia inteiro — feriados (Natal, Ano Novo)
+Intervalo de dias inteiros — férias (1 ou 2 semanas seguidas)
+Faixa horária num dia específico — consulta médica das 14h às 16h amanhã
+Faixa horária aplicada num intervalo de dias — ex: 15-22/01 todos os dias das 14h às 17h não atendo
+A faixa horária, quando definida, aplica-se a todos os dias do intervalo igualmente. Se o provider precisa de horários diferentes em dias diferentes, ele cria múltiplas exceções.
+
+Contrato com a API (você consome)
+Tipos TypeScript a usar/criar em src/services/availability.ts
+export interface IExceptionResponse {
+  id: string;
+  startDate: string;          // formato "YYYY-MM-DD"
+  endDate: string;            // formato "YYYY-MM-DD" (inclusive; pode ser igual a startDate)
+  startTime: string | null;   // formato "HH:mm:ss" — NULL significa "dia inteiro"
+  endTime: string | null;     // formato "HH:mm:ss" — NULL significa "dia inteiro"
+  reason: string | null;      // motivo opcional (ex: "Férias", "Natal")
+}
+
+export interface IExceptionPayload {
+  startDate: string;          // obrigatório
+  endDate: string;            // obrigatório
+  startTime?: string;         // opcional — se omitidos juntos, é dia inteiro
+  endTime?: string;
+  reason?: string;
+}
+Regra: startTime e endTime aparecem juntos ou ausentes juntos. Nunca um sem o outro.
+
+Endpoints (já existem no backend)
+Todos autenticados via header Authorization: Bearer ${token}. Base URL = DEFAULT_URL exportado de @/services.
+
+GET    /availability/exceptions          → IExceptionResponse[]
+POST   /availability/exceptions          body: IExceptionPayload → IExceptionResponse
+DELETE /availability/exceptions/{id}     → 204 No Content
+Adicione os 3 métodos ao availabilityService que já existe em src/services/availability.ts:
+
+async listExceptions(token: string): Promise<IExceptionResponse[]> { ... }
+async createException(token: string, payload: IExceptionPayload): Promise<IExceptionResponse> { ... }
+async deleteException(token: string, id: string): Promise<void> { ... }
+Integração transparente com o calendário público
+Não se preocupe com isso. Quando o cliente público (rota /providers/:publicToken/clients/:id/request) busca slots de um dia bloqueado, o endpoint getSignUpSlots já retorna lista vazia automaticamente — você só precisa garantir que o provider consiga criar/listar/remover exceções no painel dele.
+
+Tarefa: criar 3 designs (canvases) diferentes
+Quero 3 propostas visuais distintas pra eu escolher qual usar. Cada uma deve cobrir os mesmos requisitos funcionais:
+
+Listar exceções existentes
+Adicionar nova exceção (dia inteiro OU faixa horária, dia único OU intervalo)
+Remover uma exceção
+Visualizar o impacto (quais dias/horas estão bloqueados)
+Integrar com a Availability.tsx existente (não substituir os DayCards atuais — adicionar a feature)
+Variantes que quero ver
+Canvas 1 — Calendário visual mês-a-mês
+Componente novo ExceptionsCalendarCard abaixo dos DayCards
+Grade de calendário (S T Q Q S S D ou D S T Q Q S S)
+Datas bloqueadas pintadas (vermelho/laranja/roxo — você escolhe)
+Click numa data abre AddExceptionDialog com a data pré-preenchida
+Navegação ← → entre meses
+Canvas 2 — Lista cronológica
+Seção "Próximas exceções" com cards listados em ordem cronológica
+Cada card mostra: período, motivo, badge "Dia inteiro" ou "14h–16h", botão X pra remover
+Botão flutuante "+ Nova exceção" no topo da lista
+Modal de criação completo com inputs de data + toggle de "dia inteiro"
+Canvas 3 — Híbrido / timeline horizontal
+Faixa horizontal scrollable mostrando os próximos 60-90 dias
+Cada dia é uma "coluna" estreita; dias bloqueados destacados visualmente
+Click no dia adiciona/remove exceção
+Painel lateral ou inferior pra detalhes
+Ou outro formato criativo que combine visualização rica com criação rápida
+Sinta-se livre pra inovar nos detalhes visuais de cada um. Use sua criatividade — só não saia do estilo geral da app (clean, com bastante white space, tons de azul, mobile-first).
+
+Restrições
+Mobile-first: provider acessa muito do celular, então o design tem que funcionar bem em telas estreitas (375px+).
+Sem libs novas pesadas: use só o que já está no package.json (Tailwind, lucide, shadcn, sonner). Pode usar utilitários date-fns se já estiver instalado, mas evite adicionar libs novas.
+Coerência: mantenha o estilo da Availability.tsx existente — leia esse arquivo antes de começar.
+Acessibilidade: labels em todos os inputs, contraste adequado, áreas clicáveis suficientes.
+Idioma: tudo em português brasileiro.
+Entregáveis esperados
+Pra cada uma das 3 variantes:
+
+Mockup visual (componente React funcional renderizando dados de exemplo, mesmo com mocks)
+Breve descrição (2-3 linhas) do racional do design
+Trade-offs apontados (pros e contras)
+Não precisa wirear a API real ainda — pode usar dados mockados (array hardcoded de IExceptionResponse) pra eu visualizar. Eu plugo a API depois de escolher o design.
+
+Arquivos a tocar (referência)
+Modificar: src/pages/availability/Availability.tsx (adicionar a nova seção de exceções abaixo dos DayCards)
+Modificar: src/services/availability.ts (adicionar os 3 métodos)
+Criar: src/pages/availability/components/ExceptionsCalendarCard.tsx (ou nome equivalente para cada canvas)
+Criar: src/pages/availability/components/AddExceptionDialog.tsx
+Criar: outros componentes auxiliares conforme o design pedir
+Use o padrão dos componentes existentes (ex: DayCard.tsx em src/pages/availability/components/) como referência de estilo.
