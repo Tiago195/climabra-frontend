@@ -46,14 +46,16 @@ export function PortalAppointmentsCard({ appointments, equipments, publicToken, 
           <p className="text-sm text-gray-500 text-center py-3">Nenhuma visita registrada.</p>
         ) : (
           sorted.map(a => {
-            const eq = a.equipmentId ? equipmentById.get(a.equipmentId) : null;
+            const linkedEquipments = a.equipmentIds.map(id => equipmentById.get(id)).filter(Boolean);
             const st = STATUS[a.status] ?? { label: a.status, color: "bg-gray-100 text-gray-600" };
             return (
               <div key={a.id} className="border rounded-lg p-3 flex items-start justify-between gap-2">
                 <div>
                   <p className="text-sm font-medium">{fmt(a.scheduledAt)}</p>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {eq ? eq.label || eq.type || "Equipamento" : "Sem equipamento vinculado"}
+                    {linkedEquipments.length > 0
+                      ? linkedEquipments.map(eq => eq!.label || eq!.type || "Equipamento").join(", ")
+                      : "Sem equipamento vinculado"}
                   </p>
                   {a.notes && <p className="text-xs text-gray-400 mt-1">{a.notes}</p>}
                 </div>

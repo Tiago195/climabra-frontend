@@ -52,7 +52,7 @@ export default function EquipmentReports({ equipment }: { equipment: IEquipmentR
             if (a.status !== "scheduled") return false;
             if (row.client.id !== equipment.clientId) return false;
             if (row.report) return false;
-            return a.equipmentId == null || a.equipmentId === equipment.id;
+            return a.equipmentIds.length === 0 || a.equipmentIds.includes(equipment.id);
           })
           .sort((a, b) => new Date(a.appointment.scheduledAt).getTime() - new Date(b.appointment.scheduledAt).getTime());
         setLinkable(filtered);
@@ -163,7 +163,7 @@ export default function EquipmentReports({ equipment }: { equipment: IEquipmentR
                     const when = new Date(a.scheduledAt).toLocaleString("pt-BR", {
                       dateStyle: "short", timeStyle: "short",
                     });
-                    const tag = a.equipmentId === equipment.id ? " · já vinculada" : "";
+                    const tag = a.equipmentIds.includes(equipment.id) ? " · já vinculada" : "";
                     return (
                       <option key={a.id} value={a.id}>
                         Visita de {when}{tag}
