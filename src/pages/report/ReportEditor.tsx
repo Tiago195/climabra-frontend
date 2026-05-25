@@ -340,6 +340,7 @@ function ItemCard({ item, index, isDraft, canExecute, isCompleted, token, report
               disabled={!canExecute || isCompleted}
               uploading={uploading === "before"}
               onClick={() => beforeRef.current?.click()}
+              onDropFile={f => handleFile(f, "before")}
             />
             <PhotoSlot
               label="Depois"
@@ -347,6 +348,7 @@ function ItemCard({ item, index, isDraft, canExecute, isCompleted, token, report
               disabled={!canExecute || !item.photoBefore || isCompleted}
               uploading={uploading === "after"}
               onClick={() => afterRef.current?.click()}
+              onDropFile={f => handleFile(f, "after")}
             />
             <input ref={beforeRef} type="file" accept="image/*" capture="environment" hidden
               onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f, "before"); e.target.value = ""; }} />
@@ -372,15 +374,35 @@ function ItemCard({ item, index, isDraft, canExecute, isCompleted, token, report
   );
 }
 
-function PhotoSlot({ label, photo, disabled, uploading, onClick }: {
-  label: string; photo: string | null; disabled: boolean; uploading: boolean; onClick: () => void;
+function PhotoSlot({ label, photo, disabled, uploading, onClick, onDropFile }: {
+  label: string;
+  photo: string | null;
+  disabled: boolean;
+  uploading: boolean;
+  onClick: () => void;
+  onDropFile?: (file: File) => void;
 }) {
+  const [dragOver, setDragOver] = useState(false);
+
+  const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (disabled || uploading) return;
+    const file = Array.from(e.dataTransfer.files).find(f => f.type.startsWith("image/"));
+    if (file && onDropFile) onDropFile(file);
+  };
+
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled || uploading}
-      className="relative aspect-video rounded border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden flex flex-col items-center justify-center text-xs text-gray-500"
+      onDragOver={e => { e.preventDefault(); if (!disabled && !uploading) setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={handleDrop}
+      className={`relative aspect-video rounded border-2 border-dashed disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden flex flex-col items-center justify-center text-xs transition-colors ${
+        dragOver ? "border-blue-500 bg-blue-50 text-blue-600" : "border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-500"
+      }`}
     >
       {photo ? (
         <>
@@ -392,7 +414,7 @@ function PhotoSlot({ label, photo, disabled, uploading, onClick }: {
       ) : (
         <>
           <Camera className="w-5 h-5 mb-1" />
-          <span>{label}</span>
+          <span>{dragOver ? "Solte aqui" : label}</span>
         </>
       )}
     </button>

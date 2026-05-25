@@ -1,11 +1,19 @@
 import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/authContext"
-import { availabilityService, type AvailabilityDTO } from "@/services/availability"
+import {
+  availabilityService,
+  type AvailabilityDTO,
+  type IExceptionResponse,
+} from "@/services/availability"
 import { AvailabilityInfoCard } from "./components/AvailabilityInfoCard"
 import { DayCard, type DayConfig } from "./components/DayCard"
 import { FloatingSaveButton } from "./components/FloatingSaveButton"
+import { ExceptionsCalendarCard } from "./components/ExceptionsCalendarCard"
+import { ExceptionsList } from "./components/ExceptionsList"
+import { AddExceptionDialog } from "./components/AddExceptionDialog"
 
 const DAYS = [
   { value: 0, label: "Domingo" },
@@ -24,6 +32,12 @@ export function Availability() {
   const [saving, setSaving] = useState(false)
   const [localConfig, setLocalConfig] = useState<Record<number, DayConfig>>({})
 
+  const [exceptions, setExceptions] = useState<IExceptionResponse[]>([])
+  const [loadingExceptions, setLoadingExceptions] = useState(true)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogInitialDate, setDialogInitialDate] = useState<string | undefined>(undefined)
+  const [deletingExceptionId, setDeletingExceptionId] = useState<string | null>(null)
+
   const hasChanges = Object.keys(localConfig).length > 0
 
   useEffect(() => {
@@ -32,6 +46,11 @@ export function Availability() {
       .then(setAvailability)
       .catch(() => toast.error("Erro ao carregar disponibilidade"))
       .finally(() => setLoading(false))
+
+    availabilityService.listExceptions(token)
+      .then(setExceptions)
+      .catch(() => toast.error("Erro ao carregar exceções"))
+      .finally(() => setLoadingExceptions(false))
   }, [token])
 
   const getConfig = (dayOfWeek: number): DayConfig => {
@@ -78,6 +97,33 @@ export function Availability() {
     }
   }
 
+  const handleOpenAddException = (date?: string) => {
+    setDialogInitialDate(date)
+    setDialogOpen(true)
+  }
+
+  const handleExceptionCreated = (created: IExceptionResponse) => {
+    setExceptions(prev => {
+      const next = [...prev, created]
+      next.sort((a, b) => a.startDate.localeCompare(b.startDate))
+      return next
+    })
+  }
+
+  const handleDeleteException = async (id: string) => {
+    if (!token) return
+    setDeletingExceptionId(id)
+    try {
+      await availabilityService.deleteException(token, id)
+      setExceptions(prev => prev.filter(e => e.id !== id))
+      toast.success("Exceção removida")
+    } catch {
+      toast.error("Erro ao remover exceção")
+    } finally {
+      setDeletingExceptionId(null)
+    }
+  }
+
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-24">
       <div>
@@ -103,6 +149,36 @@ export function Availability() {
           ))}
         </div>
       )}
+
+      {loadingExceptions ? (
+        <Card>
+          <CardHeader><Skeleton className="h-6 w-48" /></CardHeader>
+          <CardContent><Skeleton className="h-64 w-full" /></CardContent>
+        </Card>
+      ) : (
+        <>
+          <ExceptionsCalendarCard
+            exceptions={exceptions}
+            onAddClick={handleOpenAddException}
+          />
+          <Card>
+            <CardContent className="pt-6">
+              <ExceptionsList
+                exceptions={exceptions}
+                onDelete={handleDeleteException}
+                deletingId={deletingExceptionId}
+              />
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      <AddExceptionDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        initialDate={dialogInitialDate}
+        onCreated={handleExceptionCreated}
+      />
 
       {hasChanges && <FloatingSaveButton saving={saving} onClick={handleSaveAll} />}
     </div>

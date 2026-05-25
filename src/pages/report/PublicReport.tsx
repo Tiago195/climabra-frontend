@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { reportService, type IPublicReportResponse } from "@/services/report";
-import { CheckCircle2, ShieldCheck, Loader2, FileText } from "lucide-react";
+import { CheckCircle2, ShieldCheck, Loader2, FileText, RefreshCw } from "lucide-react";
 
 const EQUIPMENT_TYPE_LABELS: Record<string, string> = {
   split: "Split", janela: "Janela", central: "Central",
@@ -21,7 +21,20 @@ export function PublicReport() {
   const [loading, setLoading] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const handleRefresh = async () => {
+    if (!providerToken || !clientId || !equipmentId || !reportToken) return;
+    setRefreshing(true);
+    try {
+      setData(await reportService.getPublic(providerToken, clientId, equipmentId, reportToken));
+    } catch {
+      toast.error("Erro ao atualizar. Tente novamente.");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     if (data?.report.status === "sent") {
@@ -268,9 +281,21 @@ export function PublicReport() {
 
         {isApproved && (
           <Card className="bg-purple-50 border-purple-200">
-            <CardContent className="py-4 text-sm text-purple-900 flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-              Serviço em execução. Esta página será atualizada com fotos conforme o prestador avança.
+            <CardContent className="py-4 space-y-3">
+              <p className="text-sm text-purple-900">
+                O prestador está executando o serviço. Clique em atualizar para ver as fotos conforme ele avança.
+              </p>
+              <Button
+                variant="outline"
+                className="w-full border-purple-300 text-purple-900 hover:bg-purple-100"
+                onClick={handleRefresh}
+                disabled={refreshing}
+              >
+                {refreshing
+                  ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  : <RefreshCw className="w-4 h-4 mr-2" />}
+                Atualizar
+              </Button>
             </CardContent>
           </Card>
         )}

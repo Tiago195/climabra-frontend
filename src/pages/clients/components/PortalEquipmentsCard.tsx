@@ -25,7 +25,7 @@ export function PortalEquipmentsCard({ equipments, appointments, reports, public
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <Wind className="w-4 h-4" /> Meus ar-condicionados ({equipments.length})
+              <Wind className="w-4 h-4" /> Meus equipamentos ({equipments.length})
             </CardTitle>
             <Button size="sm" variant="outline" onClick={() => setDialogOpen(true)}>
               <Plus className="w-4 h-4 mr-1" /> Adicionar
@@ -38,7 +38,7 @@ export function PortalEquipmentsCard({ equipments, appointments, reports, public
           ) : (
             equipments.map(eq => {
               const eqReports = reports.filter(r => r.equipmentId === eq.id);
-              const eqAppts = appointments.filter(a => a.equipmentId === eq.id);
+              const eqAppts = appointments.filter(a => a.equipmentIds.includes(eq.id));
               const pendingCount = eqReports.filter(r => r.status === "sent").length;
               const eqLabel = eq.label || eq.type || "Equipamento";
               const eqSub = [eq.brand, eq.model].filter(Boolean).join(" · ");

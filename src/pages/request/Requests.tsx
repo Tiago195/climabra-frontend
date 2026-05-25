@@ -9,7 +9,7 @@ import { CalendarDays, User, Clock, CheckCircle2, XCircle, Plus, Loader2, AirVen
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/authContext";
 import { useRequireProfile } from "@/components/CompleteProfileDialog";
-import { appointmentService, type IAppointmentDetailResponse, type IAppointmentInfo, type IAppointmentReportInfo } from "@/services/appointment";
+import { appointmentService, type IAppointmentDetailResponse, type IAppointmentInfo, type IAppointmentReportInfo, type IAppointmentEquipmentInfo } from "@/services/appointment";
 import { clientService, type IClientResponse } from "@/services/client";
 import { reportService } from "@/services/report";
 import { availabilityService, type AvailabilityDTO } from "@/services/availability";
@@ -52,11 +52,12 @@ export function Requests() {
 
   const [appointments, setAppointments] = useState<IAppointmentDetailResponse[]>([]);
   const [clients, setClients] = useState<IClientResponse[]>([]);
-  const [clientEquipments, setClientEquipments] = useState<IAppointmentDetailResponse["equipment"][]>([]);
+  const [clientEquipments, setClientEquipments] = useState<IAppointmentEquipmentInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ clientId: "", equipmentId: "", date: "", slot: "", notes: "", customTime: "" });
+  const [form, setForm] = useState({ clientId: "", date: "", slot: "", notes: "", customTime: "" });
+  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>([]);
   
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [available, setAvailable] = useState<AvailabilityDTO[]>([]);
@@ -95,7 +96,7 @@ export function Requests() {
   useEffect(() => {
     if (!token || !form.clientId) return;
     clientService.findById(token, form.clientId)
-      .then(detail => setClientEquipments(detail.equipments as IAppointmentDetailResponse["equipment"][]))
+      .then(detail => setClientEquipments(detail.equipments))
       .catch(() => setClientEquipments([]));
   }, [token, form.clientId]);
 
@@ -120,7 +121,8 @@ export function Requests() {
 
   const closeDialog = () => {
     setOpen(false);
-    setForm({ clientId: "", equipmentId: "", date: "", slot: "", notes: "", customTime: "" });
+    setForm({ clientId: "", date: "", slot: "", notes: "", customTime: "" });
+    setSelectedEquipmentIds([]);
     setAvailableSlots([]);
     setUseCustomTime(false);
     setOffAgendaConfirmed(false);
@@ -135,7 +137,7 @@ export function Requests() {
     try {
       const appt = await appointmentService.create(token, {
         clientId: form.clientId,
-        equipmentId: form.equipmentId || undefined,
+        equipmentIds: selectedEquipmentIds.length > 0 ? selectedEquipmentIds : undefined,
         scheduledAt: scheduledAtISO,
         notes: form.notes || undefined,
       });
@@ -149,17 +151,15 @@ export function Requests() {
     }
   };
 
-  const handleComplete = async (appt: IAppointmentInfo, report: IAppointmentReportInfo | null) => {
+  const handleComplete = async (appt: IAppointmentInfo, reports: IAppointmentReportInfo[]) => {
     if (!token) return;
-
-    if(report == null) {
-      toast.warning("Precisa criar um Laudo")
-      return
+    if (reports.length === 0) {
+      toast.warning("Crie um laudo para cada equipamento antes de concluir");
+      return;
     }
-
-    if(!(report.status === 'completed')) {
-      toast.warning("Cliente ainda não aprovou o Laudo")
-      return
+    if (!reports.every(r => r.status === "completed")) {
+      toast.warning("Aguarde todos os laudos serem aprovados pelo cliente");
+      return;
     }
     try {
       await appointmentService.complete(token, appt.id);
@@ -189,15 +189,12 @@ export function Requests() {
     }
   };
 
-  const handleCreateReport = async (appt: IAppointmentDetailResponse["appointment"]) => {
-    if (!token || !appt.equipmentId) {
-      toast.error("Esta visita não tem ar-condicionado vinculado.");
-      return;
-    }
-    setCreatingReportFor(appt.id);
+  const handleCreateReport = async (appt: IAppointmentInfo, equipmentId: string) => {
+    if (!token) return;
+    setCreatingReportFor(equipmentId);
     try {
       const report = await reportService.create(token, {
-        equipmentId: appt.equipmentId,
+        equipmentId,
         appointmentId: appt.id,
         items: [{ description: "Inspeção geral" }],
       });
@@ -283,16 +280,16 @@ export function Requests() {
       ) : (
         <div className="space-y-3">
           {filtered.map(row => {
-            const { appointment: appt, client, equipment, submission, report } = row;
+            const { appointment: appt, client, equipments, submission, reports } = row;
             const conf = STATUS_CONFIG[appt.status] ?? { label: appt.status, icon: Clock, color: "text-gray-500 bg-gray-50" };
             const Icon = conf.icon;
             const isScheduled = appt.status === "scheduled";
             const isUpcoming = isScheduled && new Date(appt.scheduledAt) >= new Date();
-            // const canComplete = report?.status === "completed";
-            const completeTitle = !report
-              ? "Crie e finalize o laudo antes de concluir"
-              : report.status !== "completed"
-              ? "Aguarde o cliente aprovar o laudo"
+            const canComplete = reports.length > 0 && reports.every(r => r.status === "completed");
+            const completeTitle = reports.length === 0
+              ? "Crie um laudo para cada equipamento antes de concluir"
+              : !canComplete
+              ? "Aguarde todos os laudos serem aprovados"
               : "Concluir visita";
             const isExpanded = expanded[appt.id];
             const photos = submission?.photoUrls ?? [];
@@ -307,9 +304,9 @@ export function Requests() {
                         <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full font-medium ${conf.color}`}>
                           <Icon className="w-3 h-3" /> {conf.label}
                         </span>
-                        {!appt.equipmentId && isScheduled && (
+                        {appt.equipmentIds.length === 0 && isScheduled && (
                           <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded-full font-medium">
-                            <AlertCircle className="w-3 h-3" /> Sem ar-condicionado vinculado
+                            <AlertCircle className="w-3 h-3" /> Sem equipamento vinculado
                           </span>
                         )}
                       </div>
@@ -323,17 +320,41 @@ export function Requests() {
                           year: "numeric", hour: "2-digit", minute: "2-digit",
                         })}
                       </div>
-                      {equipment && (
-                        <div className="flex items-center gap-2 text-sm text-gray-700 mt-1">
-                          <AirVent className="w-4 h-4 text-blue-500" />
-                          <span className="font-medium">
-                            {equipment.label || EQUIPMENT_TYPE_LABELS[equipment.type] || "Ar-condicionado"}
-                          </span>
-                          {(equipment.brand || equipment.model) && (
-                            <span className="text-gray-400 text-xs">
-                              {[equipment.brand, equipment.model].filter(Boolean).join(" ")}
-                            </span>
-                          )}
+                      {equipments.length > 0 && (
+                        <div className="flex flex-col gap-1.5 mt-1">
+                          {equipments.map(eq => {
+                            const eqReport = reports.find(r => r.equipmentId === eq.id);
+                            return (
+                              <div key={eq.id} className="flex items-center gap-2 text-sm text-gray-700">
+                                <AirVent className="w-4 h-4 text-blue-500 shrink-0" />
+                                <span className="font-medium">
+                                  {eq.label || EQUIPMENT_TYPE_LABELS[eq.type] || "Equipamento"}
+                                </span>
+                                {(eq.brand || eq.model) && (
+                                  <span className="text-gray-400 text-xs">
+                                    {[eq.brand, eq.model].filter(Boolean).join(" ")}
+                                  </span>
+                                )}
+                                {isScheduled && (
+                                  eqReport ? (
+                                    <Button size="sm" variant="outline" className="text-xs h-6 px-2 ml-1"
+                                      onClick={() => navigate(`/dashboard/reports/${eqReport.id}`)}>
+                                      <FileText className="w-3 h-3 mr-1" /> Ver laudo
+                                    </Button>
+                                  ) : (
+                                    <Button size="sm" variant="outline" className="text-xs h-6 px-2 ml-1"
+                                      onClick={() => handleCreateReport(appt, eq.id)}
+                                      disabled={creatingReportFor === eq.id}>
+                                      {creatingReportFor === eq.id
+                                        ? <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                        : <FileText className="w-3 h-3 mr-1" />}
+                                      Criar laudo
+                                    </Button>
+                                  )
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                       {appt.notes && <p className="text-xs text-gray-400 mt-1">{appt.notes}</p>}
@@ -341,26 +362,9 @@ export function Requests() {
 
                     {isScheduled && (
                       <div className="flex flex-col gap-2 shrink-0">
-                        {report ? (
-                          <Button size="sm" variant="outline" className="text-xs"
-                            onClick={() => navigate(`/dashboard/reports/${report.id}`)}>
-                            <FileText className="w-3 h-3 mr-1" /> Ver laudo
-                          </Button>
-                        ) : (
-                          <Button size="sm" variant="outline" className="text-xs"
-                            onClick={() => handleCreateReport(appt)}
-                            disabled={creatingReportFor === appt.id || !appt.equipmentId}
-                            title={!appt.equipmentId ? "Vincule um ar-condicionado para criar laudo" : "Criar laudo desta visita"}
-                          >
-                            {creatingReportFor === appt.id
-                              ? <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                              : <FileText className="w-3 h-3 mr-1" />}
-                            Criar laudo
-                          </Button>
-                        )}
                         <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs"
-                          onClick={() => handleComplete(appt, report)}
-                          // disabled={!canComplete}
+                          onClick={() => handleComplete(appt, reports)}
+                          disabled={!canComplete}
                           title={completeTitle}
                         >
                           <CheckCircle2 className="w-3 h-3 mr-1" /> Concluir
@@ -435,7 +439,7 @@ export function Requests() {
               <select
                 className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={form.clientId}
-                onChange={e => setForm(p => ({ ...p, clientId: e.target.value, equipmentId: "" }))}
+                onChange={e => { setForm(p => ({ ...p, clientId: e.target.value })); setSelectedEquipmentIds([]); }}
                 required
               >
                 <option value="">Selecionar cliente...</option>
@@ -447,23 +451,39 @@ export function Requests() {
 
             {form.clientId && (
               <div className="space-y-2">
-                <Label>Ar-condicionado</Label>
-                <select
-                  className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"
-                  value={form.equipmentId}
-                  onChange={e => setForm(p => ({ ...p, equipmentId: e.target.value }))}
-                >
-                  <option value="">Sem equipamento específico</option>
-                  {clientEquipments.filter(Boolean).map(eq => eq && (
-                    <option key={eq.id} value={eq.id}>
-                      {eq.label || EQUIPMENT_TYPE_LABELS[eq.type] || "Ar-condicionado"}
-                      {eq.brand ? ` — ${eq.brand}` : ""}
-                      {eq.model ? ` ${eq.model}` : ""}
-                    </option>
-                  ))}
-                </select>
-                {clientEquipments.length === 0 && (
+                <Label>Equipamentos</Label>
+                {clientEquipments.length === 0 ? (
                   <p className="text-xs text-gray-400">Este cliente ainda não tem equipamentos cadastrados.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {clientEquipments.filter(Boolean).map(eq => eq && (
+                      <label
+                        key={eq.id}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-md border cursor-pointer transition-colors ${
+                          selectedEquipmentIds.includes(eq.id)
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-200 hover:border-blue-300"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedEquipmentIds.includes(eq.id)}
+                          onChange={() => setSelectedEquipmentIds(prev =>
+                            prev.includes(eq.id) ? prev.filter(x => x !== eq.id) : [...prev, eq.id]
+                          )}
+                          className="accent-blue-600"
+                        />
+                        <span className="text-sm text-gray-800">
+                          {eq.label || EQUIPMENT_TYPE_LABELS[eq.type] || "Equipamento"}
+                          {(eq.brand || eq.model) && (
+                            <span className="text-gray-400 ml-1">
+                              — {[eq.brand, eq.model].filter(Boolean).join(" ")}
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
