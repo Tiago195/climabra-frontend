@@ -37,7 +37,8 @@ export default function ClientForm() {
 
   const [step, setStep] = useState<1 | 2>(1);
   const [scheduledEquipmentIds, setScheduledEquipmentIds] = useState<string[]>([]);
-  const [selectedEquipmentId, setSelectedEquipmentId] = useState("new");
+  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>([]);
+  const [addingNew, setAddingNew] = useState(false);
   const [newEquipment, setNewEquipment] = useState<NewEquipmentData>({ type: "", brand: "", model: "", label: "" });
   const [problemType, setProblemType] = useState("");
   const [description, setDescription] = useState("");
@@ -65,11 +66,17 @@ export default function ClientForm() {
         setEquipments(portal.equipments);
         setActiveDays(providerData.activeDaysOfWeek);
         const blocked = portal.appointments
-          .filter(a => a.status === "scheduled" && a.equipmentId)
-          .map(a => a.equipmentId!);
+          .filter(a => a.status === "scheduled")
+          .flatMap(a => a.equipmentIds);
         setScheduledEquipmentIds(blocked);
         const firstAvailable = portal.equipments.find(e => !blocked.includes(e.id));
-        setSelectedEquipmentId(firstAvailable?.id ?? "new");
+        if (firstAvailable) {
+          setSelectedEquipmentIds([firstAvailable.id]);
+          setAddingNew(false);
+        } else {
+          setSelectedEquipmentIds([]);
+          setAddingNew(true);
+        }
       })
       .catch(() => setError("Link inválido ou expirado."))
       .finally(() => setLoadingData(false));
@@ -106,7 +113,8 @@ export default function ClientForm() {
   const handleStep1Next = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!description.trim()) { toast.error("Descreva o problema"); return; }
-    if (selectedEquipmentId === "new" && !newEquipment.type) { toast.error("Selecione o tipo do equipamento"); return; }
+    if (selectedEquipmentIds.length === 0 && !addingNew) { toast.error("Selecione pelo menos um equipamento"); return; }
+    if (addingNew && !newEquipment.type) { toast.error("Selecione o tipo do novo equipamento"); return; }
     setStep(2);
     window.scrollTo(0, 0);
   };
@@ -116,11 +124,11 @@ export default function ClientForm() {
     setSubmitting(true);
     try {
       await clientService.requestAppointment(publicToken, id, {
-        equipmentId: selectedEquipmentId !== "new" ? selectedEquipmentId : undefined,
-        equipmentType: selectedEquipmentId === "new" && newEquipment.type ? newEquipment.type : undefined,
-        equipmentBrand: selectedEquipmentId === "new" && newEquipment.brand ? newEquipment.brand : undefined,
-        equipmentModel: selectedEquipmentId === "new" && newEquipment.model ? newEquipment.model : undefined,
-        equipmentLabel: selectedEquipmentId === "new" && newEquipment.label ? newEquipment.label : undefined,
+        equipmentIds: selectedEquipmentIds.length > 0 ? selectedEquipmentIds : undefined,
+        equipmentType: addingNew && newEquipment.type ? newEquipment.type : undefined,
+        equipmentBrand: addingNew && newEquipment.brand ? newEquipment.brand : undefined,
+        equipmentModel: addingNew && newEquipment.model ? newEquipment.model : undefined,
+        equipmentLabel: addingNew && newEquipment.label ? newEquipment.label : undefined,
         description,
         photoUrls,
         problemType: problemType || undefined,
@@ -178,8 +186,12 @@ export default function ClientForm() {
           <form onSubmit={handleStep1Next} className="space-y-4">
             <EquipmentSelectorCard
               equipments={equipments}
-              selectedId={selectedEquipmentId}
-              onSelect={setSelectedEquipmentId}
+              selectedIds={selectedEquipmentIds}
+              onToggle={id => setSelectedEquipmentIds(prev =>
+                prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+              )}
+              showNew={addingNew}
+              onToggleNew={() => setAddingNew(v => !v)}
               newData={newEquipment}
               onNewDataChange={(field, value) => setNewEquipment(prev => ({ ...prev, [field]: value }))}
               scheduledEquipmentIds={scheduledEquipmentIds}

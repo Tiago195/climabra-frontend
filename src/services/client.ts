@@ -83,7 +83,7 @@ export interface IPortalAppointment {
   id: string
   scheduledAt: string
   status: AppointmentStatus
-  equipmentId: string | null
+  equipmentIds: string[]
   notes: string | null
   submissionId: string | null
 }
@@ -115,7 +115,7 @@ export interface IClientPortalResponse {
 }
 
 export interface IAppointmentRequestPayload {
-  equipmentId?: string
+  equipmentIds?: string[]
   equipmentType?: EquipmentType
   equipmentBrand?: string
   equipmentModel?: string

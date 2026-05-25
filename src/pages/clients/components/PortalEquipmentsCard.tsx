@@ -38,7 +38,7 @@ export function PortalEquipmentsCard({ equipments, appointments, reports, public
           ) : (
             equipments.map(eq => {
               const eqReports = reports.filter(r => r.equipmentId === eq.id);
-              const eqAppts = appointments.filter(a => a.equipmentId === eq.id);
+              const eqAppts = appointments.filter(a => a.equipmentIds.includes(eq.id));
               const pendingCount = eqReports.filter(r => r.status === "sent").length;
               const eqLabel = eq.label || eq.type || "Equipamento";
               const eqSub = [eq.brand, eq.model].filter(Boolean).join(" · ");

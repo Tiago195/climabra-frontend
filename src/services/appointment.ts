@@ -10,7 +10,7 @@ export interface IAppointmentInfo {
   id: string
   scheduledAt: string
   status: AppointmentStatus
-  equipmentId: string | null
+  equipmentIds: string[]
   submissionId: string | null
   notes: string | null
 }
@@ -39,20 +39,21 @@ export interface IAppointmentSubmissionInfo {
 
 export interface IAppointmentReportInfo {
   id: string
+  equipmentId: string
   status: ReportStatus
 }
 
 export interface IAppointmentDetailResponse {
   appointment: IAppointmentInfo
   client: IAppointmentClientInfo
-  equipment: IAppointmentEquipmentInfo | null
+  equipments: IAppointmentEquipmentInfo[]
   submission: IAppointmentSubmissionInfo | null
-  report: IAppointmentReportInfo | null
+  reports: IAppointmentReportInfo[]
 }
 
 export interface ICreateAppointmentRequest {
   clientId: string
-  equipmentId?: string
+  equipmentIds?: string[]
   scheduledAt: string
   notes?: string
 }
