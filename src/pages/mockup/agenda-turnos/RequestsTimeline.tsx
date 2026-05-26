@@ -90,7 +90,7 @@ export default function RequestsTimeline() {
               <div className="flex-1 h-px bg-gray-200" />
             </div>
 
-            {g.items.map((a, i) => {
+            {g.items.map(a => {
               const d = new Date(`${a.scheduledDate}T00:00:00`);
               return (
                 <Card key={a.id}>

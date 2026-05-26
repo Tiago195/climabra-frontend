@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, Plus, AirVent, FileText, CalendarDays, Phone, Mail } from "lucide-react";
+import { Bell, Plus, AirVent, FileText, Phone, Mail } from "lucide-react";
 import {
   PROVIDER,
   EQUIPMENTS,
