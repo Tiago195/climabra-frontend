@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import AddressFieldsForm, { emptyAddress, type AddressData } from "@/components/AddressFieldsForm";
+import AddressFieldsForm, { type AddressData } from "@/components/AddressFieldsForm";
 import { clientService, type IClientResponse } from "@/services/client";
-import { geocodeAddressWithTimeout } from "@/services/geocoding";
+import { buildGeoKey, geocodeAddressWithTimeout } from "@/services/geocoding";
 import { toast } from "sonner";
 import { formatPhone } from "@/lib/utils";
 
@@ -14,20 +14,36 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   token: string;
-  onCreated: (client: IClientResponse) => void;
+  client: IClientResponse;
+  onUpdated: (client: IClientResponse) => void;
 }
 
-export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Props) {
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "", email: "" });
-  const [address, setAddress] = useState<AddressData>(emptyAddress);
+function clientToAddress(c: IClientResponse): AddressData {
+  return {
+    cep: c.cep ?? "",
+    street: c.street ?? "",
+    streetNumber: c.streetNumber != null ? String(c.streetNumber) : "",
+    complement: c.complement ?? "",
+    neighborhood: c.neighborhood ?? "",
+    city: c.city ?? "",
+    state: c.state ?? "",
+  };
+}
 
-  const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!form.email.trim()) {
-      toast.error("Informe o email do cliente");
-      return;
+export function EditClientDialog({ open, onOpenChange, token, client, onUpdated }: Props) {
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ name: client.name, phone: client.phone, email: client.email });
+  const [address, setAddress] = useState<AddressData>(() => clientToAddress(client));
+
+  useEffect(() => {
+    if (open) {
+      setForm({ name: client.name, phone: client.phone, email: client.email });
+      setAddress(clientToAddress(client));
     }
+  }, [open, client]);
+
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     const streetNumber = parseInt(address.streetNumber);
     if (!address.streetNumber || isNaN(streetNumber)) {
       toast.error("Informe o número do endereço");
@@ -35,15 +51,34 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
     }
     setSaving(true);
     try {
-      const coords = await geocodeAddressWithTimeout({
+      const originalKey = buildGeoKey({
+        street: client.street,
+        streetNumber: client.streetNumber,
+        neighborhood: client.neighborhood,
+        city: client.city,
+        state: client.state,
+        cep: client.cep,
+      });
+      const newAddr = {
         street: address.street,
         streetNumber: address.streetNumber,
         neighborhood: address.neighborhood,
         city: address.city,
         state: address.state,
         cep: address.cep,
-      }, 4000);
-      const created = await clientService.create(token, {
+      };
+      const newKey = buildGeoKey(newAddr);
+      const addressChanged = originalKey !== newKey;
+
+      let lat: number | null | undefined = undefined;
+      let lng: number | null | undefined = undefined;
+      if (addressChanged) {
+        const coords = await geocodeAddressWithTimeout(newAddr, 4000);
+        lat = coords?.lat ?? null;
+        lng = coords?.lng ?? null;
+      }
+
+      const updated = await clientService.update(token, client.id, {
         name: form.name,
         email: form.email,
         phone: form.phone,
@@ -54,16 +89,13 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
         neighborhood: address.neighborhood,
         city: address.city,
         state: address.state,
-        lat: coords?.lat ?? null,
-        lng: coords?.lng ?? null,
+        ...(addressChanged ? { lat, lng } : {}),
       });
-      onCreated(created);
+      onUpdated(updated);
       onOpenChange(false);
-      setForm({ name: "", phone: "", email: "" });
-      setAddress(emptyAddress);
-      toast.success("Cliente cadastrado!");
+      toast.success("Cliente atualizado!");
     } catch {
-      toast.error("Erro ao cadastrar cliente");
+      toast.error("Erro ao atualizar cliente");
     } finally {
       setSaving(false);
     }
@@ -73,13 +105,12 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Cadastrar novo cliente</DialogTitle>
+          <DialogTitle>Editar cliente</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleCreate} className="space-y-4 mt-2">
+        <form onSubmit={handleSave} className="space-y-4 mt-2">
           <div className="space-y-2">
             <Label>Nome *</Label>
             <Input
-              placeholder="Nome do cliente"
               value={form.name}
               onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
             />
@@ -88,7 +119,6 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
             <Label>Telefone *</Label>
             <Input
               type="tel"
-              placeholder="(11) 99999-9999"
               value={form.phone}
               onChange={e => setForm(p => ({ ...p, phone: formatPhone(e.target.value) }))}
               maxLength={15}
@@ -98,7 +128,6 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
             <Label>Email *</Label>
             <Input
               type="email"
-              placeholder="cliente@email.com"
               value={form.email}
               onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
             />
@@ -109,7 +138,7 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
           </div>
           <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={saving}>
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-            Cadastrar e gerar link
+            Salvar alterações
           </Button>
         </form>
       </DialogContent>

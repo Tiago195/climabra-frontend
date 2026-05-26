@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { clientService } from "@/services/client";
+import { geocodeAddressWithTimeout } from "@/services/geocoding";
 import type { EquipmentType } from "@/services/enums";
 import { availabilityService, type ISignUpProviderResponse } from "@/services/availability";
 import { SignUpHeader } from "./components/SignUpHeader";
@@ -66,6 +67,14 @@ export function ClientSignUp() {
     if (!selectedSlot || !token || !formData) return;
     setSubmitting(true);
     try {
+      const coords = await geocodeAddressWithTimeout({
+        street: formData.address.street,
+        streetNumber: formData.address.streetNumber,
+        neighborhood: formData.address.neighborhood,
+        city: formData.address.city,
+        state: formData.address.state,
+        cep: formData.address.cep,
+      }, 4000);
       await clientService.signUpSubmit(token, {
         name: formData.name,
         phone: formData.phone,
@@ -85,6 +94,8 @@ export function ClientSignUp() {
         equipmentLabel: formData.equipmentLabel || undefined,
         problemType: formData.problemType || undefined,
         scheduledAt: selectedSlot,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
       });
       setSubmitted(true);
     } catch {

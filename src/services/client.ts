@@ -18,6 +18,8 @@ export interface IClientResponse {
   neighborhood: string
   city: string
   state: string
+  lat?: number | null
+  lng?: number | null
   createdAt: string
   updatedAt: string
 }
@@ -33,6 +35,23 @@ export interface IClientCreateRequest {
   neighborhood: string
   city: string
   state: string
+  lat?: number | null
+  lng?: number | null
+}
+
+export interface IClientUpdateRequest {
+  name?: string
+  email?: string
+  phone?: string
+  cep?: string
+  street?: string
+  streetNumber?: number
+  complement?: string
+  neighborhood?: string
+  city?: string
+  state?: string
+  lat?: number | null
+  lng?: number | null
 }
 
 export interface IEquipmentResponse {
@@ -69,6 +88,8 @@ export interface ISignUpSubmitRequest {
   equipmentLabel?: string
   problemType?: string
   scheduledAt: string
+  lat?: number | null
+  lng?: number | null
 }
 
 export interface IPortalEquipment {
@@ -146,6 +167,11 @@ export const clientService = {
 
   async create(token: string, payload: IClientCreateRequest): Promise<IClientResponse> {
     const { data } = await api.post("", payload, authHeader(token))
+    return data
+  },
+
+  async update(token: string, id: string, payload: IClientUpdateRequest): Promise<IClientResponse> {
+    const { data } = await api.put(`/${id}`, payload, authHeader(token))
     return data
   },
 
