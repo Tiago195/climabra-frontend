@@ -103,4 +103,36 @@ export const router = createBrowserRouter([
     path: "/mockup/exceptions-list",
     lazy: () => import("@/pages/mockup/exceptions/ExceptionsList").then(m => ({ Component: m.default })),
   },
+  {
+    path: "/mockup/agenda/requests-calendar",
+    lazy: () => import("@/pages/mockup/agenda-turnos/RequestsCalendar").then(m => ({ Component: m.default })),
+  },
+  {
+    path: "/mockup/agenda/requests-timeline",
+    lazy: () => import("@/pages/mockup/agenda-turnos/RequestsTimeline").then(m => ({ Component: m.default })),
+  },
+  {
+    path: "/mockup/agenda/new-calendar",
+    lazy: () => import("@/pages/mockup/agenda-turnos/NewRequestCalendar").then(m => ({ Component: m.default })),
+  },
+  {
+    path: "/mockup/agenda/new-timeline",
+    lazy: () => import("@/pages/mockup/agenda-turnos/NewRequestTimeline").then(m => ({ Component: m.default })),
+  },
+  {
+    path: "/mockup/agenda/availability-grid",
+    lazy: () => import("@/pages/mockup/agenda-turnos/AvailabilityGrid").then(m => ({ Component: m.default })),
+  },
+  {
+    path: "/mockup/agenda/availability-timeline",
+    lazy: () => import("@/pages/mockup/agenda-turnos/AvailabilityTimeline").then(m => ({ Component: m.default })),
+  },
+  {
+    path: "/mockup/agenda/portal-calendar",
+    lazy: () => import("@/pages/mockup/agenda-turnos/ClientPortalCalendar").then(m => ({ Component: m.default })),
+  },
+  {
+    path: "/mockup/agenda/portal-timeline",
+    lazy: () => import("@/pages/mockup/agenda-turnos/ClientPortalTimeline").then(m => ({ Component: m.default })),
+  },
 ])
