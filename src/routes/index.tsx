@@ -159,4 +159,8 @@ export const router = createBrowserRouter([
     path: "/mockup/rastreio/portal-alerts",
     lazy: () => import("@/pages/mockup/rastreio-equipamentos/ClientReminderPortal").then(m => ({ Component: m.default })),
   },
+  {
+    path: "/mockup/laudo/completo",
+    lazy: () => import("@/pages/mockup/laudo/LaudoCompleto").then(m => ({ Component: m.default })),
+  },
 ])
