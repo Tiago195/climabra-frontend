@@ -227,9 +227,68 @@ export const APPOINTMENTS: MockAppointment[] = [
   {
     id: "a11", clientId: "c2", equipmentIds: ["e3"],
     scheduledDate: "2026-05-12", shift: "morning", status: "canceled",
+    notes: "Cliente remarcou — viajou de última hora",
+    reports: [],
+  },
+  // PASSADO densificado (para aba Histórico)
+  {
+    id: "a16", clientId: "c3", equipmentIds: ["e4", "e5"],
+    scheduledDate: "2026-05-23", shift: "afternoon", status: "completed",
+    notes: "Manutenção preventiva da empresa",
+    reports: [
+      { id: "r16a", equipmentId: "e4", status: "completed" },
+      { id: "r16b", equipmentId: "e5", status: "completed" },
+    ],
+  },
+  {
+    id: "a17", clientId: "c7", equipmentIds: ["e11"],
+    scheduledDate: "2026-05-20", shift: "morning", status: "no_show",
+    notes: "Cliente não atendeu na portaria",
+    reports: [],
+  },
+  {
+    id: "a18", clientId: "c6", equipmentIds: ["e9", "e10"],
+    scheduledDate: "2026-05-08", shift: "afternoon", status: "completed",
+    reports: [
+      { id: "r18a", equipmentId: "e9",  status: "completed" },
+      { id: "r18b", equipmentId: "e10", status: "approved" },
+    ],
+  },
+  {
+    id: "a19", clientId: "c8", equipmentIds: ["e12"],
+    scheduledDate: "2026-04-15", shift: "night", status: "completed",
+    reports: [{ id: "r19", equipmentId: "e12", status: "completed" }],
+  },
+  {
+    id: "a20", clientId: "c5", equipmentIds: ["e8"],
+    scheduledDate: "2026-03-22", shift: "morning", status: "canceled",
+    notes: "Equipamento fora de garantia — orçamento recusado",
     reports: [],
   },
 ];
+
+/** Rótulo relativo a TODAY: "hoje", "ontem", "há N dias/semanas/meses". */
+export function relativeDateLabel(iso: string): string {
+  const today = new Date(`${TODAY}T00:00:00`);
+  const d = new Date(`${iso}T00:00:00`);
+  const days = Math.round((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  if (days === 0) return "hoje";
+  if (days === 1) return "ontem";
+  if (days < 0) {
+    const ad = Math.abs(days);
+    if (ad === 1) return "amanhã";
+    if (ad < 7) return `em ${ad} dias`;
+    if (ad < 30) return `em ${Math.round(ad / 7)} sem`;
+    return `em ${Math.round(ad / 30)} meses`;
+  }
+  if (days < 7) return `há ${days} dias`;
+  if (days < 30) {
+    const w = Math.round(days / 7);
+    return w === 1 ? "há 1 semana" : `há ${w} semanas`;
+  }
+  const m = Math.round(days / 30);
+  return m === 1 ? "há 1 mês" : `há ${m} meses`;
+}
 
 // Pode marcar visita como concluída quando há um laudo por equipamento e todos estão completed
 export function canConclude(a: MockAppointment): boolean {
