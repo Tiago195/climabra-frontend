@@ -220,7 +220,7 @@ export default function RequestsTimelineHistory() {
           }`}>{future.length}</span>
         </button>
         <button
-          onClick={() => { setTab("past"); }}
+          onClick={() => { setTab("past"); setView("timeline"); }}
           className={`flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-medium rounded-md py-1.5 transition ${
             tab === "past" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
           }`}
