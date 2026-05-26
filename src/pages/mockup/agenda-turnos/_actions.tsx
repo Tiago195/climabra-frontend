@@ -12,7 +12,6 @@ import {
   equipmentById,
   reportForEquipment,
   type MockAppointment,
-  type MockReport,
   type ReportStatus,
 } from "./_shared";
 
@@ -168,4 +167,3 @@ export function EquipmentReportActions({ appt, compact = false }: { appt: MockAp
   );
 }
 
-export type { MockReport };
