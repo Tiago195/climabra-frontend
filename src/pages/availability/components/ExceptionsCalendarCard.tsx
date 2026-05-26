@@ -21,7 +21,8 @@ function getDateStatus(date: string, exceptions: IExceptionResponse[]): "full" |
   let hasPartial = false
   for (const e of exceptions) {
     if (date >= e.startDate && date <= e.endDate) {
-      if (e.startTime === null) return "full"
+      // shifts vazio/ausente = dia inteiro bloqueado
+      if (!e.shifts || e.shifts.length === 0) return "full"
       hasPartial = true
     }
   }
@@ -144,7 +145,7 @@ export function ExceptionsCalendarCard({ exceptions, onAddClick }: ExceptionsCal
           </span>
           <span className="flex items-center gap-1">
             <span className="inline-block w-3 h-3 rounded bg-purple-200" />
-            Faixa horária bloqueada
+            Turnos específicos bloqueados
           </span>
         </div>
       </CardContent>

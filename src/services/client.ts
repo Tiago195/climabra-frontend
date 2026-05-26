@@ -1,6 +1,6 @@
 import axios from "axios"
 import { DEFAULT_URL } from "."
-import type { AppointmentStatus, EquipmentType, ReportStatus } from "./enums"
+import type { AppointmentStatus, EquipmentType, ReportStatus, Shift } from "./enums"
 
 const api = axios.create({ baseURL: `${DEFAULT_URL}/clients` })
 
@@ -68,7 +68,8 @@ export interface ISignUpSubmitRequest {
   equipmentModel?: string
   equipmentLabel?: string
   problemType?: string
-  scheduledAt: string
+  scheduledDate: string      // "YYYY-MM-DD"
+  shift: Shift
 }
 
 export interface IPortalEquipment {
@@ -81,7 +82,8 @@ export interface IPortalEquipment {
 
 export interface IPortalAppointment {
   id: string
-  scheduledAt: string
+  scheduledDate: string      // "YYYY-MM-DD"
+  shift: Shift
   status: AppointmentStatus
   equipmentIds: string[]
   notes: string | null
@@ -123,7 +125,8 @@ export interface IAppointmentRequestPayload {
   description: string
   photoUrls: string[]
   problemType?: string
-  scheduledAt: string
+  scheduledDate: string      // "YYYY-MM-DD"
+  shift: Shift
 }
 
 export interface IAddEquipmentPayload {

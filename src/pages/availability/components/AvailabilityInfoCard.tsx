@@ -9,7 +9,7 @@ export function AvailabilityInfoCard() {
         <div>
           <p className="text-sm font-medium text-blue-800">Como funciona</p>
           <p className="text-sm text-blue-700">
-            Configure os dias e horários que você atende. Quando um cliente acessar o link, ele verá apenas os horários disponíveis com base nestas configurações.
+            Configure os turnos (manhã, tarde, noite) de cada dia, com horário e quantas vagas por turno. Quando um cliente acessar o link de agendamento, ele verá apenas os turnos disponíveis com vagas restantes.
           </p>
         </div>
       </CardContent>

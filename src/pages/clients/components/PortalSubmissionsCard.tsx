@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { IPortalSubmission, IPortalEquipment, IPortalAppointment } from "@/services/client";
+import { formatScheduledShift } from "@/lib/shifts";
 
 function fmt(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -50,7 +51,7 @@ export function PortalSubmissionsCard({ submissions, equipments, appointments }:
               {appt && (
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-gray-500">
-                    Visita: {fmt(appt.scheduledAt)}
+                    Visita: {formatScheduledShift(appt.scheduledDate, appt.shift)}
                   </span>
                   {apptStatus && (
                     <span className={`px-2 py-0.5 rounded-full font-medium ${apptStatus.className}`}>
