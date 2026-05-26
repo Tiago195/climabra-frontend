@@ -116,6 +116,10 @@ export const router = createBrowserRouter([
     lazy: () => import("@/pages/mockup/agenda-turnos/RequestsTimelineHistory").then(m => ({ Component: m.default })),
   },
   {
+    path: "/mockup/agenda-turnos/requests-timeline-history",
+    lazy: () => import("@/pages/mockup/agenda-turnos/RequestsTimelineHistory").then(m => ({ Component: m.default })),
+  },
+  {
     path: "/mockup/agenda/new-calendar",
     lazy: () => import("@/pages/mockup/agenda-turnos/NewRequestCalendar").then(m => ({ Component: m.default })),
   },
