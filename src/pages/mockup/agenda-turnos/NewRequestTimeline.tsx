@@ -34,12 +34,16 @@ interface ScoredSlot {
 }
 
 function buildSlotSuggestions(clientLat: number, clientLng: number): ScoredSlot[] {
-  // Próximos 14 dias
+  // Próximos ~14 dias úteis (pula sábado e domingo)
   const today = new Date("2026-05-26T00:00:00");
   const out: ScoredSlot[] = [];
-  for (let i = 0; i < 14; i++) {
+  let added = 0;
+  for (let i = 0; added < 14 && i < 28; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() + i);
+    const dow = d.getDay();
+    if (dow === 0 || dow === 6) continue; // pula fim de semana
+    added++;
     const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const slots = slotsForDate(iso);
     for (const s of slots) {
