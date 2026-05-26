@@ -110,7 +110,7 @@ const PLAN: Record<string, SeverityPlan> = {
   e1:  { cleaning:  25, preventive: -60, sanitization: null, gas: -200 }, // 1 atrasado · nunca higien.
   e2:  { cleaning:  10, preventive:   5, sanitization: -120, gas: null }, // atrasado/quase
   e3:  { cleaning:  60, preventive: null, sanitization:  90, gas: 200 },  // 3 atrasados — crítico
-  e4:  { cleaning: -40, preventive: -10, sanitization: -200, gas: -150 }, // todo em dia, preventiva quase
+  e4:  { cleaning: -55, preventive: -90, sanitization: -200, gas: -150 }, // tudo em dia
   e5:  { cleaning: -50, preventive: -90, sanitization: -15, gas: null },  // higien. quase vencer
   e7:  { cleaning: null, preventive: null, sanitization: null, gas: null }, // novinho — nunca feito
   e8:  { cleaning:   5, preventive: -45, sanitization: -100, gas: -25 },  // limpeza atrasada/gás quase
@@ -159,6 +159,30 @@ export const EQUIPMENT_HISTORY: MaintenanceEvent[] = (() => {
 // só inclui equipamentos que têm "plano" (8 de 12)
 export const TRACKED_EQUIPMENT_IDS = Object.keys(PLAN);
 export const TRACKED_EQUIPMENTS = EQUIPMENTS.filter(e => TRACKED_EQUIPMENT_IDS.includes(e.id));
+
+// Idade mockada do aparelho (instalação) — usada na variante B
+export const EQUIPMENT_INSTALLED_AT: Record<string, string> = {
+  e1: "2022-03-10",
+  e2: "2022-03-10",
+  e3: "2019-06-22",
+  e4: "2023-11-05",
+  e5: "2023-11-05",
+  e7: "2026-04-18", // recém-instalado
+  e8: "2021-08-30",
+  e9: "2024-02-14",
+};
+
+export function ageLabel(installedAt: string | undefined, today: string = TODAY): string {
+  if (!installedAt) return "—";
+  const days = daysBetween(installedAt, today);
+  if (days < 30) return `${days}d de uso`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} ${months === 1 ? "mês" : "meses"} de uso`;
+  const years = Math.floor(days / 365);
+  const remMonths = Math.floor((days % 365) / 30);
+  if (remMonths === 0) return `${years} ${years === 1 ? "ano" : "anos"} de uso`;
+  return `${years}a ${remMonths}m de uso`;
+}
 
 // ---------- Helpers de status ----------
 export function severityOf(daysOverdue: number | null): Severity {

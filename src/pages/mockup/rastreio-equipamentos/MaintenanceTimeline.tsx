@@ -6,6 +6,8 @@ import {
   MockupShellWide,
   TRACKED_EQUIPMENTS,
   EQUIPMENT_TYPE_LABELS,
+  EQUIPMENT_INSTALLED_AT,
+  ageLabel,
   MAINTENANCE_KINDS,
   MAINTENANCE_ICONS,
   MAINTENANCE_LABELS,
@@ -160,6 +162,9 @@ export default function MaintenanceTimeline() {
               </div>
               <p className="text-xs text-gray-500 mt-0.5">
                 {EQUIPMENT_TYPE_LABELS[selectedEq.type]} · {selectedEq.brand} {selectedEq.model}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-1">
+                Instalado em {EQUIPMENT_INSTALLED_AT[selectedEq.id] ?? "—"} · {ageLabel(EQUIPMENT_INSTALLED_AT[selectedEq.id])}
               </p>
             </CardContent>
           </Card>
