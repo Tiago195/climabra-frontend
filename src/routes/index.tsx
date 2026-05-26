@@ -163,4 +163,8 @@ export const router = createBrowserRouter([
     path: "/mockup/laudo/completo",
     lazy: () => import("@/pages/mockup/laudo/LaudoCompleto").then(m => ({ Component: m.default })),
   },
+  {
+    path: "/mockup/laudo/pdf",
+    lazy: () => import("@/pages/mockup/laudo/LaudoPdfDocumento").then(m => ({ Component: m.default })),
+  },
 ])
