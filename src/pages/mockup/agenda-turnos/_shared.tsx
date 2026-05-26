@@ -129,20 +129,27 @@ export const EQUIPMENTS: MockEquipment[] = [
 export const TODAY = "2026-05-26";
 
 export const APPOINTMENTS: MockAppointment[] = [
-  // hoje (terça)
+  // HOJE — terça 26/05 (parcialmente em andamento, mix de estados de laudo)
   {
     id: "a1", clientId: "c1", equipmentIds: ["e1", "e2"],
     scheduledDate: "2026-05-26", shift: "morning", status: "scheduled",
     notes: "Cliente preferiu manhã cedo",
     submission: { description: "Os dois aparelhos param de gelar depois de 1h ligados.", problemType: "nao_gela", photoCount: 3 },
-    reports: [{ id: "r1", equipmentId: "e1", status: "draft" }],
+    reports: [
+      { id: "r1a", equipmentId: "e1", status: "completed" },
+      { id: "r1b", equipmentId: "e2", status: "draft" },
+    ],
   },
   {
     id: "a2", clientId: "c3", equipmentIds: ["e4", "e5", "e6"],
     scheduledDate: "2026-05-26", shift: "afternoon", status: "scheduled",
     notes: "Empresa — entrada pelo subsolo",
     submission: { description: "Manutenção preventiva trimestral dos 3 equipamentos.", problemType: "manutencao", photoCount: 0 },
-    reports: [],
+    reports: [
+      { id: "r2a", equipmentId: "e4", status: "completed" },
+      { id: "r2b", equipmentId: "e5", status: "completed" },
+      { id: "r2c", equipmentId: "e6", status: "completed" },
+    ], // todos completos → "Concluir" habilita
   },
   {
     id: "a3", clientId: "c2", equipmentIds: ["e3"],
@@ -150,17 +157,17 @@ export const APPOINTMENTS: MockAppointment[] = [
     submission: { description: "Aparelho fazendo barulho alto ao ligar.", problemType: "barulho", photoCount: 2 },
     reports: [],
   },
-  // amanhã (quarta)
+  // QUARTA 27/05
   {
     id: "a4", clientId: "c4", equipmentIds: ["e7"],
     scheduledDate: "2026-05-27", shift: "morning", status: "scheduled",
-    reports: [],
+    reports: [{ id: "r4", equipmentId: "e7", status: "sent" }],
   },
   {
     id: "a5", clientId: "c5", equipmentIds: ["e8"],
     scheduledDate: "2026-05-27", shift: "afternoon", status: "scheduled",
     submission: { description: "Vazando água pela parte da frente.", problemType: "vazamento", photoCount: 4 },
-    reports: [],
+    reports: [{ id: "r5", equipmentId: "e8", status: "approved" }],
   },
   {
     id: "a6", clientId: "c8", equipmentIds: ["e12"],
@@ -168,18 +175,45 @@ export const APPOINTMENTS: MockAppointment[] = [
     notes: "Cliente só pode após 19h",
     reports: [],
   },
-  // quinta
+  // QUINTA 28/05
   {
     id: "a7", clientId: "c6", equipmentIds: ["e9", "e10"],
     scheduledDate: "2026-05-28", shift: "morning", status: "scheduled",
-    reports: [],
+    reports: [
+      { id: "r7a", equipmentId: "e9", status: "completed" },
+      { id: "r7b", equipmentId: "e10", status: "draft" },
+    ],
   },
   {
     id: "a8", clientId: "c7", equipmentIds: ["e11"],
     scheduledDate: "2026-05-28", shift: "afternoon", status: "scheduled",
     reports: [],
   },
-  // passado — concluídos
+  // SEXTA 29/05 + futuro "depois"
+  {
+    id: "a12", clientId: "c7", equipmentIds: ["e11"],
+    scheduledDate: "2026-05-29", shift: "morning", status: "scheduled",
+    submission: { description: "Aparelho novo precisa de instalação.", problemType: "instalacao", photoCount: 1 },
+    reports: [],
+  },
+  {
+    id: "a13", clientId: "c8", equipmentIds: ["e12"],
+    scheduledDate: "2026-05-30", shift: "morning", status: "scheduled",
+    notes: "Sábado pela manhã",
+    reports: [],
+  },
+  {
+    id: "a14", clientId: "c5", equipmentIds: ["e8"],
+    scheduledDate: "2026-06-01", shift: "afternoon", status: "scheduled",
+    reports: [],
+  },
+  {
+    id: "a15", clientId: "c1", equipmentIds: ["e1", "e2"],
+    scheduledDate: "2026-06-02", shift: "night", status: "scheduled",
+    notes: "Após expediente do cliente",
+    reports: [],
+  },
+  // PASSADO
   {
     id: "a9", clientId: "c1", equipmentIds: ["e1"],
     scheduledDate: "2026-05-19", shift: "morning", status: "completed",
@@ -196,6 +230,33 @@ export const APPOINTMENTS: MockAppointment[] = [
     reports: [],
   },
 ];
+
+// Pode marcar visita como concluída quando há um laudo por equipamento e todos estão completed
+export function canConclude(a: MockAppointment): boolean {
+  if (a.equipmentIds.length === 0) return false;
+  if (a.reports.length < a.equipmentIds.length) return false;
+  return a.equipmentIds.every(eqId =>
+    a.reports.some(r => r.equipmentId === eqId && r.status === "completed")
+  );
+}
+
+export function reportForEquipment(a: MockAppointment, equipmentId: string) {
+  return a.reports.find(r => r.equipmentId === equipmentId);
+}
+
+export const REPORT_STATUS_LABELS: Record<ReportStatus, string> = {
+  draft: "Rascunho",
+  sent: "Enviado",
+  approved: "Aprovado",
+  completed: "Concluído",
+};
+
+export const REPORT_STATUS_COLORS: Record<ReportStatus, string> = {
+  draft: "bg-gray-100 text-gray-700",
+  sent: "bg-blue-100 text-blue-700",
+  approved: "bg-violet-100 text-violet-700",
+  completed: "bg-green-100 text-green-700",
+};
 
 // Agenda configurada: seg–sex 3 turnos, sáb só manhã, dom inativo
 export const AVAILABILITY: MockAvailability[] = [

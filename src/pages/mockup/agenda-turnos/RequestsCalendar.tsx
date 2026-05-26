@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus, Users, AirVent, FileText, AlertCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Users, AlertCircle, ChevronDown } from "lucide-react";
 import {
   APPOINTMENTS,
   AVAILABILITY,
@@ -14,14 +14,15 @@ import {
   TODAY,
   MockupShell,
   clientById,
-  equipmentById,
   type Shift,
 } from "./_shared";
+import { EquipmentReportActions } from "./_actions";
 
 export default function RequestsCalendar() {
   const [year, setYear] = useState(2026);
   const [month, setMonth] = useState(4); // maio
   const [selectedDate, setSelectedDate] = useState<string>(TODAY);
+  const [expandedId, setExpandedId] = useState<string | null>("a2");
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDay = new Date(year, month, 1).getDay();
@@ -169,23 +170,26 @@ export default function RequestsCalendar() {
                   <div className="space-y-1.5">
                     {appts.map(a => {
                       const cli = clientById(a.clientId);
-                      const eqs = a.equipmentIds.map(equipmentById);
                       const reportsDone = a.reports.filter(r => r.status === "completed").length;
+                      const isOpen = expandedId === a.id;
                       return (
-                        <div key={a.id} className="border border-gray-200 rounded-md px-2.5 py-2 space-y-1">
-                          <p className="text-sm font-medium text-gray-800">{cli.name}</p>
-                          <div className="flex flex-wrap gap-1">
-                            {eqs.map(eq => (
-                              <span key={eq.id} className="inline-flex items-center gap-0.5 text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">
-                                <AirVent className="w-2.5 h-2.5" />{eq.label}
-                              </span>
-                            ))}
-                          </div>
-                          {eqs.length > 0 && (
-                            <p className="text-[10px] text-gray-400 flex items-center gap-1">
-                              <FileText className="w-2.5 h-2.5" />
-                              {reportsDone}/{eqs.length} laudos concluídos
+                        <div key={a.id} className="border border-gray-200 rounded-md overflow-hidden">
+                          <button
+                            onClick={() => setExpandedId(isOpen ? null : a.id)}
+                            className="w-full px-2.5 py-2 text-left hover:bg-gray-50"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-medium text-gray-800">{cli.name}</p>
+                              <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                            </div>
+                            <p className="text-[10px] text-gray-500">
+                              {a.equipmentIds.length} equipamento{a.equipmentIds.length > 1 ? "s" : ""} · {reportsDone}/{a.equipmentIds.length} laudos prontos
                             </p>
+                          </button>
+                          {isOpen && (
+                            <div className="px-2.5 pb-2.5 pt-1 border-t bg-gray-50/50">
+                              <EquipmentReportActions appt={a} compact />
+                            </div>
                           )}
                         </div>
                       );
