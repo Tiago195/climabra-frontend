@@ -135,4 +135,12 @@ export const router = createBrowserRouter([
     path: "/mockup/agenda/portal-timeline",
     lazy: () => import("@/pages/mockup/agenda-turnos/ClientPortalTimeline").then(m => ({ Component: m.default })),
   },
+  {
+    path: "/mockup/rastreio/health",
+    lazy: () => import("@/pages/mockup/rastreio-equipamentos/HealthGrid").then(m => ({ Component: m.default })),
+  },
+  {
+    path: "/mockup/rastreio/timeline",
+    lazy: () => import("@/pages/mockup/rastreio-equipamentos/MaintenanceTimeline").then(m => ({ Component: m.default })),
+  },
 ])
