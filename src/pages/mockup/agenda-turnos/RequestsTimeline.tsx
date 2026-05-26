@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, MapPin, Navigation, List, Map as MapIcon, Home } from "lucide-react";
+import { Plus, MapPin, Navigation, List, Map as MapIcon, Home, ExternalLink } from "lucide-react";
 import {
   APPOINTMENTS,
   PROVIDER,
@@ -38,6 +38,34 @@ const BUCKET_BARS: Record<Bucket, string> = {
   week: "bg-blue-400",
   later: "bg-gray-300",
 };
+
+function googleMapsRouteUrl(stops: Array<{ lat: number; lng: number }>) {
+  if (stops.length === 0) return "";
+  const origin = `${PROVIDER.lat},${PROVIDER.lng}`;
+  const destination = `${stops[stops.length - 1].lat},${stops[stops.length - 1].lng}`;
+  const waypoints = stops.slice(0, -1).map(s => `${s.lat},${s.lng}`).join("|");
+  const params = new URLSearchParams({
+    api: "1",
+    origin,
+    destination,
+    travelmode: "driving",
+  });
+  if (waypoints) params.set("waypoints", waypoints);
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
+
+function googleMapsSingleUrl(stop: { lat: number; lng: number }) {
+  const params = new URLSearchParams({
+    api: "1",
+    destination: `${stop.lat},${stop.lng}`,
+    travelmode: "driving",
+  });
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
+
+function wazeUrl(stop: { lat: number; lng: number }) {
+  return `https://www.waze.com/ul?ll=${stop.lat}%2C${stop.lng}&navigate=yes`;
+}
 
 export default function RequestsTimeline() {
   const [view, setView] = useState<ViewMode>("timeline");
@@ -181,7 +209,7 @@ export default function RequestsTimeline() {
       {view === "map" && (
         <>
           <Card>
-            <CardContent className="py-3 space-y-1">
+            <CardContent className="py-3 space-y-2">
               <div className="flex items-center gap-1.5 text-xs font-medium text-gray-700">
                 <Navigation className="w-3.5 h-3.5 text-blue-600" />
                 <span>Rota otimizada de hoje — {todayItems.length} parada{todayItems.length === 1 ? "" : "s"}</span>
@@ -190,6 +218,35 @@ export default function RequestsTimeline() {
                 <Home className="w-3 h-3" /> Base: <span className="font-medium text-gray-700">{PROVIDER.baseAddress.split("—")[0].trim()}</span>
                 <span className="ml-auto font-semibold text-blue-700">Σ {todayRouteKm.toFixed(1)} km</span>
               </p>
+              {todayItems.length > 0 && (
+                <div className="flex items-center gap-1.5 pt-1">
+                  <a
+                    href={googleMapsRouteUrl(todayItems.map(i => i.client))}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1"
+                  >
+                    <Button size="sm" className="w-full h-8 bg-blue-600 hover:bg-blue-700 gap-1.5 text-xs">
+                      <ExternalLink className="w-3.5 h-3.5" /> Google Maps
+                    </Button>
+                  </a>
+                  <a
+                    href={wazeUrl(todayItems[0].client)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1"
+                  >
+                    <Button size="sm" variant="outline" className="w-full h-8 gap-1.5 text-xs">
+                      <ExternalLink className="w-3.5 h-3.5" /> Waze (1ª)
+                    </Button>
+                  </a>
+                </div>
+              )}
+              {todayItems.length > 1 && (
+                <p className="text-[10px] text-gray-400 leading-tight">
+                  Waze não aceita múltiplas paradas — abre a 1ª; use "Ir agora" no card de cada visita.
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -231,6 +288,29 @@ export default function RequestsTimeline() {
                                 </span>
                               </p>
                             </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <a
+                              href={googleMapsSingleUrl(a.client)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1"
+                            >
+                              <Button size="sm" variant="outline" className="w-full h-7 gap-1 text-[11px]">
+                                <Navigation className="w-3 h-3" /> Ir agora (Maps)
+                              </Button>
+                            </a>
+                            <a
+                              href={wazeUrl(a.client)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1"
+                            >
+                              <Button size="sm" variant="outline" className="w-full h-7 gap-1 text-[11px]">
+                                <Navigation className="w-3 h-3" /> Waze
+                              </Button>
+                            </a>
                           </div>
 
                           <EquipmentReportActions appt={a} compact />
