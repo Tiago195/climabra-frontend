@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, CalendarDays, Plus, CheckCircle2, AlertCircle, ArrowRight, XCircle } from "lucide-react";
+import { Users, CalendarDays, Plus, CheckCircle2, AlertCircle, ArrowRight, XCircle, Clock, AirVent, History } from "lucide-react";
 import { useAuth } from "@/contexts/authContext";
 import { useRequireProfile } from "@/components/CompleteProfileDialog";
 import { clientService, type IClientResponse } from "@/services/client";
@@ -42,6 +42,23 @@ export function Dashboard() {
   const recentClients = [...clients]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
+
+  const timelineItems = [...appointments]
+    .sort((a, b) => new Date(b.appointment.scheduledAt).getTime() - new Date(a.appointment.scheduledAt).getTime())
+    .slice(0, 8);
+
+  const TIMELINE_STATUS: Record<string, { label: string; icon: React.ElementType; dot: string; badge: string }> = {
+    scheduled: { label: "Agendado",  icon: Clock,        dot: "bg-blue-500",  badge: "bg-blue-50 text-blue-700" },
+    completed: { label: "Concluído", icon: CheckCircle2, dot: "bg-green-500", badge: "bg-green-50 text-green-700" },
+    canceled:  { label: "Cancelado", icon: XCircle,      dot: "bg-gray-300",  badge: "bg-gray-100 text-gray-500" },
+    no_show:   { label: "Não compareceu", icon: XCircle, dot: "bg-red-400",   badge: "bg-red-50 text-red-600" },
+  };
+
+  const fmtTimelineDate = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
+      + " · " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -124,6 +141,69 @@ export function Dashboard() {
           </Card>
         </div>
       )}
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <History className="w-4 h-4 text-blue-500" />
+            Linha do tempo dos serviços
+          </CardTitle>
+          <Link to="/dashboard/requests">
+            <Button variant="ghost" size="sm" className="text-blue-600 gap-1 text-xs">
+              Ver todas <ArrowRight className="w-3 h-3" />
+            </Button>
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="space-y-3">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
+          ) : timelineItems.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <CalendarDays className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">Nenhum serviço registrado ainda</p>
+            </div>
+          ) : (
+            <ol className="relative border-l-2 border-gray-100 ml-3 space-y-4">
+              {timelineItems.map(row => {
+                const { appointment: appt, client, equipments } = row;
+                const conf = TIMELINE_STATUS[appt.status] ?? TIMELINE_STATUS.scheduled;
+                const Icon = conf.icon;
+                const eqCount = equipments.length;
+                return (
+                  <li key={appt.id} className="pl-5 relative">
+                    <span className={`absolute -left-[7px] top-1.5 w-3 h-3 rounded-full ring-2 ring-white ${conf.dot}`} />
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium ${conf.badge}`}>
+                            <Icon className="w-3 h-3" /> {conf.label}
+                          </span>
+                          <span className="text-xs text-gray-500">{fmtTimelineDate(appt.scheduledAt)}</span>
+                        </div>
+                        <Link
+                          to={`/dashboard/clients/${client.id}`}
+                          className="block text-sm font-medium text-gray-900 mt-1 hover:text-blue-700 truncate"
+                        >
+                          {client.name}
+                        </Link>
+                        {eqCount > 0 && (
+                          <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                            <AirVent className="w-3 h-3 text-blue-400" />
+                            {eqCount} equipamento{eqCount > 1 ? "s" : ""}
+                          </p>
+                        )}
+                        {appt.notes && (
+                          <p className="text-xs text-gray-400 italic mt-0.5 line-clamp-1">{appt.notes}</p>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid md:grid-cols-2 gap-6">
         <Card>
