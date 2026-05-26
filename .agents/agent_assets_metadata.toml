@@ -1,0 +1,13 @@
+uploads = []
+
+[[generated]]
+id = "ysIEkbbCs_ECPmht85zUH"
+uri = "file://attached_assets/generated_images/climagestao-mapa-rota-dia.png"
+type = "image"
+title = "climagestao mapa rota dia mockup"
+
+[[outputs]]
+id = "lU_WfrdqO7h6gUFq-xiE7"
+uri = "file://attached_assets/generated_images/climagestao-mapa-rota-dia.png"
+type = "image"
+title = "ClimaGestão — Mapa da rota do dia"
