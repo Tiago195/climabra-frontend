@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { reportService, type IPublicReportResponse } from "@/services/report";
-import { CheckCircle2, ShieldCheck, Loader2, FileText, RefreshCw } from "lucide-react";
+import { ratingService, type IRating } from "@/services/rating";
+import { Textarea } from "@/components/ui/textarea";
+import { CheckCircle2, ShieldCheck, Loader2, FileText, RefreshCw, Star } from "lucide-react";
 
 const EQUIPMENT_TYPE_LABELS: Record<string, string> = {
   split: "Split", janela: "Janela", central: "Central",
@@ -23,6 +25,15 @@ export function PublicReport() {
   const [approving, setApproving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [rating, setRating] = useState<IRating | null>(null);
+  const [ratingStars, setRatingStars] = useState(0);
+  const [ratingHover, setRatingHover] = useState(0);
+  const [ratingComment, setRatingComment] = useState("");
+  const [submittingRating, setSubmittingRating] = useState(false);
+
+  useEffect(() => {
+    if (reportToken) setRating(ratingService.get(reportToken));
+  }, [reportToken]);
 
   const handleRefresh = async () => {
     if (!providerToken || !clientId || !equipmentId || !reportToken) return;
@@ -49,6 +60,24 @@ export function PublicReport() {
       .catch(() => toast.error("Laudo não encontrado"))
       .finally(() => setLoading(false));
   }, [providerToken, clientId, equipmentId, reportToken]);
+
+  const handleSubmitRating = () => {
+    if (!providerToken || !reportToken || ratingStars < 1) return;
+    setSubmittingRating(true);
+    try {
+      const saved = ratingService.save({
+        reportToken,
+        providerToken,
+        clientName: data?.client.name,
+        stars: ratingStars,
+        comment: ratingComment.trim(),
+      });
+      setRating(saved);
+      toast.success("Obrigado pela avaliação!");
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
 
   const handleApprove = async () => {
     if (!providerToken || !clientId || !equipmentId || !reportToken) return;
@@ -318,6 +347,80 @@ export function PublicReport() {
                 Em caso de dúvidas, contate {provider.name}
                 {provider.phone ? ` · ${provider.phone}` : ""}.
               </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {isCompleted && rating && (
+          <Card className="bg-amber-50 border-amber-200">
+            <CardContent className="py-4 space-y-2">
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <Star
+                    key={n}
+                    className={`w-5 h-5 ${n <= rating.stars ? "fill-amber-400 text-amber-400" : "text-amber-200"}`}
+                  />
+                ))}
+                <span className="ml-2 text-xs text-amber-900 font-medium">
+                  Sua avaliação enviada
+                </span>
+              </div>
+              {rating.comment && (
+                <p className="text-sm text-amber-900 italic">"{rating.comment}"</p>
+              )}
+              <p className="text-xs text-amber-700">
+                Obrigado! Seu retorno ajuda outros clientes a confiarem no prestador.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {isCompleted && !rating && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Como foi o atendimento?</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-gray-600">
+                Avalie o serviço prestado por {provider.companyName ?? provider.name}.
+              </p>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map(n => {
+                  const active = n <= (ratingHover || ratingStars);
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setRatingStars(n)}
+                      onMouseEnter={() => setRatingHover(n)}
+                      onMouseLeave={() => setRatingHover(0)}
+                      className="p-1"
+                      aria-label={`${n} estrela${n > 1 ? "s" : ""}`}
+                    >
+                      <Star
+                        className={`w-8 h-8 transition-colors ${
+                          active ? "fill-amber-400 text-amber-400" : "text-gray-300"
+                        }`}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              <Textarea
+                placeholder="Comentário (opcional)"
+                value={ratingComment}
+                onChange={e => setRatingComment(e.target.value)}
+                rows={3}
+                maxLength={500}
+              />
+              <Button
+                className="w-full bg-blue-600 hover:bg-blue-700"
+                disabled={ratingStars < 1 || submittingRating}
+                onClick={handleSubmitRating}
+              >
+                {submittingRating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {ratingStars < 1 ? "Toque nas estrelas para avaliar" : "Enviar avaliação"}
+              </Button>
             </CardContent>
           </Card>
         )}

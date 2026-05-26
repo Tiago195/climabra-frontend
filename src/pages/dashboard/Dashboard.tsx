@@ -4,11 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, CalendarDays, Plus, CheckCircle2, AlertCircle, ArrowRight, XCircle, Clock, AirVent, History } from "lucide-react";
+import { Users, CalendarDays, Plus, CheckCircle2, AlertCircle, ArrowRight, XCircle, Clock, AirVent, History, Star } from "lucide-react";
 import { useAuth } from "@/contexts/authContext";
 import { useRequireProfile } from "@/components/CompleteProfileDialog";
 import { clientService, type IClientResponse } from "@/services/client";
 import { appointmentService, type IAppointmentDetailResponse } from "@/services/appointment";
+import { ratingService, type IRating } from "@/services/rating";
 
 export function Dashboard() {
   const { provider, token } = useAuth();
@@ -18,6 +19,18 @@ export function Dashboard() {
   const [clients, setClients] = useState<IClientResponse[]>([]);
   const [appointments, setAppointments] = useState<IAppointmentDetailResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ratings, setRatings] = useState<IRating[]>([]);
+
+  useEffect(() => {
+    if (provider?.publicToken) {
+      setRatings(ratingService.listByProvider(provider.publicToken));
+    }
+  }, [provider?.publicToken]);
+
+  const avgStars = ratings.length
+    ? ratings.reduce((s, r) => s + r.stars, 0) / ratings.length
+    : 0;
+  const recentRatings = ratings.slice(0, 3);
 
   const isProfileComplete = provider?.status !== "pending";
 
@@ -141,6 +154,65 @@ export function Dashboard() {
           </Card>
         </div>
       )}
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Star className="w-4 h-4 text-amber-500" />
+            Avaliações dos clientes
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {ratings.length === 0 ? (
+            <div className="text-center py-6 text-gray-400">
+              <Star className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">Nenhuma avaliação recebida ainda</p>
+              <p className="text-xs mt-1">
+                Os clientes podem avaliar após o laudo ser concluído.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-baseline gap-3">
+                <span className="text-3xl font-bold text-gray-900">{avgStars.toFixed(1)}</span>
+                <div className="flex items-center gap-0.5">
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <Star
+                      key={n}
+                      className={`w-4 h-4 ${n <= Math.round(avgStars) ? "fill-amber-400 text-amber-400" : "text-gray-200"}`}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs text-gray-500">
+                  ({ratings.length} avaliaç{ratings.length === 1 ? "ão" : "ões"})
+                </span>
+              </div>
+              <div className="space-y-3">
+                {recentRatings.map(r => (
+                  <div key={r.reportToken} className="border-l-2 border-amber-200 pl-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <Star
+                            key={n}
+                            className={`w-3 h-3 ${n <= r.stars ? "fill-amber-400 text-amber-400" : "text-gray-200"}`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {r.clientName ?? "Cliente"} · {new Date(r.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                      </span>
+                    </div>
+                    {r.comment && (
+                      <p className="text-sm text-gray-700 italic mt-1">"{r.comment}"</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">
