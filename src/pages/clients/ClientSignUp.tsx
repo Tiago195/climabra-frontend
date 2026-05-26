@@ -4,14 +4,21 @@ import { Button } from "@/components/ui/button";
 import { Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { clientService } from "@/services/client";
-import type { EquipmentType } from "@/services/enums";
-import { availabilityService, type ISignUpProviderResponse } from "@/services/availability";
+import type { EquipmentType, Shift } from "@/services/enums";
+import {
+  availabilityService,
+  type ISignUpProviderResponse,
+  type IShiftSlot,
+} from "@/services/availability";
 import { SignUpHeader } from "./components/SignUpHeader";
 import { SignUpStepIndicator } from "./components/SignUpStepIndicator";
 import { SignUpDataForm, type SignUpFormData } from "./components/SignUpDataForm";
 import { SignUpCalendarCard } from "./components/SignUpCalendarCard";
 import { SignUpTimeSlotsCard } from "./components/SignUpTimeSlotsCard";
 import { SignUpSuccessScreen } from "./components/SignUpSuccessScreen";
+
+const fmtDateLocal = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 export function ClientSignUp() {
   const { publicToken: token } = useParams<{ publicToken: string }>();
@@ -28,9 +35,9 @@ export function ClientSignUp() {
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [slots, setSlots] = useState<string[]>([]);
+  const [shifts, setShifts] = useState<IShiftSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -40,30 +47,30 @@ export function ClientSignUp() {
       .finally(() => setLoading(false));
   }, [token]);
 
-  const handleStep1Submit = (data: SignUpFormData) => {
-    setFormData(data);
+  const handleStep1Submit = (d: SignUpFormData) => {
+    setFormData(d);
     setStep(2);
     window.scrollTo(0, 0);
   };
 
   const handleSelectDate = async (date: Date) => {
     setSelectedDate(date);
-    setSelectedSlot(null);
-    setSlots([]);
+    setSelectedShift(null);
+    setShifts([]);
     setLoadingSlots(true);
     try {
-      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const dateStr = fmtDateLocal(date);
       const res = await availabilityService.getSignUpSlots(token!, dateStr);
-      setSlots(res.slots ?? []);
+      setShifts(res.shifts ?? []);
     } catch {
-      toast.error("Erro ao carregar horários");
+      toast.error("Erro ao carregar turnos");
     } finally {
       setLoadingSlots(false);
     }
   };
 
   const handleConfirm = async () => {
-    if (!selectedSlot || !token || !formData) return;
+    if (!selectedShift || !selectedDate || !token || !formData) return;
     setSubmitting(true);
     try {
       await clientService.signUpSubmit(token, {
@@ -84,7 +91,8 @@ export function ClientSignUp() {
         equipmentModel: formData.equipmentModel || undefined,
         equipmentLabel: formData.equipmentLabel || undefined,
         problemType: formData.problemType || undefined,
-        scheduledAt: selectedSlot,
+        scheduledDate: fmtDateLocal(selectedDate),
+        shift: selectedShift,
       });
       setSubmitted(true);
     } catch {
@@ -115,12 +123,19 @@ export function ClientSignUp() {
     </div>
   );
 
-  if (submitted && selectedSlot) return (
-    <SignUpSuccessScreen
-      providerName={data?.provider?.companyName ?? data?.provider?.name ?? ""}
-      scheduledAt={selectedSlot}
-    />
-  );
+  if (submitted && selectedShift && selectedDate) {
+    const selectedShiftSlot = shifts.find(s => s.shift === selectedShift);
+    return (
+      <SignUpSuccessScreen
+        providerName={data?.provider?.companyName ?? data?.provider?.name ?? ""}
+        scheduledDate={fmtDateLocal(selectedDate)}
+        shift={selectedShift}
+        shiftHours={selectedShiftSlot
+          ? { startTime: selectedShiftSlot.startTime, endTime: selectedShiftSlot.endTime }
+          : undefined}
+      />
+    );
+  }
 
   const provider = data?.provider;
   const activeDays = data?.activeDaysOfWeek ?? [];
@@ -148,10 +163,10 @@ export function ClientSignUp() {
             {selectedDate && (
               <SignUpTimeSlotsCard
                 date={selectedDate}
-                slots={slots}
+                shifts={shifts}
                 loading={loadingSlots}
-                selectedSlot={selectedSlot}
-                onSelectSlot={setSelectedSlot}
+                selectedShift={selectedShift}
+                onSelectShift={setSelectedShift}
               />
             )}
 
@@ -159,7 +174,7 @@ export function ClientSignUp() {
               <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>Voltar</Button>
               <Button
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
-                disabled={!selectedSlot || submitting}
+                disabled={!selectedShift || submitting}
                 onClick={handleConfirm}
               >
                 {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}

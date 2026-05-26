@@ -2,8 +2,16 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Plus } from "lucide-react";
+import { Calendar, Plus, Sunrise, Sun, Moon } from "lucide-react";
 import type { IPortalAppointment, IPortalEquipment } from "@/services/client";
+import type { Shift } from "@/services/enums";
+import {
+  SHIFT_LABELS,
+  DEFAULT_SHIFT_HOURS,
+  formatDateBr,
+  trimTime,
+  compareScheduledShift,
+} from "@/lib/shifts";
 
 const STATUS: Record<string, { label: string; color: string }> = {
   scheduled: { label: "Agendada", color: "bg-blue-100 text-blue-700" },
@@ -12,9 +20,11 @@ const STATUS: Record<string, { label: string; color: string }> = {
   no_show: { label: "Não compareceu", color: "bg-red-100 text-red-600" },
 };
 
-function fmt(iso: string) {
-  return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
-}
+const SHIFT_ICONS: Record<Shift, typeof Sunrise> = {
+  morning: Sunrise,
+  afternoon: Sun,
+  night: Moon,
+};
 
 interface Props {
   appointments: IPortalAppointment[];
@@ -25,9 +35,10 @@ interface Props {
 
 export function PortalAppointmentsCard({ appointments, equipments, publicToken, clientId }: Props) {
   const equipmentById = new Map(equipments.map(e => [e.id, e]));
-  const sorted = [...appointments].filter(appointment => appointment.status === 'scheduled').sort(
-    (a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()
-  );
+  // Mais recente primeiro
+  const sorted = [...appointments]
+    .filter(a => a.status === "scheduled")
+    .sort((a, b) => -compareScheduledShift(a, b));
 
   return (
     <Card>
@@ -48,11 +59,20 @@ export function PortalAppointmentsCard({ appointments, equipments, publicToken, 
           sorted.map(a => {
             const linkedEquipments = a.equipmentIds.map(id => equipmentById.get(id)).filter(Boolean);
             const st = STATUS[a.status] ?? { label: a.status, color: "bg-gray-100 text-gray-600" };
+            const ShiftIcon = SHIFT_ICONS[a.shift];
+            const hours = DEFAULT_SHIFT_HOURS[a.shift];
             return (
               <div key={a.id} className="border rounded-lg p-3 flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-sm font-medium">{fmt(a.scheduledAt)}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{formatDateBr(a.scheduledDate)}</p>
+                  <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
+                    <ShiftIcon className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                    <span>{SHIFT_LABELS[a.shift]}</span>
+                    <span className="text-gray-400">
+                      {trimTime(hours.startTime)}–{trimTime(hours.endTime)}
+                    </span>
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
                     {linkedEquipments.length > 0
                       ? linkedEquipments.map(eq => eq!.label || eq!.type || "Equipamento").join(", ")
                       : "Sem equipamento vinculado"}

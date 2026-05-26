@@ -8,29 +8,30 @@ import {
   type AvailabilityDTO,
   type IExceptionResponse,
 } from "@/services/availability"
+import type { Shift } from "@/services/enums"
+import { SHIFT_ORDER, DEFAULT_SHIFT_HOURS, trimTime } from "@/lib/shifts"
 import { AvailabilityInfoCard } from "./components/AvailabilityInfoCard"
-import { DayCard, type DayConfig } from "./components/DayCard"
+import type { ShiftConfig } from "./components/DayCard"
+import { AvailabilityShiftGrid } from "./components/AvailabilityShiftGrid"
+import { AvailabilityDayDetail } from "./components/AvailabilityDayDetail"
+import { AvailabilityStats } from "./components/AvailabilityStats"
 import { FloatingSaveButton } from "./components/FloatingSaveButton"
 import { ExceptionsCalendarCard } from "./components/ExceptionsCalendarCard"
 import { ExceptionsList } from "./components/ExceptionsList"
 import { AddExceptionDialog } from "./components/AddExceptionDialog"
 
-const DAYS = [
-  { value: 0, label: "Domingo" },
-  { value: 1, label: "Segunda-feira" },
-  { value: 2, label: "Terça-feira" },
-  { value: 3, label: "Quarta-feira" },
-  { value: 4, label: "Quinta-feira" },
-  { value: 5, label: "Sexta-feira" },
-  { value: 6, label: "Sábado" },
-]
+/** Chave única por turno-dia. */
+const keyOf = (dayOfWeek: number, shift: Shift) => `${dayOfWeek}-${shift}`
 
 export function Availability() {
   const { token } = useAuth()
   const [availability, setAvailability] = useState<AvailabilityDTO[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [localConfig, setLocalConfig] = useState<Record<number, DayConfig>>({})
+  /** Override local de turnos editados antes de salvar. */
+  const [localConfig, setLocalConfig] = useState<Record<string, ShiftConfig>>({})
+  /** Dia selecionado no card de detalhes. Default: segunda. */
+  const [selectedDow, setSelectedDow] = useState(1)
 
   const [exceptions, setExceptions] = useState<IExceptionResponse[]>([])
   const [loadingExceptions, setLoadingExceptions] = useState(true)
@@ -53,36 +54,84 @@ export function Availability() {
       .finally(() => setLoadingExceptions(false))
   }, [token])
 
-  const getConfig = (dayOfWeek: number): DayConfig => {
-    if (localConfig[dayOfWeek]) return localConfig[dayOfWeek]
-    const existing = availability.find(a => a.dayOfWeek === dayOfWeek)
-    return existing ?? {
+  const getConfig = (dayOfWeek: number, shift: Shift): ShiftConfig => {
+    const k = keyOf(dayOfWeek, shift)
+    if (localConfig[k]) return localConfig[k]
+    const existing = availability.find(a => a.dayOfWeek === dayOfWeek && a.shift === shift)
+    if (existing) {
+      return {
+        dayOfWeek,
+        shift,
+        startTime: trimTime(existing.startTime),
+        endTime: trimTime(existing.endTime),
+        capacity: existing.capacity,
+        isActive: existing.isActive,
+      }
+    }
+    const defaults = DEFAULT_SHIFT_HOURS[shift]
+    return {
       dayOfWeek,
-      startTime: "08:00",
-      endTime: "18:00",
-      slotDurationMinutes: 60,
+      shift,
+      startTime: defaults.startTime,
+      endTime: defaults.endTime,
+      capacity: defaults.capacity,
       isActive: false,
     }
   }
 
-  const updateLocal = (dayOfWeek: number, updates: Partial<DayConfig>) => {
+  const isDirty = (dayOfWeek: number, shift: Shift) =>
+    !!localConfig[keyOf(dayOfWeek, shift)]
+
+  const updateLocal = (dayOfWeek: number, shift: Shift, updates: Partial<ShiftConfig>) => {
+    const k = keyOf(dayOfWeek, shift)
     setLocalConfig(prev => ({
       ...prev,
-      [dayOfWeek]: { ...getConfig(dayOfWeek), ...updates },
+      [k]: { ...getConfig(dayOfWeek, shift), ...updates },
     }))
   }
+
+  const toggleShift = (dayOfWeek: number, shift: Shift) => {
+    const config = getConfig(dayOfWeek, shift)
+    updateLocal(dayOfWeek, shift, { isActive: !config.isActive })
+  }
+
+  // Stats agregadas considerando overrides locais
+  const allShiftConfigs = (() => {
+    const list: ShiftConfig[] = []
+    for (let dow = 0; dow < 7; dow++) {
+      for (const s of SHIFT_ORDER) list.push(getConfig(dow, s))
+    }
+    return list
+  })()
+  const activeDays = new Set(
+    allShiftConfigs.filter(c => c.isActive).map(c => c.dayOfWeek)
+  ).size
+  const totalWeekCap = allShiftConfigs
+    .filter(c => c.isActive)
+    .reduce((sum, c) => sum + c.capacity, 0)
 
   const handleSaveAll = async () => {
     if (!token) return
     setSaving(true)
     try {
       const results = await Promise.all(
-        Object.values(localConfig).map(config => availabilityService.upsert(token, config))
+        Object.values(localConfig).map(config =>
+          availabilityService.upsert(token, {
+            dayOfWeek: config.dayOfWeek,
+            shift: config.shift,
+            startTime: config.startTime,
+            endTime: config.endTime,
+            capacity: config.capacity,
+            isActive: config.isActive,
+          })
+        )
       )
       setAvailability(prev => {
         const updated = [...prev]
         for (const saved of results) {
-          const idx = updated.findIndex(a => a.dayOfWeek === saved.dayOfWeek)
+          const idx = updated.findIndex(
+            a => a.dayOfWeek === saved.dayOfWeek && a.shift === saved.shift
+          )
           if (idx >= 0) updated[idx] = saved
           else updated.push(saved)
         }
@@ -125,29 +174,46 @@ export function Availability() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-24">
+    <div className="max-w-3xl mx-auto space-y-5 pb-24">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Configurar Agenda</h1>
-        <p className="text-gray-500 text-sm">Defina seus dias e horários de atendimento</p>
+        <p className="text-gray-500 text-sm">
+          Defina os turnos (manhã, tarde, noite) e a capacidade de cada dia
+        </p>
       </div>
 
       <AvailabilityInfoCard />
 
       {loading ? (
-        <div className="space-y-4">{[...Array(7)].map((_, i) => <Skeleton key={i} className="h-32" />)}</div>
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+          </div>
+          <Skeleton className="h-56" />
+          <Skeleton className="h-72" />
+        </>
       ) : (
-        <div className="space-y-4">
-          {DAYS.map(day => (
-            <DayCard
-              key={day.value}
-              label={day.label}
-              config={getConfig(day.value)}
-              isDirty={!!localConfig[day.value]}
-              onToggle={(checked) => updateLocal(day.value, { isActive: checked })}
-              onUpdate={(updates) => updateLocal(day.value, updates)}
-            />
-          ))}
-        </div>
+        <>
+          <AvailabilityStats activeDays={activeDays} totalWeekCapacity={totalWeekCap} />
+
+          <AvailabilityShiftGrid
+            getConfig={getConfig}
+            isDirty={isDirty}
+            selectedDow={selectedDow}
+            onSelectDow={setSelectedDow}
+            onToggle={toggleShift}
+          />
+
+          <AvailabilityDayDetail
+            selectedDow={selectedDow}
+            onSelectDow={setSelectedDow}
+            getConfig={getConfig}
+            isDirty={isDirty}
+            onToggle={toggleShift}
+            onUpdate={updateLocal}
+          />
+        </>
       )}
 
       {loadingExceptions ? (

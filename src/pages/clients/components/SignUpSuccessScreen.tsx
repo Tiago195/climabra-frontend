@@ -1,18 +1,16 @@
 import { CheckCircle2 } from "lucide-react";
+import type { Shift } from "@/services/enums";
+import { formatScheduledShift } from "@/lib/shifts";
 
 interface Props {
   providerName: string;
-  scheduledAt: string;
+  scheduledDate: string;
+  shift: Shift;
+  shiftHours?: { startTime: string; endTime: string };
 }
 
-export function SignUpSuccessScreen({ providerName, scheduledAt }: Props) {
-  const formatted = new Date(scheduledAt).toLocaleString("pt-BR", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+export function SignUpSuccessScreen({ providerName, scheduledDate, shift, shiftHours }: Props) {
+  const formatted = formatScheduledShift(scheduledDate, shift, shiftHours);
 
   return (
     <div className="min-h-[100dvh] flex items-center justify-center px-4">

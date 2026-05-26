@@ -5,3 +5,5 @@ export type AppointmentStatus = "scheduled" | "completed" | "canceled" | "no_sho
 export type ReportStatus = "draft" | "sent" | "approved" | "completed"
 
 export type ProviderStatus = "pending" | "blocked" | "active" | "canceled"
+
+export type Shift = "morning" | "afternoon" | "night"

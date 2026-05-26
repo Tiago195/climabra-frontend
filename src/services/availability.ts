@@ -1,17 +1,20 @@
 import axios from "axios"
 import { DEFAULT_URL } from "."
+import type { Shift } from "./enums"
 
 const api = axios.create({ baseURL: `${DEFAULT_URL}/availability` })
 const publicApi = axios.create({ baseURL: `${DEFAULT_URL}/providers` })
 
 const authHeader = (token: string) => ({ headers: { Authorization: `Bearer ${token}` } })
 
+/** Configuração de UM turno em UM dia da semana. Cada provider tem até 7×3 = 21 registros. */
 export interface AvailabilityDTO {
   id?: string
-  dayOfWeek: number
-  startTime: string
+  dayOfWeek: number          // 0=Domingo … 6=Sábado
+  shift: Shift               // "morning" | "afternoon" | "night"
+  startTime: string          // "HH:mm" ou "HH:mm:ss"
   endTime: string
-  slotDurationMinutes: number
+  capacity: number           // 1–50 — vagas por turno
   isActive: boolean
 }
 
@@ -23,24 +26,32 @@ export interface ISignUpProviderResponse {
   activeDaysOfWeek: number[]
 }
 
+/** Estado de UM turno em UMA data específica vista pelo cliente. */
+export interface IShiftSlot {
+  shift: Shift
+  startTime: string
+  endTime: string
+  capacity: number
+  available: number          // capacity - agendados confirmados
+  blocked: boolean           // bloqueado por exceção
+}
+
 export interface ISignUpSlotsResponse {
-  slots: string[]
+  shifts: IShiftSlot[]
 }
 
 export interface IExceptionResponse {
   id: string
   startDate: string          // ISO date YYYY-MM-DD
   endDate: string
-  startTime: string | null   // HH:mm ou null = dia inteiro
-  endTime: string | null
+  shifts: Shift[]            // [] = dia inteiro bloqueado em todas as datas do range
   reason: string | null
 }
 
 export interface IExceptionPayload {
   startDate: string
   endDate: string
-  startTime?: string         // se omitidos → dia inteiro
-  endTime?: string
+  shifts?: Shift[]           // undefined/[] = dia inteiro
   reason?: string
 }
 

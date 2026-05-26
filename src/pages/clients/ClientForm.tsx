@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Wind, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { clientService } from "@/services/client";
-import { availabilityService } from "@/services/availability";
+import { availabilityService, type IShiftSlot } from "@/services/availability";
+import type { Shift, EquipmentType } from "@/services/enums";
 import { uploadService } from "@/services/upload";
 import { SignUpStepIndicator } from "./components/SignUpStepIndicator";
 import { SignUpCalendarCard } from "./components/SignUpCalendarCard";
@@ -23,6 +24,9 @@ const PROBLEM_TYPES = [
   { value: "instalacao", label: "Instalação" },
   { value: "outro", label: "Outro" },
 ];
+
+const fmtDateLocal = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 export default function ClientForm() {
   const { publicToken, id } = useParams<{ publicToken: string; id: string }>();
@@ -49,9 +53,9 @@ export default function ClientForm() {
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [slots, setSlots] = useState<string[]>([]);
+  const [shifts, setShifts] = useState<IShiftSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -84,15 +88,15 @@ export default function ClientForm() {
 
   const handleSelectDate = async (date: Date) => {
     setSelectedDate(date);
-    setSelectedSlot(null);
-    setSlots([]);
+    setSelectedShift(null);
+    setShifts([]);
     setLoadingSlots(true);
     try {
-      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const dateStr = fmtDateLocal(date);
       const res = await availabilityService.getSignUpSlots(publicToken!, dateStr);
-      setSlots(res.slots ?? []);
+      setShifts(res.shifts ?? []);
     } catch {
-      toast.error("Erro ao carregar horários");
+      toast.error("Erro ao carregar turnos");
     } finally {
       setLoadingSlots(false);
     }
@@ -120,19 +124,20 @@ export default function ClientForm() {
   };
 
   const handleConfirm = async () => {
-    if (!selectedSlot || !publicToken || !id) return;
+    if (!selectedShift || !selectedDate || !publicToken || !id) return;
     setSubmitting(true);
     try {
       await clientService.requestAppointment(publicToken, id, {
         equipmentIds: selectedEquipmentIds.length > 0 ? selectedEquipmentIds : undefined,
-        equipmentType: addingNew && newEquipment.type ? newEquipment.type : undefined,
+        equipmentType: addingNew && newEquipment.type ? (newEquipment.type as EquipmentType) : undefined,
         equipmentBrand: addingNew && newEquipment.brand ? newEquipment.brand : undefined,
         equipmentModel: addingNew && newEquipment.model ? newEquipment.model : undefined,
         equipmentLabel: addingNew && newEquipment.label ? newEquipment.label : undefined,
         description,
         photoUrls,
         problemType: problemType || undefined,
-        scheduledAt: selectedSlot,
+        scheduledDate: fmtDateLocal(selectedDate),
+        shift: selectedShift,
       });
       toast.success("Agendamento solicitado com sucesso!");
       navigate(`/providers/${publicToken}/clients/${id}`);
@@ -263,10 +268,10 @@ export default function ClientForm() {
             {selectedDate && (
               <SignUpTimeSlotsCard
                 date={selectedDate}
-                slots={slots}
+                shifts={shifts}
                 loading={loadingSlots}
-                selectedSlot={selectedSlot}
-                onSelectSlot={setSelectedSlot}
+                selectedShift={selectedShift}
+                onSelectShift={setSelectedShift}
               />
             )}
 
@@ -276,7 +281,7 @@ export default function ClientForm() {
               </Button>
               <Button
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
-                disabled={!selectedSlot || submitting || uploadingPhotos}
+                disabled={!selectedShift || submitting || uploadingPhotos}
                 onClick={handleConfirm}
               >
                 {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

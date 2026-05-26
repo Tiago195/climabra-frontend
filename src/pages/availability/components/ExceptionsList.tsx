@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { Calendar, Clock, Trash2 } from "lucide-react"
 import type { IExceptionResponse } from "@/services/availability"
+import { SHIFT_LABELS, SHIFT_ORDER } from "@/lib/shifts"
 
 interface ExceptionsListProps {
   exceptions: IExceptionResponse[]
@@ -35,9 +36,11 @@ function formatRange(start: string, end: string): string {
   return `${formatDate(start)} a ${formatDate(end)}`
 }
 
-function formatTimeRange(startTime: string | null, endTime: string | null): string {
-  if (!startTime || !endTime) return "Dia inteiro"
-  return `${startTime.slice(0, 5)} às ${endTime.slice(0, 5)}`
+function formatShifts(shifts: IExceptionResponse["shifts"]): string {
+  if (!shifts || shifts.length === 0) return "Dia inteiro"
+  return SHIFT_ORDER.filter(s => shifts.includes(s))
+    .map(s => SHIFT_LABELS[s])
+    .join(", ")
 }
 
 export function ExceptionsList({ exceptions, onDelete, deletingId }: ExceptionsListProps) {
@@ -63,7 +66,7 @@ export function ExceptionsList({ exceptions, onDelete, deletingId }: ExceptionsL
       </div>
       <ul className="divide-y rounded-md border">
         {exceptions.map(e => {
-          const isFullDay = e.startTime === null
+          const isFullDay = !e.shifts || e.shifts.length === 0
           const Icon = isFullDay ? Calendar : Clock
           const isDeleting = deletingId === e.id
 
@@ -78,7 +81,7 @@ export function ExceptionsList({ exceptions, onDelete, deletingId }: ExceptionsL
                   {formatRange(e.startDate, e.endDate)}
                 </p>
                 <p className="text-xs text-gray-500 truncate">
-                  {formatTimeRange(e.startTime, e.endTime)}
+                  {formatShifts(e.shifts)}
                   {e.reason && <span> • {e.reason}</span>}
                 </p>
               </div>

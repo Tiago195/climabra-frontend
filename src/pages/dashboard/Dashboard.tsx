@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/authContext";
 import { useRequireProfile } from "@/components/CompleteProfileDialog";
 import { clientService, type IClientResponse } from "@/services/client";
 import { appointmentService, type IAppointmentDetailResponse } from "@/services/appointment";
+import { compareScheduledShift, isFutureScheduled, formatScheduledShift } from "@/lib/shifts";
 
 export function Dashboard() {
   const { provider, token } = useAuth();
@@ -35,8 +36,11 @@ export function Dashboard() {
 
   const now = new Date();
   const upcoming = appointments
-    .filter(a => a.appointment.status === "scheduled" && new Date(a.appointment.scheduledAt) >= now)
-    .sort((a, b) => new Date(a.appointment.scheduledAt).getTime() - new Date(b.appointment.scheduledAt).getTime())
+    .filter(a =>
+      a.appointment.status === "scheduled" &&
+      isFutureScheduled(a.appointment.scheduledDate, a.appointment.shift, now)
+    )
+    .sort((a, b) => compareScheduledShift(a.appointment, b.appointment))
     .slice(0, 5);
 
   const recentClients = [...clients]
@@ -150,9 +154,7 @@ export function Dashboard() {
                     <div>
                       <p className="font-medium text-sm text-gray-900">{a.client.name}</p>
                       <p className="text-xs text-gray-500">
-                        {new Date(a.appointment.scheduledAt).toLocaleDateString("pt-BR", {
-                          day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
-                        })}
+                        {formatScheduledShift(a.appointment.scheduledDate, a.appointment.shift)}
                       </p>
                     </div>
                     <Badge variant="default" className="bg-blue-100 text-blue-700 text-xs">Agendado</Badge>

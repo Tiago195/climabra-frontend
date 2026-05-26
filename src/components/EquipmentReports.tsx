@@ -13,6 +13,7 @@ import { type IEquipmentResponse } from "@/services/client";
 import { type ReportStatus } from "@/services/enums";
 import { toast } from "sonner";
 import { FileText, Plus, Trash2, Loader2, CalendarClock } from "lucide-react";
+import { compareScheduledShift, formatScheduledShift } from "@/lib/shifts";
 
 const STATUS_LABEL: Record<ReportStatus, { label: string; color: string }> = {
   draft:     { label: "Rascunho", color: "bg-gray-200 text-gray-700" },
@@ -51,10 +52,10 @@ export default function EquipmentReports({ equipment }: { equipment: IEquipmentR
             const a = row.appointment;
             if (a.status !== "scheduled") return false;
             if (row.client.id !== equipment.clientId) return false;
-            if (row.report) return false;
+            if (row.reports.length > 0) return false;
             return a.equipmentIds.length === 0 || a.equipmentIds.includes(equipment.id);
           })
-          .sort((a, b) => new Date(a.appointment.scheduledAt).getTime() - new Date(b.appointment.scheduledAt).getTime());
+          .sort((a, b) => compareScheduledShift(a.appointment, b.appointment));
         setLinkable(filtered);
       })
       .catch(() => { /* silencioso — vínculo é opcional */ });
@@ -160,9 +161,7 @@ export default function EquipmentReports({ equipment }: { equipment: IEquipmentR
                   <option value="none">Nenhuma — laudo avulso</option>
                   {linkable.map(row => {
                     const a = row.appointment;
-                    const when = new Date(a.scheduledAt).toLocaleString("pt-BR", {
-                      dateStyle: "short", timeStyle: "short",
-                    });
+                    const when = formatScheduledShift(a.scheduledDate, a.shift);
                     const tag = a.equipmentIds.includes(equipment.id) ? " · já vinculada" : "";
                     return (
                       <option key={a.id} value={a.id}>
