@@ -313,6 +313,39 @@ export function slotsForDate(dateISO: string): MockSlot[] {
   });
 }
 
+// Início e fim de cada turno em minutos a partir da meia-noite
+export const SHIFT_START_MIN: Record<Shift, number> = {
+  morning: 8 * 60,
+  afternoon: 13 * 60,
+  night: 18 * 60,
+};
+export const SHIFT_END_MIN: Record<Shift, number> = {
+  morning: 12 * 60,
+  afternoon: 18 * 60,
+  night: 22 * 60,
+};
+
+// Velocidade média de deslocamento em SP (km/h) — chute conservador, considera trânsito urbano
+export const AVG_SPEED_KMH = 25;
+
+// Duração estimada do serviço por nº de equipamentos
+// 30 min de setup/atendimento + 25 min por equipamento
+export function estimateServiceMinutes(equipmentCount: number): number {
+  const n = Math.max(1, equipmentCount);
+  return 30 + n * 25;
+}
+
+export function travelMinutes(km: number): number {
+  return (km / AVG_SPEED_KMH) * 60;
+}
+
+export function formatHm(totalMin: number): string {
+  const safe = Math.max(0, totalMin);
+  const h = Math.floor(safe / 60);
+  const m = Math.round(safe % 60);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 // Distância haversine entre duas coordenadas (km)
 export function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const R = 6371;

@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, MapPin, Navigation, List, Map as MapIcon, Home, ExternalLink } from "lucide-react";
+import { Plus, MapPin, Navigation, List, Map as MapIcon, Home, ExternalLink, Clock, AlertTriangle } from "lucide-react";
 import {
   APPOINTMENTS,
   PROVIDER,
@@ -12,8 +12,23 @@ import {
   distanceKm,
   MONTH_NAMES_SHORT,
   DAY_NAMES_SHORT,
+  SHIFT_START_MIN,
+  SHIFT_END_MIN,
+  estimateServiceMinutes,
+  travelMinutes,
+  formatHm,
+  type Shift,
 } from "./_shared";
+
 import { EquipmentReportActions } from "./_actions";
+
+type EtaStatus = "ok" | "tight" | "over";
+interface EtaInfo {
+  arrivalMin: number;
+  endMin: number;
+  serviceMin: number;
+  status: EtaStatus;
+}
 
 type Bucket = "today" | "week" | "later";
 type ViewMode = "timeline" | "map";
@@ -97,6 +112,31 @@ export default function RequestsTimeline() {
       total += distanceKm(todayItems[i - 1].client, todayItems[i].client);
     }
     return total;
+  }, [todayItems]);
+
+  // ETA por parada — calculado por turno (cada turno parte da base no seu horário de início)
+  const etaById = useMemo(() => {
+    const map: Record<string, EtaInfo> = {};
+    const shifts: Shift[] = ["morning", "afternoon", "night"];
+    shifts.forEach(shift => {
+      const items = todayItems.filter(it => it.shift === shift);
+      if (items.length === 0) return;
+      let prev: { lat: number; lng: number } = PROVIDER;
+      let cursor = SHIFT_START_MIN[shift];
+      const shiftEnd = SHIFT_END_MIN[shift];
+      items.forEach(it => {
+        const arr = cursor + travelMinutes(distanceKm(prev, it.client));
+        const svc = estimateServiceMinutes(it.equipmentIds.length);
+        const end = arr + svc;
+        let status: EtaStatus = "ok";
+        if (end > shiftEnd) status = "over";
+        else if (end > shiftEnd - 15) status = "tight";
+        map[it.id] = { arrivalMin: arr, endMin: end, serviceMin: svc, status };
+        prev = it.client;
+        cursor = end;
+      });
+    });
+    return map;
   }, [todayItems]);
 
   function handlePinTap(id: string) {
@@ -263,6 +303,13 @@ export default function RequestsTimeline() {
               <div className="space-y-2">
                 {todayItems.map((a, idx) => {
                   const isSelected = a.id === selectedId;
+                  const eta = etaById[a.id];
+                  const etaTone =
+                    eta?.status === "over"
+                      ? "bg-red-50 text-red-700 ring-red-200"
+                      : eta?.status === "tight"
+                      ? "bg-amber-50 text-amber-700 ring-amber-200"
+                      : "bg-blue-50 text-blue-700 ring-blue-200";
                   return (
                     <div
                       key={a.id}
@@ -287,6 +334,31 @@ export default function RequestsTimeline() {
                                   {a.distance.toFixed(1)} km
                                 </span>
                               </p>
+                              {eta && (
+                                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                  <span className={`inline-flex items-center gap-1 rounded-full ring-1 px-1.5 py-0.5 text-[10px] font-semibold ${etaTone}`}>
+                                    {eta.status === "over" ? (
+                                      <AlertTriangle className="w-2.5 h-2.5" />
+                                    ) : (
+                                      <Clock className="w-2.5 h-2.5" />
+                                    )}
+                                    chega ~{formatHm(eta.arrivalMin)}
+                                  </span>
+                                  <span className="text-[10px] text-gray-400">
+                                    serviço ~{eta.serviceMin}min · sai ~{formatHm(eta.endMin)}
+                                  </span>
+                                  {eta.status === "over" && (
+                                    <span className="text-[10px] font-medium text-red-600">
+                                      estoura turno
+                                    </span>
+                                  )}
+                                  {eta.status === "tight" && (
+                                    <span className="text-[10px] font-medium text-amber-700">
+                                      no limite
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
 
