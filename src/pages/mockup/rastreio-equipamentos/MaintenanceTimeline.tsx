@@ -66,15 +66,15 @@ export default function MaintenanceTimeline() {
     count: eventsFor(selectedEq.id, k).length,
   }));
 
-  // Marcos futuros (próximos vencimentos) + passado, mesclados na timeline
+  // Marcos futuros (apenas previsões ainda à frente de hoje) + eventos passados
   const timelineItems: TimelineItem[] = [
     ...statuses
-      .filter(s => s.nextDueAt) // só os que tem histórico
+      .filter(s => s.nextDueAt && daysBetween(TODAY, s.nextDueAt) > 0)
       .map(s => ({
         id: `future-${s.kind}`,
         kind: s.kind,
         date: s.nextDueAt!,
-        isFuture: daysBetween(TODAY, s.nextDueAt!) > 0,
+        isFuture: true,
         severity: s.severity,
       } as TimelineItem)),
     ...pastEvents.map(ev => ({

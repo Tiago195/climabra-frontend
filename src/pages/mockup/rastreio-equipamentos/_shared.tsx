@@ -114,7 +114,7 @@ const PLAN: Record<string, SeverityPlan> = {
   e5:  { cleaning: -50, preventive: -90, sanitization: -15, gas: null },  // higien. quase vencer
   e7:  { cleaning: null, preventive: null, sanitization: null, gas: null }, // novinho — nunca feito
   e8:  { cleaning:   5, preventive: -45, sanitization: -100, gas: -25 },  // limpeza atrasada/gás quase
-  e9:  { cleaning: -20, preventive:  30, sanitization: null, gas: -100 }, // preventiva atrasada
+  e9:  { cleaning: -20, preventive: -10, sanitization: -300, gas: -100 }, // tudo no prazo, mas 2 vencem em breve
 };
 
 const TECHS = ["João C.", "Marcos L.", "Patrícia R.", "Diego S."];
