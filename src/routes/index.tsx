@@ -143,4 +143,12 @@ export const router = createBrowserRouter([
     path: "/mockup/rastreio/timeline",
     lazy: () => import("@/pages/mockup/rastreio-equipamentos/MaintenanceTimeline").then(m => ({ Component: m.default })),
   },
+  {
+    path: "/mockup/rastreio/reminders",
+    lazy: () => import("@/pages/mockup/rastreio-equipamentos/ReminderSettings").then(m => ({ Component: m.default })),
+  },
+  {
+    path: "/mockup/rastreio/portal-alerts",
+    lazy: () => import("@/pages/mockup/rastreio-equipamentos/ClientReminderPortal").then(m => ({ Component: m.default })),
+  },
 ])

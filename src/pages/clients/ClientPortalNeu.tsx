@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Bell, Wind, Plus, FileText, Calendar, Phone, Mail, ExternalLink, Loader2, AlertCircle } from "lucide-react";
+import { Bell, Wind, Plus, FileText, Calendar, Phone, Mail, ExternalLink, Loader2, AlertCircle, CalendarPlus } from "lucide-react";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import {
   clientService,
@@ -108,6 +108,168 @@ function fmtDateTime(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+// ---------- Lembrete de manutenção ----------
+// Regra simples derivada do contrato real do portal:
+// - usa a data do último appointment "completed" como referência de "última manutenção"
+// - intervalo padrão de manutenção preventiva: 180 dias
+// - severity: "overdue" quando nextDue < hoje · "due_soon" quando faltam ≤ 30 dias
+// Equipamentos sem visita registrada NÃO geram alerta (segue critério da task: somente
+// "vence em ≤30d" ou "atrasado").
+const MAINTENANCE_INTERVAL_DAYS = 180;
+const DUE_SOON_WINDOW_DAYS = 30;
+
+type MaintSeverity = "overdue" | "due_soon";
+
+interface MaintenanceAlert {
+  equipment: IPortalEquipment;
+  lastServiceAt: string;
+  nextDueAt: string;
+  daysUntilDue: number; // negativo = atrasado em N dias
+  severity: MaintSeverity;
+}
+
+function computeMaintenanceAlerts(
+  equipments: IPortalEquipment[],
+  appointments: IPortalAppointment[],
+): MaintenanceAlert[] {
+  const now = Date.now();
+  const dayMs = 86_400_000;
+
+  const lastByEquipment = new Map<string, number>();
+  for (const a of appointments) {
+    if (a.status !== "completed") continue;
+    const t = new Date(a.scheduledAt).getTime();
+    if (Number.isNaN(t)) continue;
+    for (const eqId of a.equipmentIds) {
+      const prev = lastByEquipment.get(eqId);
+      if (prev === undefined || t > prev) lastByEquipment.set(eqId, t);
+    }
+  }
+
+  const alerts: MaintenanceAlert[] = [];
+  for (const eq of equipments) {
+    const last = lastByEquipment.get(eq.id);
+    if (last === undefined) continue; // sem histórico = não dispara aviso
+    const nextDueMs = last + MAINTENANCE_INTERVAL_DAYS * dayMs;
+    const daysUntilDue = Math.round((nextDueMs - now) / dayMs);
+    let severity: MaintSeverity | null = null;
+    if (daysUntilDue < 0) severity = "overdue";
+    else if (daysUntilDue <= DUE_SOON_WINDOW_DAYS) severity = "due_soon";
+    if (!severity) continue;
+    alerts.push({
+      equipment: eq,
+      lastServiceAt: new Date(last).toISOString(),
+      nextDueAt: new Date(nextDueMs).toISOString(),
+      daysUntilDue,
+      severity,
+    });
+  }
+
+  // Mais urgente primeiro: overdue antes de due_soon; depois mais dias atrasados
+  return alerts.sort((a, b) => {
+    if (a.severity !== b.severity) return a.severity === "overdue" ? -1 : 1;
+    return a.daysUntilDue - b.daysUntilDue;
+  });
+}
+
+function maintenanceHeadline(a: MaintenanceAlert): string {
+  const eqLabel = a.equipment.label || a.equipment.type || "Equipamento";
+  if (a.severity === "overdue") {
+    const dias = -a.daysUntilDue;
+    return `${eqLabel}: manutenção atrasada há ${dias} ${dias === 1 ? "dia" : "dias"}`;
+  }
+  return `${eqLabel}: manutenção vence em ${a.daysUntilDue} ${a.daysUntilDue === 1 ? "dia" : "dias"}`;
+}
+
+interface MaintenanceAlertCardProps {
+  alerts: MaintenanceAlert[];
+  publicToken: string;
+  clientId: string;
+}
+
+function MaintenanceAlertCard({ alerts, publicToken, clientId }: MaintenanceAlertCardProps) {
+  if (alerts.length === 0) return null;
+  const top = alerts[0];
+  const overdueCount = alerts.filter(a => a.severity === "overdue").length;
+  const dueSoonCount = alerts.length - overdueCount;
+  const tone = top.severity === "overdue" ? "red" : "amber";
+  const toneText = tone === "red" ? "text-red-600" : "text-amber-700";
+
+  const scheduleHref = `/providers/${publicToken}/clients/${clientId}/request?equipmentId=${top.equipment.id}`;
+
+  return (
+    <NeuCard className="space-y-3">
+      <div className="flex items-center gap-2.5">
+        <div
+          className={`w-10 h-10 rounded-2xl flex items-center justify-center ${toneText}`}
+          style={{ background: NEU_BG, boxShadow: NEU_SHADOW_OUT_SM }}
+        >
+          <Bell className="w-4 h-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className={`text-[10px] uppercase tracking-[0.18em] font-semibold ${toneText}`}>
+            Aviso de manutenção
+          </p>
+          <p className="text-sm font-semibold text-slate-700 leading-tight mt-0.5">
+            {maintenanceHeadline(top)}
+          </p>
+        </div>
+        <StatusPill tone={tone}>
+          {top.severity === "overdue" ? "Atrasada" : "Vence em breve"}
+        </StatusPill>
+      </div>
+
+      <p className="text-[11px] text-slate-500 leading-relaxed">
+        Última manutenção em {fmtDate(top.lastServiceAt)}. Recomendamos um intervalo de{" "}
+        {MAINTENANCE_INTERVAL_DAYS} dias entre visitas.
+      </p>
+
+      <Link
+        to={scheduleHref}
+        className="w-full inline-flex items-center justify-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold text-white transition-all active:scale-[0.98]"
+        style={{
+          background: "linear-gradient(145deg, #3b82f6, #2563eb)",
+          boxShadow: NEU_SHADOW_OUT_STRONG,
+        }}
+      >
+        <CalendarPlus className="w-3.5 h-3.5" /> Agendar agora
+      </Link>
+
+      {alerts.length > 1 && (
+        <div
+          className="rounded-2xl px-3 py-2 space-y-1.5"
+          style={{ background: NEU_BG, boxShadow: NEU_SHADOW_PRESSED_SM }}
+        >
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
+            E também
+          </p>
+          {alerts.slice(1).map(a => (
+            <div key={a.equipment.id} className="flex items-center justify-between gap-2">
+              <p className="text-[11px] text-slate-600 truncate flex-1">
+                {a.equipment.label || a.equipment.type}
+              </p>
+              <StatusPill tone={a.severity === "overdue" ? "red" : "amber"}>
+                {a.severity === "overdue"
+                  ? `${-a.daysUntilDue}d atrasada`
+                  : `em ${a.daysUntilDue}d`}
+              </StatusPill>
+            </div>
+          ))}
+          <p className="text-[10px] text-slate-400 pt-1">
+            {overdueCount > 0 && `${overdueCount} atrasada${overdueCount === 1 ? "" : "s"}`}
+            {overdueCount > 0 && dueSoonCount > 0 && " · "}
+            {dueSoonCount > 0 && `${dueSoonCount} vencendo em ≤30d`}
+          </p>
+        </div>
+      )}
+    </NeuCard>
+  );
+}
+
 interface EquipmentRowProps {
   eq: IPortalEquipment;
   appointments: IPortalAppointment[];
@@ -116,7 +278,7 @@ interface EquipmentRowProps {
 
 function EquipmentRow({ eq, appointments, reports }: EquipmentRowProps) {
   const eqReports = reports.filter(r => r.equipmentId === eq.id);
-  const eqAppts = appointments.filter(a => a.equipmentId === eq.id);
+  const eqAppts = appointments.filter(a => a.equipmentIds.includes(eq.id));
   const pending = eqReports.filter(r => r.status === "sent").length;
   const eqLabel = eq.label || eq.type || "Equipamento";
   const eqSub = [eq.brand, eq.model].filter(Boolean).join(" · ");
@@ -220,6 +382,11 @@ export function ClientPortalNeu() {
   const [error, setError] = useState(false);
   const [addEquipmentOpen, setAddEquipmentOpen] = useState(false);
 
+  const maintenanceAlerts = useMemo(
+    () => computeMaintenanceAlerts(data?.equipments ?? [], data?.appointments ?? []),
+    [data?.equipments, data?.appointments],
+  );
+
   useEffect(() => {
     if (!publicToken || !id) return;
     setLoading(true);
@@ -312,6 +479,15 @@ export function ClientPortalNeu() {
           )}
         </NeuCard>
 
+        {/* MAINTENANCE ALERTS */}
+        {publicToken && id && (
+          <MaintenanceAlertCard
+            alerts={maintenanceAlerts}
+            publicToken={publicToken}
+            clientId={id}
+          />
+        )}
+
         {/* EQUIPMENTS */}
         <div className="pt-2">
           <div className="flex items-center justify-between px-1 pb-3">
@@ -376,7 +552,7 @@ export function ClientPortalNeu() {
             ) : (
               <div className="space-y-3">
                 {upcomingAppointments.map(a => {
-                  const eq = a.equipmentId ? equipments.find(e => e.id === a.equipmentId) : null;
+                  const eq = a.equipmentIds.length > 0 ? equipments.find(e => e.id === a.equipmentIds[0]) : null;
                   const st = APPT_STATUS[a.status] ?? { label: a.status, tone: "neutral" as const };
                   return (
                     <NeuInset key={a.id} className="space-y-1.5">

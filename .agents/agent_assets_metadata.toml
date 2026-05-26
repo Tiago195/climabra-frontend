@@ -11,3 +11,15 @@ id = "lU_WfrdqO7h6gUFq-xiE7"
 uri = "file://attached_assets/generated_images/climagestao-mapa-rota-dia.png"
 type = "image"
 title = "ClimaGestão — Mapa da rota do dia"
+
+[[outputs]]
+id = "IajS_7SFRgBESzlGYDrVx"
+uri = "file://attached_assets/screenshots/b0d75341-0f6c-4b74-bac3-5899cb1e61a1-00-1995xks6u6a7m-uto7fmuk_picard_replit_dev_mockup_rastreio_reminders.png"
+type = "image"
+title = "1. Configuração do prestador — Lembretes automáticos"
+
+[[outputs]]
+id = "rxReeEULoUzzOipzzFvpe"
+uri = "file://attached_assets/screenshots/b0d75341-0f6c-4b74-bac3-5899cb1e61a1-00-1995xks6u6a7m-uto7fmuk_picard_replit_dev_mockup_rastreio_portal-alerts.png"
+type = "image"
+title = "2. Portal do cliente — aviso com botão Agendar agora"
