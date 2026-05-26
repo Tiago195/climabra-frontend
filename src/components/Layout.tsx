@@ -1,13 +1,14 @@
 import { useAuth } from "@/contexts/authContext";
 import { ProfileGateProvider } from "@/components/CompleteProfileDialog";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, CalendarDays, ClipboardList, LogOut, Wind } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, ClipboardList, LogOut, Wind, AirVent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/dashboard/clients", label: "Clientes", icon: Users },
   { to: "/dashboard/requests", label: "Solicitações", icon: ClipboardList },
+  { to: "/mockup/equipamentos/saude-mobile", label: "Equipamentos", icon: AirVent }, // TODO mockup — remover quando graduar
   { to: "/dashboard/availability", label: "Agenda", icon: CalendarDays },
 ];
 

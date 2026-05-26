@@ -167,4 +167,8 @@ export const router = createBrowserRouter([
     path: "/mockup/laudo/pdf",
     lazy: () => import("@/pages/mockup/laudo/LaudoPdfDocumento").then(m => ({ Component: m.default })),
   },
+  {
+    path: "/mockup/equipamentos/saude-mobile",
+    lazy: () => import("@/pages/mockup/equipamentos/SaudeMobile").then(m => ({ Component: m.default })),
+  },
 ])
