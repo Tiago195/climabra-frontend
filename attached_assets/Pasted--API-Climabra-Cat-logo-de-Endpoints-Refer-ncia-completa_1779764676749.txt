@@ -1,0 +1,1160 @@
+# API Climabra — Catálogo de Endpoints
+
+Referência completa de todos os endpoints da API. Inclui rotas, autenticação, request/response bodies.
+
+---
+
+## 🚨 Mudança recente: agenda agora é por turnos (morning/afternoon/night)
+
+A lógica de agendamento mudou de **horários específicos** para **turnos**. Em vez de o cliente escolher "10:00", agora ele escolhe "manhã/tarde/noite" e o provider define a capacidade de cada turno.
+
+### Resumo das mudanças visíveis ao front
+
+| Onde | Antes | Agora |
+|------|-------|-------|
+| `Availability` | Um registro por dia, com `startTime/endTime/slotDurationMinutes` | Até **3 registros** por dia (um por turno), com `shift, startTime, endTime, capacity` |
+| `AvailabilityException` | `startTime/endTime` opcionais para bloqueio parcial | Array `shifts: List<String>` — vazio = dia inteiro, ou turnos específicos |
+| `Appointment` | `scheduledAt: ISO datetime` | `scheduledDate: LocalDate` + `shift: String` |
+| `GET /providers/{token}/availability/slots` | `{ slots: ["2026-06-01T08:00:00", ...] }` | `{ shifts: [{ shift, startTime, endTime, capacity, available, blocked }, ...] }` |
+| Endpoint público de visita | aceita `scheduledAt` ISO datetime | aceita `scheduledDate` (LocalDate) + `shift` |
+| Endpoint público de signup | aceita `scheduledAt` ISO datetime | aceita `scheduledDate` (LocalDate) + `shift` |
+| `POST /appointments` | aceita `scheduledAt` ISO datetime offset | aceita `scheduledDate` + `shift` |
+
+### Valores possíveis de `shift`
+
+`"morning"` | `"afternoon"` | `"night"`
+
+### Defaults aplicados ao provider novo (em `createDefaultBusinessDays`)
+- Manhã: **08:00–12:00**, capacidade **3**
+- Tarde: **13:00–18:00**, capacidade **5**
+- Noite: **18:00–22:00**, capacidade **3**
+- Para os 5 dias úteis (seg-sex)
+
+O provider pode mudar tudo — horários, capacidade, ativar/desativar turno por dia.
+
+---
+
+## Convenções gerais
+
+### Base URL
+Todas as rotas são relativas ao host configurado da API (ex: `http://localhost:8080` em dev).
+
+### Content-Type
+- Endpoints JSON: `application/json`
+- Endpoints de upload: `multipart/form-data`
+
+### Autenticação
+Endpoints marcados como **🔒 Auth** exigem o header:
+```
+Authorization: Bearer <jwt-token>
+```
+
+O JWT é obtido via `POST /providers/login`. Token inválido/ausente retorna **401 Unauthorized**:
+```json
+{ "error": "Token não fornecido" }
+```
+ou
+```json
+{ "error": "Token inválido ou expirado" }
+```
+
+### Status HTTP padrão
+
+| Código | Significado |
+|--------|-------------|
+| `200 OK` | Operação bem sucedida (leitura, update simples, transição de estado) |
+| `201 Created` | Recurso criado |
+| `204 No Content` | Operação bem sucedida sem corpo (delete, complete, cancel) |
+| `400 Bad Request` | Erro de negócio (`ServiceException`) |
+| `401 Unauthorized` | Token JWT inválido ou ausente |
+| `404 Not Found` | Recurso não encontrado (alguns casos específicos) |
+| `422 Unprocessable Entity` | Erro de validação `@Valid` no body |
+
+### Formato de erro
+
+**Erros de negócio** (400/404):
+```json
+{
+  "message": "Cliente não encontrado",
+  "status": "BAD_REQUEST",
+  "fields": null
+}
+```
+
+**Erros de validação** (422):
+```json
+{
+  "message": "Erro de validação",
+  "status": "UNPROCESSABLE_ENTITY",
+  "fields": {
+    "email": "Email é obrigatório",
+    "password": "Senha deve ter no mínimo 8 caracteres"
+  }
+}
+```
+
+Todas as mensagens são em **português brasileiro**.
+
+---
+
+# 📋 Endpoints
+
+## 1. Provider
+
+Gerenciamento de prestadores (registro, autenticação, atualização de dados).
+
+### `POST /providers` — Registrar provider
+**Auth**: ❌ público
+**Status sucesso**: `201 Created`
+
+Request body:
+```json
+{
+  "email": "provider@example.com",   // obrigatório, email válido
+  "password": "senha12345",          // obrigatório, min 8 caracteres
+  "name": "Tiago Silva",             // opcional
+  "phone": "11999999999",            // opcional
+  "companyName": "Climabra"          // opcional
+}
+```
+
+Response body (`ResponseProviderDTO`):
+```json
+{
+  "id": "uuid",
+  "email": "provider@example.com",
+  "name": "Tiago Silva",
+  "phone": "11999999999",
+  "companyName": "Climabra",
+  "status": "active",                // active | blocked | canceled
+  "publicToken": "uuid",
+  "createdAt": "2026-05-25T10:00:00",
+  "updatedAt": "2026-05-25T10:00:00"
+}
+```
+
+Erros:
+- `400` — `"Email já está registrado"`
+- `422` — campos inválidos
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+### `POST /providers/login` — Login
+**Auth**: ❌ público
+**Status sucesso**: `200 OK`
+
+Request body:
+```json
+{
+  "email": "provider@example.com",   // obrigatório, email válido
+  "password": "senha12345"           // obrigatório, min 8 caracteres
+}
+```
+
+Response body (`Map<String, Object>`):
+```json
+{
+  "provider": { /* ResponseProviderDTO */ },
+  "token": "eyJhbGciOiJIUzI1NiJ9..."
+}
+```
+
+Erros:
+- `400` — `"Provider não encontrado"` (email não cadastrado OU senha inválida — mesma mensagem por segurança)
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+### `PUT /providers/{id}` — Atualizar provider
+**Auth**: ❌ público _(observação: rota não exige JWT atualmente)_
+**Status sucesso**: `200 OK`
+
+Path params: `id` (UUID)
+
+Request body (campos opcionais — apenas os enviados são atualizados):
+```json
+{
+  "name": "Tiago Atualizado",
+  "phone": "11888888888",
+  "companyName": "Climabra LTDA"
+}
+```
+
+Response body: `ResponseProviderDTO` atualizado.
+
+Erros:
+- `400` — `"Provider não encontrado"`
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+## 2. Upload
+
+Upload de arquivos para o storage (R2).
+
+### `POST /uploads` — Upload autenticado
+**Auth**: 🔒 sim
+**Content-Type**: `multipart/form-data`
+**Status sucesso**: `200 OK`
+
+Form data:
+- `file`: arquivo (campo obrigatório)
+
+Response body (`ResponseUploadDTO`):
+```json
+{ "url": "https://cdn.example.com/abc123.jpg" }
+```
+
+Erros:
+- `400` — `"Arquivo vazio"` / `"Tipo de arquivo não permitido"`
+- `401` — sem token
+
+**Diferença pós-refactor**: nenhuma _(o DTO `ResponseUploadDTO` antes era um record inline na controller; agora está em `dtos/upload/` — o JSON de saída é idêntico)_.
+
+---
+
+### `POST /uploads/public` — Upload público
+**Auth**: ❌ público
+**Content-Type**: `multipart/form-data`
+**Status sucesso**: `200 OK`
+
+Form data, body e erros: idênticos ao endpoint autenticado.
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+## 3. Availability
+
+Gestão da agenda do provider (dias da semana ativos, exceções e slots disponíveis).
+
+### `GET /availability` — Listar disponibilidades do provider logado
+**Auth**: 🔒 sim
+**Status sucesso**: `200 OK`
+
+Retorna **até 21 registros** (7 dias × 3 turnos). Cada um representa a configuração de um turno em um dia da semana.
+
+Response body (`List<ResponseAvailabilityDTO>`):
+```json
+[
+  {
+    "id": "uuid",
+    "dayOfWeek": 1,           // 0=Domingo, 1=Segunda, ..., 6=Sábado
+    "shift": "morning",       // "morning" | "afternoon" | "night"
+    "startTime": "08:00:00",
+    "endTime": "12:00:00",
+    "capacity": 3,            // quantas visitas o provider aceita nesse turno
+    "isActive": true
+  },
+  {
+    "id": "uuid",
+    "dayOfWeek": 1,
+    "shift": "afternoon",
+    "startTime": "13:00:00",
+    "endTime": "18:00:00",
+    "capacity": 5,
+    "isActive": true
+  }
+]
+```
+
+---
+
+### `POST /availability` — Criar/atualizar configuração de um turno
+**Auth**: 🔒 sim
+**Status sucesso**: `200 OK` _(upsert por (dayOfWeek, shift) do provider)_
+
+Para configurar manhã, tarde e noite de um dia, faça 3 chamadas (uma por turno).
+
+Request body:
+```json
+{
+  "dayOfWeek": 1,                    // obrigatório, 0–6
+  "shift": "morning",                // obrigatório: "morning" | "afternoon" | "night"
+  "startTime": "08:00:00",           // obrigatório
+  "endTime": "12:00:00",             // obrigatório, > startTime
+  "capacity": 3,                     // obrigatório, 1–50
+  "isActive": true                   // obrigatório (false = turno desativado nesse dia)
+}
+```
+
+Response body: `ResponseAvailabilityDTO` salvo.
+
+Erros:
+- `400` — `"Horário de início deve ser anterior ao horário de fim"`
+- `422` — campos inválidos / shift fora de morning|afternoon|night
+
+---
+
+### `GET /availability/exceptions` — Listar exceções
+**Auth**: 🔒 sim
+**Status sucesso**: `200 OK`
+
+Response body (`List<ResponseExceptionDTO>`):
+```json
+[
+  {
+    "id": "uuid",
+    "startDate": "2026-12-24",
+    "endDate": "2026-12-26",
+    "shifts": [],                    // [] = dia inteiro bloqueado em todas as datas
+    "reason": "Feriado"
+  },
+  {
+    "id": "uuid",
+    "startDate": "2026-07-01",
+    "endDate": "2026-07-31",
+    "shifts": ["morning"],           // apenas manhãs de julho bloqueadas
+    "reason": "Férias parciais"
+  }
+]
+```
+
+---
+
+### `POST /availability/exceptions` — Criar exceção
+**Auth**: 🔒 sim
+**Status sucesso**: `200 OK`
+
+Request body:
+```json
+{
+  "startDate": "2026-12-24",         // obrigatório
+  "endDate": "2026-12-26",           // obrigatório, ≥ startDate
+  "shifts": ["morning", "night"],    // opcional. Vazio/ausente = dia inteiro
+  "reason": "Feriado"                // opcional, max 255
+}
+```
+
+Comportamento:
+- `shifts` vazio/null/ausente: **todas** as datas do intervalo ficam totalmente bloqueadas
+- `shifts` com valores: apenas esses turnos ficam bloqueados nas datas do intervalo
+
+Regras (retornam `400`):
+- `startDate` ≤ `endDate`
+
+Response body: `ResponseExceptionDTO` salvo.
+
+---
+
+### `DELETE /availability/exceptions/{id}` — Deletar exceção
+**Auth**: 🔒 sim
+**Status sucesso**: `204 No Content`
+
+Erros:
+- `404` — `"Exceção não encontrada"` (id não pertence ao provider logado)
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+### `GET /providers/{publicToken}/availability` — Info pública do provider para signup
+**Auth**: ❌ público
+**Status sucesso**: `200 OK`
+
+Path params: `publicToken` (UUID público do provider)
+
+Response body (`ResponseSignUpProviderDTO`):
+```json
+{
+  "provider": {
+    "name": "Tiago Silva",
+    "companyName": "Climabra"
+  },
+  "activeDaysOfWeek": [1, 2, 3, 4, 5]   // dias da semana com pelo menos 1 turno ativo
+}
+```
+
+Erros:
+- `404` — `"Link inválido"`
+
+---
+
+### `GET /providers/{publicToken}/availability/slots?date=YYYY-MM-DD` — Turnos disponíveis num dia
+**Auth**: ❌ público
+**Status sucesso**: `200 OK`
+
+Path params: `publicToken` (UUID)
+Query params: `date` (formato `YYYY-MM-DD`)
+
+Response body (`ResponseSignUpSlotsDTO`):
+```json
+{
+  "shifts": [
+    {
+      "shift": "morning",
+      "startTime": "08:00:00",
+      "endTime": "12:00:00",
+      "capacity": 3,
+      "available": 2,         // capacity - agendamentos confirmados
+      "blocked": false
+    },
+    {
+      "shift": "afternoon",
+      "startTime": "13:00:00",
+      "endTime": "18:00:00",
+      "capacity": 5,
+      "available": 0,
+      "blocked": true         // bloqueado por exceção
+    },
+    {
+      "shift": "night",
+      "startTime": "18:00:00",
+      "endTime": "22:00:00",
+      "capacity": 3,
+      "available": 3,
+      "blocked": false
+    }
+  ]
+}
+```
+
+Comportamento:
+- `shifts` vazio: dia da semana sem turnos ativos (provider não atende nesse dia)
+- Cada turno traz: horário configurado, capacidade total, quantas vagas restantes e se está bloqueado por exceção
+- Use `available > 0 && !blocked` para mostrar como "disponível" no front
+- Apenas turnos **ativos** aparecem (se o provider desativou a noite na segunda, ela não vem)
+
+---
+
+## 4. Client
+
+Gestão de clientes do provider, portal público do cliente e fluxos de signup.
+
+### `GET /clients` — Listar clientes do provider logado
+**Auth**: 🔒 sim
+**Status sucesso**: `200 OK`
+
+Response body (`List<ResponseClientDTO>`):
+```json
+[
+  {
+    "id": "uuid",
+    "providerId": "uuid",
+    "name": "Maria Silva",
+    "email": "maria@example.com",
+    "phone": "11999999999",
+    "cep": "01000000",
+    "street": "Av. Paulista",
+    "streetNumber": 1000,
+    "complement": "Apto 101",
+    "neighborhood": "Bela Vista",
+    "city": "São Paulo",
+    "state": "SP",
+    "createdAt": "2026-05-25T10:00:00",
+    "updatedAt": "2026-05-25T10:00:00"
+  }
+]
+```
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+### `GET /clients/{id}` — Detalhe do cliente + equipamentos
+**Auth**: 🔒 sim
+**Status sucesso**: `200 OK`
+
+Response body (`ResponseClientDetailDTO`):
+```json
+{
+  "client": { /* ResponseClientDTO */ },
+  "equipments": [
+    {
+      "id": "uuid",
+      "clientId": "uuid",
+      "type": "split",       // split | janela | cassete | piso_teto | central | portatil
+      "brand": "LG",
+      "model": "M1",
+      "label": "Sala",
+      "createdAt": "2026-05-25T10:00:00"
+    }
+  ]
+}
+```
+
+Erros:
+- `400` — `"Cliente não encontrado"`
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+### `POST /clients` — Criar cliente (manual pelo provider)
+**Auth**: 🔒 sim
+**Status sucesso**: `201 Created`
+
+Request body:
+```json
+{
+  "name": "Maria Silva",             // obrigatório
+  "email": "maria@example.com",      // obrigatório, email válido
+  "phone": "11999999999",            // obrigatório
+  "cep": "01000000",                 // obrigatório, 8 dígitos
+  "street": "Av. Paulista",          // obrigatório
+  "streetNumber": 1000,              // obrigatório
+  "complement": "Apto 101",          // opcional
+  "neighborhood": "Bela Vista",      // obrigatório
+  "city": "São Paulo",               // obrigatório
+  "state": "SP"                      // obrigatório, 2 letras
+}
+```
+
+Response body: `ResponseClientDTO`.
+
+**Diferença pós-refactor**: nenhuma _(antes usava `ResponseEntity.status(CREATED)`, agora usa `@ResponseStatus(CREATED)` — status HTTP de retorno é o mesmo)_.
+
+---
+
+### `GET /clients/providers/{publicToken}/clients/{id}` — Portal do cliente
+**Auth**: ❌ público
+**Status sucesso**: `200 OK`
+
+Path params: `publicToken` (UUID do provider), `id` (UUID do cliente)
+
+Response body (`ResponseClientPortalDTO`):
+```json
+{
+  "client": {
+    "id": "uuid",
+    "name": "Maria Silva",
+    "email": "maria@example.com",
+    "phone": "11999999999"
+  },
+  "provider": {
+    "name": "Tiago Silva",
+    "companyName": "Climabra",
+    "phone": "11888888888",
+    "email": "tiago@climabra.com"
+  },
+  "equipments": [
+    {
+      "id": "uuid",
+      "type": "split",
+      "brand": "LG",
+      "model": "M1",
+      "label": "Sala"
+    }
+  ],
+  "appointments": [
+    {
+      "id": "uuid",
+      "scheduledDate": "2026-06-01",
+      "shift": "morning",
+      "status": "scheduled",
+      "equipmentIds": ["uuid", "uuid"],
+      "notes": null,
+      "submissionId": "uuid"
+    }
+  ],
+  "submissions": [
+    {
+      "id": "uuid",
+      "description": "Não esfria",
+      "photoUrls": ["https://cdn.example.com/foto1.jpg"],
+      "equipmentId": "uuid",
+      "createdAt": "2026-05-25T10:00:00"
+    }
+  ],
+  "reports": [
+    {
+      "id": "uuid",
+      "title": null,
+      "status": "draft",
+      "publicToken": "abc123...",
+      "equipmentId": "uuid",
+      "createdAt": "2026-05-25T10:00:00"
+    }
+  ]
+}
+```
+
+Erros:
+- `400` — `"Link inválido"` / `"Cliente não encontrado"`
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+### `POST /clients/providers/{publicToken}/clients/{id}/equipment` — Adicionar equipamento (pelo portal)
+**Auth**: ❌ público (validado pelo `publicToken`)
+**Status sucesso**: `201 Created`
+
+Request body:
+```json
+{
+  "type": "split",           // obrigatório — split | janela | cassete | piso_teto | central | portatil
+  "brand": "LG",             // opcional
+  "model": "M1",             // opcional
+  "label": "Sala"            // opcional
+}
+```
+
+Response body (`ResponseClientPortalDTO.EquipmentInfo`):
+```json
+{
+  "id": "uuid",
+  "type": "split",
+  "brand": "LG",
+  "model": "M1",
+  "label": "Sala"
+}
+```
+
+Erros:
+- `400` — `"Link inválido"` (cliente não pertence ao provider) / `"Cliente não encontrado"`
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+### `POST /clients/providers/{publicToken}/clients/{id}/appointments` — Solicitar visita (pelo portal)
+**Auth**: ❌ público
+**Status sucesso**: `201 Created` _(sem body)_
+
+Request body:
+```json
+{
+  "equipmentIds": ["uuid"],          // opcional — equipamentos já existentes do cliente
+  "equipmentType": "split",          // opcional — se preenchido, cria um novo equipamento
+  "equipmentBrand": "LG",            // opcional
+  "equipmentModel": "M1",            // opcional
+  "equipmentLabel": "Sala",          // opcional
+  "description": "Não esfria",       // obrigatório
+  "photoUrls": ["https://..."],      // opcional
+  "problemType": "ruido",            // opcional
+  "scheduledDate": "2026-06-01",     // obrigatório, ISO LocalDate
+  "shift": "morning"                 // obrigatório: "morning" | "afternoon" | "night"
+}
+```
+
+Regras:
+- Pelo menos um dos equipamentos (`equipmentIds` ou `equipmentType`) deve resultar em algum equipamento
+- Se algum equipamento já tem uma visita `scheduled`, retorna `400` com mensagem indicando o conflito
+
+Response: vazio.
+
+Erros:
+- `400` — `"Link inválido"` / `"Um dos equipamentos selecionados já possui uma visita agendada..."` / `"Cliente não encontrado"`
+- `422` — `shift` fora de `morning|afternoon|night`
+
+---
+
+### `POST /clients/public/{publicToken}` — Cadastro completo (signup público)
+**Auth**: ❌ público
+**Status sucesso**: `201 Created` _(sem body)_
+
+Cria cliente + equipamento + submission + agendamento em uma única chamada.
+
+Request body:
+```json
+{
+  "name": "Maria Silva",             // obrigatório
+  "phone": "11999999999",            // obrigatório
+  "email": "maria@example.com",      // obrigatório, email
+  "cep": "01000000",                 // opcional
+  "street": "Av. Paulista",          // obrigatório
+  "streetNumber": 1000,              // obrigatório
+  "complement": "Apto 101",          // opcional
+  "neighborhood": "Bela Vista",      // obrigatório
+  "city": "São Paulo",               // obrigatório
+  "state": "SP",                     // obrigatório
+  "description": "Não esfria",       // obrigatório
+  "photoUrls": ["https://..."],      // opcional
+  "equipmentType": "split",          // obrigatório
+  "equipmentBrand": "LG",            // opcional
+  "equipmentModel": "M1",            // opcional
+  "equipmentLabel": "Sala",          // opcional
+  "problemType": "ruido",            // opcional
+  "scheduledDate": "2026-06-01",     // obrigatório, ISO LocalDate
+  "shift": "morning"                 // obrigatório: "morning" | "afternoon" | "night"
+}
+```
+
+Response: vazio.
+
+Erros:
+- `400` — `"Link inválido"` / outros erros de validação semântica
+- `422` — campos inválidos / `shift` fora dos 3 valores
+
+---
+
+## 5. Appointment
+
+Gestão de visitas agendadas pelo provider.
+
+### `GET /appointments` — Listar agendamentos do provider logado
+**Auth**: 🔒 sim
+**Status sucesso**: `200 OK`
+
+Response body (`List<ResponseAppointmentDetailDTO>`):
+```json
+[
+  {
+    "appointment": {
+      "id": "uuid",
+      "scheduledDate": "2026-06-01",
+      "shift": "morning",            // "morning" | "afternoon" | "night"
+      "status": "scheduled",         // scheduled | completed | canceled | no_show
+      "equipmentIds": ["uuid"],
+      "submissionId": "uuid",
+      "notes": "Cliente prefere manhã"
+    },
+    "client": {
+      "id": "uuid",
+      "name": "Maria Silva",
+      "phone": "11999999999",
+      "email": "maria@example.com"
+    },
+    "equipments": [
+      {
+        "id": "uuid",
+        "type": "split",
+        "brand": "LG",
+        "model": "M1",
+        "label": "Sala"
+      }
+    ],
+    "submission": {
+      "id": "uuid",
+      "description": "Não esfria",
+      "photoUrls": ["https://..."],
+      "problemType": "ruido"
+    },
+    "reports": [
+      {
+        "id": "uuid",
+        "status": "draft",
+        "equipmentId": "uuid"
+      }
+    ]
+  }
+]
+```
+
+Ordenação: por `scheduledDate` descendente.
+
+---
+
+### `POST /appointments` — Criar agendamento
+**Auth**: 🔒 sim
+**Status sucesso**: `201 Created`
+
+Request body:
+```json
+{
+  "clientId": "uuid",                // obrigatório
+  "equipmentIds": ["uuid", "uuid"],  // opcional
+  "scheduledDate": "2026-06-01",     // obrigatório, ISO LocalDate
+  "shift": "morning",                // obrigatório: "morning" | "afternoon" | "night"
+  "notes": "Cliente prefere manhã"   // opcional
+}
+```
+
+Response body: `ResponseAppointmentDetailDTO` recém criado (status `scheduled`).
+
+Erros:
+- `422` — `clientId` ausente / `scheduledDate` ausente / `shift` ausente ou inválido
+
+---
+
+### `PUT /appointments/{id}/complete` — Concluir agendamento
+**Auth**: 🔒 sim
+**Status sucesso**: `204 No Content`
+
+Regras de validação:
+- Pelo menos um laudo deve existir para a visita
+- Todos os laudos devem estar com status `completed`
+
+Erros:
+- `400` — `"Crie um laudo para cada equipamento antes de concluir o agendamento"`
+- `400` — `"Aguarde todos os laudos serem aprovados pelo cliente antes de concluir"`
+- `400` — `"Agendamento não encontrado"`
+
+**Diferença pós-refactor**: nenhuma _(antes retornava `ResponseEntity<Void>` com `noContent()`, agora `void` com `@ResponseStatus(NO_CONTENT)` — comportamento HTTP idêntico)_.
+
+---
+
+### `PUT /appointments/{id}/cancel` — Cancelar agendamento
+**Auth**: 🔒 sim
+**Status sucesso**: `204 No Content`
+
+Comportamento: cancela o agendamento e **deleta todos os laudos e itens de laudo** associados a ele.
+
+Erros:
+- `400` — `"Agendamento não encontrado"`
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+## 6. Reports (Laudos)
+
+Gestão de laudos técnicos do provider e seus itens.
+
+### `GET /reports/equipment/{equipmentId}` — Listar laudos de um equipamento
+**Auth**: 🔒 sim
+**Status sucesso**: `200 OK`
+
+Response body (`List<ResponseReportDTO>`):
+```json
+[
+  {
+    "id": "uuid",
+    "equipmentId": "uuid",
+    "providerId": "uuid",
+    "clientId": "uuid",
+    "publicToken": "abc123...",
+    "status": "draft",                 // draft | sent | approved | completed
+    "title": "Manutenção corretiva",
+    "diagnosis": "Compressor com falha",
+    "finalNotes": null,
+    "createdAt": "2026-05-25T10:00:00",
+    "sentAt": null,
+    "approvedAt": null,
+    "completedAt": null
+  }
+]
+```
+
+Ordenação: `createdAt` descendente.
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+### `GET /reports/{id}` — Detalhe completo do laudo
+**Auth**: 🔒 sim
+**Status sucesso**: `200 OK`
+
+Response body (`ResponseReportDetailDTO`):
+```json
+{
+  "report": {
+    "id": "uuid",
+    "publicToken": "abc123...",
+    "status": "approved",
+    "title": "Manutenção corretiva",
+    "diagnosis": "Compressor com falha",
+    "finalNotes": "Garantia de 90 dias",
+    "createdAt": "2026-05-25T10:00:00",
+    "sentAt": "2026-05-25T11:00:00",
+    "approvedAt": "2026-05-25T12:00:00",
+    "completedAt": null
+  },
+  "items": [
+    {
+      "id": "uuid",
+      "description": "Trocar capacitor",
+      "photoBefore": "https://...",
+      "photoAfter": "https://...",
+      "notes": "Capacitor original danificado",
+      "orderIndex": 0,
+      "rejected": false
+    }
+  ],
+  "equipment": {
+    "id": "uuid",
+    "type": "split",
+    "brand": "LG",
+    "model": "M1",
+    "label": "Sala"
+  },
+  "client": {
+    "id": "uuid",
+    "name": "Maria Silva",
+    "phone": "11999999999",
+    "email": "maria@example.com"
+  }
+}
+```
+
+Erros:
+- `400` — `"Laudo não encontrado"` / `"Equipamento não encontrado"` / `"Cliente não encontrado"`
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+### `POST /reports` — Criar laudo
+**Auth**: 🔒 sim
+**Status sucesso**: `201 Created`
+
+Request body:
+```json
+{
+  "equipmentId": "uuid",             // obrigatório
+  "appointmentId": "uuid",           // opcional
+  "diagnosis": "Compressor falho",   // opcional
+  "items": [                         // obrigatório, pelo menos 1
+    { "description": "Trocar capacitor" },
+    { "description": "Limpeza geral" }
+  ]
+}
+```
+
+Response body: `ResponseReportDTO`.
+
+Regras:
+- Se `appointmentId` informado e já existe laudo para esse `equipmentId` + `appointmentId`, retorna `400`
+- O `clientId` é deduzido automaticamente do `equipmentId`
+
+Erros:
+- `400` — `"Equipamento não encontrado"` / `"Já existe um laudo para este equipamento nesta visita"`
+- `422` — `items` vazio, sem `equipmentId`, ou `description` em branco
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+### `POST /reports/{id}/items` — Adicionar item ao laudo
+**Auth**: 🔒 sim
+**Status sucesso**: `200 OK`
+
+Request body:
+```json
+{ "description": "Trocar fusível" }     // obrigatório
+```
+
+Response body: `ResponseReportDetailDTO` (laudo completo atualizado).
+
+Regras: só permitido se laudo está em status `draft`.
+
+Erros:
+- `400` — `"Laudo não encontrado"` / `"Itens só podem ser adicionados em laudos em rascunho"`
+- `422` — `description` vazio
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+### `DELETE /reports/{id}/items/{itemId}` — Remover item do laudo
+**Auth**: 🔒 sim
+**Status sucesso**: `200 OK`
+
+Response body: `ResponseReportDetailDTO` (laudo completo atualizado).
+
+Regras: só permitido se laudo está em status `draft`.
+
+Erros:
+- `400` — `"Itens só podem ser removidos em laudos em rascunho"` / `"Item não encontrado"`
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+### `PATCH /reports/{id}/items/{itemId}` — Atualizar fotos/observações de um item
+**Auth**: 🔒 sim
+**Status sucesso**: `200 OK`
+
+Request body (todos opcionais; apenas campos não-nulos são aplicados):
+```json
+{
+  "photoBefore": "https://cdn.example.com/antes.jpg",
+  "photoAfter": "https://cdn.example.com/depois.jpg",
+  "notes": "Capacitor estava estourado"
+}
+```
+
+Response body: `ResponseReportDetailDTO`.
+
+Regras: só permitido se laudo está em status `approved` ou `completed`. Para `draft` ou `sent`, retorna erro.
+
+Erros:
+- `400` — `"Fotos só podem ser adicionadas após a aprovação do cliente"` / `"Item não encontrado"`
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+### `PUT /reports/{id}/send` — Enviar laudo para aprovação do cliente
+**Auth**: 🔒 sim
+**Status sucesso**: `200 OK`
+
+Response body: `ResponseReportDetailDTO` (com `status = "sent"` e `sentAt` preenchido).
+
+Regras:
+- Laudo deve estar em `draft`
+- Laudo deve ter pelo menos 1 item
+
+Erros:
+- `400` — `"Apenas laudos em rascunho podem ser enviados"` / `"Adicione ao menos um item antes de enviar"`
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+### `PUT /reports/{id}/complete` — Finalizar laudo
+**Auth**: 🔒 sim
+**Status sucesso**: `200 OK`
+
+Response body: `ResponseReportDetailDTO` (com `status = "completed"` e `completedAt` preenchido).
+
+Regras:
+- Laudo deve estar em `approved`
+- Todos os itens não-rejeitados devem ter `photoBefore` e `photoAfter` preenchidos
+
+Erros:
+- `400` — `"O laudo precisa ser aprovado pelo cliente antes de ser finalizado"` / `"Todos os itens aprovados precisam ter foto antes e depois"`
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+## 7. Public Reports
+
+Visualização e aprovação de laudos pelo cliente final via link público.
+
+### `GET /reports/public/{providerToken}/{clientId}/{equipmentId}/{reportToken}` — Visualizar laudo público
+**Auth**: ❌ público (validado pelo `reportToken`)
+**Status sucesso**: `200 OK`
+
+Path params:
+- `providerToken` (UUID)
+- `clientId` (UUID)
+- `equipmentId` (UUID)
+- `reportToken` (string, gerado no `@PrePersist` do Report)
+
+Response body (`ResponsePublicReportDTO`):
+```json
+{
+  "report": {
+    "status": "approved",
+    "diagnosis": "Compressor com falha",
+    "finalNotes": "Garantia de 90 dias",
+    "completedAt": null
+  },
+  "items": [
+    {
+      "id": "uuid",
+      "description": "Trocar capacitor",
+      "photoBefore": "https://...",
+      "photoAfter": "https://...",
+      "notes": null,
+      "rejected": false
+    }
+  ],
+  "equipment": {
+    "type": "split",
+    "label": "Sala",
+    "brand": "LG",
+    "model": "M1"
+  },
+  "client": {
+    "name": "Maria Silva"
+  },
+  "provider": {
+    "name": "Tiago Silva",
+    "companyName": "Climabra",
+    "phone": "11888888888"
+  }
+}
+```
+
+Erros:
+- `400` — `"Link inválido"` (qualquer elo da cadeia de validação falha: provider, client, equipment, report)
+
+**Diferença pós-refactor**: nenhuma _(o `validateChain` foi movido para a facade, mas a mensagem é idêntica)_.
+
+---
+
+### `PUT /reports/public/{providerToken}/{clientId}/{equipmentId}/{reportToken}/approve` — Aprovar laudo
+**Auth**: ❌ público
+**Status sucesso**: `200 OK`
+
+Request body:
+```json
+{
+  "approvedItemIds": ["uuid", "uuid"]    // obrigatório, pelo menos 1
+}
+```
+
+Comportamento:
+- Itens com IDs em `approvedItemIds` ficam com `rejected = false`
+- Demais itens ficam com `rejected = true`
+- Laudo passa de `sent` para `approved` e `approvedAt` é preenchido
+
+Response body: `ResponsePublicReportDTO` atualizado.
+
+Erros:
+- `400` — `"Link inválido"` / `"Este laudo não está aguardando aprovação"` / `"Selecione ao menos um serviço para autorizar"`
+
+**Diferença pós-refactor**: nenhuma.
+
+---
+
+# Resumo de status codes por endpoint
+
+| Método | Rota | Status sucesso | Auth |
+|--------|------|----------------|------|
+| POST | `/providers` | 201 | ❌ |
+| POST | `/providers/login` | 200 | ❌ |
+| PUT | `/providers/{id}` | 200 | ❌ |
+| POST | `/uploads` | 200 | 🔒 |
+| POST | `/uploads/public` | 200 | ❌ |
+| GET | `/availability` | 200 | 🔒 |
+| POST | `/availability` | 200 | 🔒 |
+| GET | `/availability/exceptions` | 200 | 🔒 |
+| POST | `/availability/exceptions` | 200 | 🔒 |
+| DELETE | `/availability/exceptions/{id}` | 204 | 🔒 |
+| GET | `/providers/{publicToken}/availability` | 200 | ❌ |
+| GET | `/providers/{publicToken}/availability/slots` | 200 | ❌ |
+| GET | `/clients` | 200 | 🔒 |
+| GET | `/clients/{id}` | 200 | 🔒 |
+| POST | `/clients` | 201 | 🔒 |
+| GET | `/clients/providers/{publicToken}/clients/{id}` | 200 | ❌ |
+| POST | `/clients/providers/{publicToken}/clients/{id}/equipment` | 201 | ❌ |
+| POST | `/clients/providers/{publicToken}/clients/{id}/appointments` | 201 | ❌ |
+| POST | `/clients/public/{publicToken}` | 201 | ❌ |
+| GET | `/appointments` | 200 | 🔒 |
+| POST | `/appointments` | 201 | 🔒 |
+| PUT | `/appointments/{id}/complete` | 204 | 🔒 |
+| PUT | `/appointments/{id}/cancel` | 204 | 🔒 |
+| GET | `/reports/equipment/{equipmentId}` | 200 | 🔒 |
+| GET | `/reports/{id}` | 200 | 🔒 |
+| POST | `/reports` | 201 | 🔒 |
+| POST | `/reports/{id}/items` | 200 | 🔒 |
+| DELETE | `/reports/{id}/items/{itemId}` | 200 | 🔒 |
+| PATCH | `/reports/{id}/items/{itemId}` | 200 | 🔒 |
+| PUT | `/reports/{id}/send` | 200 | 🔒 |
+| PUT | `/reports/{id}/complete` | 200 | 🔒 |
+| GET | `/reports/public/{p}/{c}/{e}/{r}` | 200 | ❌ |
+| PUT | `/reports/public/{p}/{c}/{e}/{r}/approve` | 200 | ❌ |
+
+---
+
+# Checklist de migração para o front (refactor de turnos)
+
+Itens que **precisam** ser revisados no front por causa da mudança para turnos:
+
+- [ ] **Tela de configuração de agenda do provider**: cada dia agora tem até 3 cards (manhã/tarde/noite), cada um com horário + capacidade + toggle ativo. Para configurar um dia inteiro, são 3 chamadas a `POST /availability`.
+- [ ] **Tela de bloqueio (exceções)**: substituir os campos `startTime/endTime` por checkboxes "Manhã / Tarde / Noite" (ou um multi-select). Vazio = dia inteiro.
+- [ ] **Tela de seleção de horário no portal/signup público**: substituir o picker de horário por seleção de turno (mostrar startTime–endTime + vagas restantes). Usar o novo formato de `GET /providers/{token}/availability/slots`.
+- [ ] **POST de visita pelo portal/signup**: enviar `scheduledDate` (data) + `shift` ("morning"/"afternoon"/"night") em vez de `scheduledAt`.
+- [ ] **POST de agendamento (provider logado)**: idem — `scheduledDate` + `shift`.
+- [ ] **Listagem/detalhe de appointments**: campo `scheduledAt` virou `scheduledDate + shift`. Atualizar leitura.
+- [ ] **Portal público do cliente**: cada appointment retornado tem `scheduledDate + shift` agora.
+- [ ] **Indicador "turno cheio"**: usar `available === 0 || blocked` no array `shifts` da resposta de slots.
+
+Checklist geral (já existia):
+- [ ] Login retorna `{ provider, token }` e o token é salvo
+- [ ] Listagem de clientes funciona com Authorization header
+- [ ] Detalhe de cliente retorna `client` + `equipments`
+- [ ] Portal público do cliente retorna 6 seções
+- [ ] Criação de laudo aceita `items` obrigatório (min 1)
+- [ ] `PATCH` de item de laudo só funciona após cliente aprovar
+- [ ] Mensagens de erro 4xx vêm com `{ message, status, fields? }`
+
+---
+
+# Notas finais
+
+- **Validação de campos**: erros `@Valid` sempre retornam `422` com mapa `fields`. Use isso para destacar campos inválidos no formulário.
+- **Erros de negócio**: sempre `400` com `message` em PT-BR descritiva. São seguras para exibir direto ao usuário.
+- **Datas**: a API usa `LocalDate` para `scheduledDate` (formato `YYYY-MM-DD`, sem hora ou timezone).
+- **Public tokens**: o `publicToken` do provider é UUID; o do report é uma string de 48 caracteres (gerada concatenando dois UUIDs).
+- **Schema do banco**: subir o Postgres do zero via `docker compose up -d postgres` — o Hibernate (`ddl-auto: update` em dev) cria todas as tabelas na primeira subida da API.
