@@ -10,6 +10,7 @@ import { useRequireProfile } from "@/components/CompleteProfileDialog";
 import { clientService, type IClientResponse } from "@/services/client";
 import { appointmentService, type IAppointmentDetailResponse } from "@/services/appointment";
 import { compareScheduledShift, isFutureScheduled, formatScheduledShift } from "@/lib/shifts";
+import { PaymentsBanner } from "./components/PaymentsBanner";
 
 export function Dashboard() {
   const { provider, token } = useAuth();
@@ -82,6 +83,10 @@ export function Dashboard() {
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {isProfileComplete && (provider?.gatewayAccountStatus ?? "none") === "none" && (
+        <PaymentsBanner />
       )}
 
       {loading ? (

@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { DEFAULT_URL } from '.'
-import type { ProviderStatus } from './enums'
+import type { GatewayAccountStatus, PaymentMethod, ProviderStatus } from './enums'
 
 const auth = axios.create({
   baseURL: `${DEFAULT_URL}/providers`
@@ -32,6 +32,9 @@ export interface IProviderResponse {
   companyName: string
   status: ProviderStatus
   publicToken: string
+  cpfCnpj?: string | null
+  gatewayAccountStatus: GatewayAccountStatus
+  acceptedPaymentMethods: PaymentMethod[]
   createdAt: string
   updatedAt: string
 }

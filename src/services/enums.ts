@@ -7,3 +7,7 @@ export type ReportStatus = "draft" | "sent" | "approved" | "completed"
 export type ProviderStatus = "pending" | "blocked" | "active" | "canceled"
 
 export type Shift = "morning" | "afternoon" | "night"
+
+export type GatewayAccountStatus = "none" | "pending" | "approved" | "rejected"
+
+export type PaymentMethod = "pix" | "credit" | "debit" | "cash" | "boleto"
