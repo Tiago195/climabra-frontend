@@ -5,7 +5,7 @@ import type { IPaymentSettings } from "@/services/payment";
 import { PaymentsStatusCard } from "./PaymentsStatusCard";
 import { ConnectPaymentsWizard } from "./ConnectPaymentsWizard";
 import { AcceptedMethodsCard } from "./AcceptedMethodsCard";
-import { AsaasDisclosure } from "./AsaasDisclosure";
+import { AsaasDisclosure } from "@/components/AsaasDisclosure";
 
 export function PaymentsSection() {
   const { provider, updateProvider } = useAuth();

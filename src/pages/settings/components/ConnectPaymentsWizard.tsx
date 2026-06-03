@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import AddressFieldsForm, { emptyAddress, type AddressData } from "@/components/AddressFieldsForm";
-import { AsaasDisclosure } from "./AsaasDisclosure";
+import { AsaasDisclosure } from "@/components/AsaasDisclosure";
 import { useAuth } from "@/contexts/authContext";
 import { paymentService, type CompanyType, type IPaymentSettings } from "@/services/payment";
 import { Loader2, ArrowLeft, ArrowRight, Building2, User } from "lucide-react";

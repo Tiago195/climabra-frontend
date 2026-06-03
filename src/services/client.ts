@@ -109,7 +109,7 @@ export interface IPortalReport {
 
 export interface IClientPortalResponse {
   client: { id: string; name: string; email: string; phone: string }
-  provider: { name: string; companyName: string | null; phone: string | null; email: string }
+  provider: { name: string; companyName: string | null; phone: string | null; email: string; acceptsOnlinePayments: boolean }
   equipments: IPortalEquipment[]
   appointments: IPortalAppointment[]
   submissions: IPortalSubmission[]

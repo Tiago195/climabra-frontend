@@ -7,6 +7,7 @@ import { PortalProviderHeader } from "./components/PortalProviderHeader";
 import { PortalCalendarCard } from "./components/PortalCalendarCard";
 import { PortalVisitGroups } from "./components/PortalVisitGroups";
 import { PortalEquipmentsCard } from "./components/PortalEquipmentsCard";
+import { PortalPaymentMethodsCard } from "./components/PortalPaymentMethodsCard";
 import { PortalContactFooter } from "./components/PortalContactFooter";
 
 export function ClientPortal() {
@@ -87,6 +88,10 @@ export function ClientPortal() {
           setData(prev => prev ? { ...prev, equipments: [...prev.equipments, eq] } : prev)
         }
       />
+
+      {provider.acceptsOnlinePayments && (
+        <PortalPaymentMethodsCard publicToken={publicToken!} clientId={id!} />
+      )}
 
       <PortalContactFooter phone={provider.phone} email={provider.email} />
     </div>
