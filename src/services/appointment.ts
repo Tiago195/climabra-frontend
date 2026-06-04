@@ -42,6 +42,7 @@ export interface IAppointmentReportInfo {
   id: string
   equipmentId: string
   status: ReportStatus
+  serviceStartedAt: string | null   // != null = serviço em execução ("Em curso")
 }
 
 export interface IAppointmentDetailResponse {
