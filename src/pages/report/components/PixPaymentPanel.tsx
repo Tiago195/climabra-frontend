@@ -5,6 +5,33 @@ import { toast } from "sonner";
 import type { IPixData } from "@/services/checkout";
 import { AwaitingPaymentPanel } from "./AwaitingPaymentPanel";
 
+const copyHandler = async (text: string) => {
+  try {
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-999999px";
+
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    document.execCommand("copy");
+
+    document.body.removeChild(textarea);
+
+    return true;
+  } catch (err) {
+    console.error(err);
+    return false;
+  }
+};
+
 const fmtMoney = (cents: number) =>
   (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -47,11 +74,13 @@ export function PixPaymentPanel({
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(pix.qrCodePayload);
+      console.log(pix)
+      await copyHandler(pix.qrCodePayload);
       setCopied(true);
       toast.success("Código copiado!");
       setTimeout(() => setCopied(false), 2000);
-    } catch {
+    } catch (e) {
+      console.log(e)
       toast.error("Não foi possível copiar");
     }
   };

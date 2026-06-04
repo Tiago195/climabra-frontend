@@ -1,18 +1,31 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/authContext";
-import type { IPaymentSettings } from "@/services/payment";
+import { paymentService, type IPaymentSettings } from "@/services/payment";
 import { PaymentsStatusCard } from "./PaymentsStatusCard";
 import { ConnectPaymentsWizard } from "./ConnectPaymentsWizard";
 import { AcceptedMethodsCard } from "./AcceptedMethodsCard";
 import { AsaasDisclosure } from "@/components/AsaasDisclosure";
 
 export function PaymentsSection() {
-  const { provider, updateProvider } = useAuth();
+  const { provider, token, updateProvider } = useAuth();
   const [wizardOpen, setWizardOpen] = useState(false);
 
   const status = provider?.gatewayAccountStatus ?? "none";
   const accepted = provider?.acceptedPaymentMethods ?? [];
+
+  // Sincroniza o status real da subconta na Asaas ao abrir os Pagamentos (Fase A):
+  // sem isso, o gatewayAccountStatus de um provider real fica preso no que o onboarding gravou.
+  useEffect(() => {
+    if (!token || status === "none") return;
+    paymentService.getStatus(token)
+      .then(s => updateProvider({
+        gatewayAccountStatus: s.gatewayAccountStatus,
+        acceptedPaymentMethods: s.acceptedPaymentMethods,
+      }))
+      .catch(() => { /* silencioso — mantém o status atual se a sync falhar */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const handleConnected = (settings: IPaymentSettings) => {
     updateProvider({

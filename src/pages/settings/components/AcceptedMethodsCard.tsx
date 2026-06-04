@@ -3,14 +3,14 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CreditCard, Wallet, Banknote } from "lucide-react";
+import { Loader2, CreditCard, Wallet, Banknote, QrCode } from "lucide-react";
 import { useAuth } from "@/contexts/authContext";
 import { paymentService } from "@/services/payment";
 import type { GatewayAccountStatus, PaymentMethod } from "@/services/enums";
 import { toast } from "sonner";
 
 const METHODS: { key: PaymentMethod; label: string; hint: string; icon: any; electronic: boolean }[] = [
-  // { key: "pix", label: "PIX", hint: "Confirmação na hora", icon: QrCode, electronic: true },
+  { key: "pix", label: "PIX", hint: "Confirmação na hora", icon: QrCode, electronic: true },
   { key: "credit", label: "Cartão de crédito", hint: "Em até 12x (taxas por parcela)", icon: CreditCard, electronic: true },
   { key: "debit", label: "Cartão de débito", hint: "Confirmação na hora", icon: Wallet, electronic: true },
   // { key: "boleto", label: "Boleto", hint: "Compensa em 1–2 dias úteis", icon: FileText, electronic: true },
