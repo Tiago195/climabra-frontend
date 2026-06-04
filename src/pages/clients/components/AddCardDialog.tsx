@@ -7,6 +7,7 @@ import { Loader2, ShieldCheck, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { AsaasDisclosure } from "@/components/AsaasDisclosure";
 import { paymentMethodService, type IPaymentMethod } from "@/services/payment-method";
+import { maskCardNumber, maskExpiry, maskCpf, onlyDigits, validateCard, parseCard } from "@/lib/card";
 
 interface Props {
   open: boolean;
@@ -15,22 +16,6 @@ interface Props {
   clientId: string;
   onAdded: (card: IPaymentMethod) => void;
 }
-
-const onlyDigits = (v: string) => v.replace(/\D/g, "");
-
-// Máscaras (modelo A — form próprio, sem iframe/SDK de terceiro)
-const maskCardNumber = (v: string) =>
-  onlyDigits(v).slice(0, 19).replace(/(\d{4})(?=\d)/g, "$1 ").trim();
-const maskExpiry = (v: string) => {
-  const d = onlyDigits(v).slice(0, 4);
-  return d.length <= 2 ? d : `${d.slice(0, 2)}/${d.slice(2)}`;
-};
-const maskCpf = (v: string) =>
-  onlyDigits(v)
-    .slice(0, 11)
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d)/, "$1.$2")
-    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
 
 export function AddCardDialog({ open, onClose, publicToken, clientId, onAdded }: Props) {
   const [number, setNumber] = useState("");
@@ -49,29 +34,19 @@ export function AddCardDialog({ open, onClose, publicToken, clientId, onAdded }:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const rawNumber = onlyDigits(number);
-    const [mm, yy] = expiry.split("/");
-    const rawCpf = onlyDigits(cpf);
-
-    if (rawNumber.length < 13 || rawNumber.length > 19) {
-      toast.error("Número do cartão inválido"); return;
-    }
-    if (!holderName.trim()) { toast.error("Informe o nome do titular"); return; }
-    if (!mm || !yy || yy.length < 2 || Number(mm) < 1 || Number(mm) > 12) {
-      toast.error("Validade inválida"); return;
-    }
-    if (ccv.length < 3 || ccv.length > 4) { toast.error("CVV inválido"); return; }
-    if (rawCpf.length !== 11) { toast.error("CPF do titular inválido"); return; }
+    const error = validateCard({ number, holderName, expiry, ccv, cpf });
+    if (error) { toast.error(error); return; }
+    const parsed = parseCard({ number, holderName, expiry, ccv, cpf });
 
     setSaving(true);
     try {
       const card = await paymentMethodService.save(publicToken, clientId, {
-        holderName: holderName.trim(),
-        number: rawNumber,
-        expiryMonth: mm.padStart(2, "0"),
-        expiryYear: yy.length === 2 ? `20${yy}` : yy,
-        ccv,
-        holderCpfCnpj: rawCpf,
+        holderName: parsed.holderName,
+        number: parsed.number,
+        expiryMonth: parsed.expiryMonth,
+        expiryYear: parsed.expiryYear,
+        ccv: parsed.ccv,
+        holderCpfCnpj: parsed.cpf,
       });
       toast.success("Cartão salvo!");
       onAdded(card);

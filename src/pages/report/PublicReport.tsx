@@ -18,6 +18,7 @@ import {
   Image as ImageIcon, ShieldCheck, BadgeCheck, CreditCard, Star,
   Download, RotateCw, Timer, User, Building2, Loader2, RefreshCw,
 } from "lucide-react";
+import { PaymentStep } from "./components/PaymentStep";
 
 // ============================================================================
 // Helpers
@@ -66,7 +67,8 @@ const EQUIPMENT_TYPE_LABELS: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  draft: "Rascunho", sent: "Aguardando aprovação", approved: "Aprovado", completed: "Concluído",
+  draft: "Rascunho", sent: "Aguardando aprovação", awaiting_payment: "Aguardando pagamento",
+  approved: "Aprovado", completed: "Concluído",
 };
 
 // Calcula gap entre approved e serviceStartedAt — usado como highlight da timeline
@@ -229,6 +231,7 @@ export function PublicReport() {
 
   const { report, items, equipment, provider, financial, rating } = data;
   const isSent = report.status === "sent";
+  const isAwaitingPayment = report.status === "awaiting_payment";
   const isApproved = report.status === "approved";
   const isCompleted = report.status === "completed";
 
@@ -265,6 +268,18 @@ export function PublicReport() {
             setConfirmOpen={setConfirmOpen}
             approving={approving}
             onApprove={handleApprove}
+          />
+        )}
+
+        {/* ═════════════ ESTADO: AWAITING_PAYMENT (cliente paga) ═════════════ */}
+        {isAwaitingPayment && providerToken && clientId && equipmentId && reportToken && (
+          <PaymentStep
+            tokens={{ pt: providerToken, cid: clientId, eid: equipmentId, rt: reportToken }}
+            amountCents={financial?.totalCents ?? 0}
+            items={items}
+            acceptedPaymentMethods={provider.acceptedPaymentMethods ?? []}
+            paymentState={financial?.payment ?? null}
+            onPaid={async () => { toast.success("Pagamento confirmado!"); await handleRefresh(); }}
           />
         )}
 
@@ -372,6 +387,7 @@ function ReportHeader({
   const isCompleted = status === "completed";
   const statusColor = isCompleted ? "bg-green-100 text-green-700"
     : status === "approved" ? "bg-purple-100 text-purple-700"
+    : status === "awaiting_payment" ? "bg-amber-100 text-amber-700"
     : status === "sent" ? "bg-blue-100 text-blue-700"
     : "bg-gray-100 text-gray-700";
   return (

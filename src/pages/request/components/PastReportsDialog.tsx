@@ -11,6 +11,7 @@ import { formatDateBr } from "@/lib/shifts"
 const REPORT_STATUS_LABELS: Record<ReportStatus, string> = {
   draft: "Rascunho",
   sent: "Aguardando cliente",
+  awaiting_payment: "Aguardando pagamento",
   approved: "Aprovado",
   completed: "Concluído",
 }
@@ -18,6 +19,7 @@ const REPORT_STATUS_LABELS: Record<ReportStatus, string> = {
 const REPORT_STATUS_COLORS: Record<ReportStatus, string> = {
   draft: "bg-gray-100 text-gray-700",
   sent: "bg-yellow-100 text-yellow-800",
+  awaiting_payment: "bg-amber-100 text-amber-800",
   approved: "bg-violet-100 text-violet-700",
   completed: "bg-green-100 text-green-700",
 }

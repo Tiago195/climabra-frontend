@@ -48,9 +48,11 @@ export interface IReportItemResponse {
 
 export interface IPaymentInfo {
   method: PaymentMethod
+  /** Fase 3: presente no laudo público; ausente no detalhe autenticado legado. */
+  status?: "pending" | "paid" | "failed" | "refunded"
   detail: string | null
   amountCents: number
-  paidAt: string
+  paidAt: string | null
 }
 
 export interface IFinancialInfo {
@@ -106,13 +108,6 @@ export interface IReportItemRequest {
   warrantyDays?: number
 }
 
-export interface IRegisterPaymentRequest {
-  method: PaymentMethod
-  detail?: string
-  amountCents: number
-  paidAt: string
-}
-
 // ─── Reports públicos (cliente final via cadeia de tokens) ───────────────────
 
 export interface IPublicReportItemResponse {
@@ -148,7 +143,12 @@ export interface IPublicReportResponse {
   items: IPublicReportItemResponse[]
   equipment: { type: EquipmentType; label: string; brand: string; model: string } | null
   client: { name: string }
-  provider: { name: string; companyName: string | null; phone: string | null }
+  provider: {
+    name: string
+    companyName: string | null
+    phone: string | null
+    acceptedPaymentMethods: PaymentMethod[]   // Fase 3: quais formas o portal oferece
+  }
   financial: IFinancialInfo | null
   rating: IRatingInfo | null
 }
@@ -236,8 +236,9 @@ export const reportService = {
     return data
   },
 
-  async registerPayment(token: string, reportId: string, payload: IRegisterPaymentRequest) {
-    const { data } = await api.post(`/${reportId}/payment`, payload, authHeader(token))
+  /** Provider confirma o recebimento em dinheiro (Fase 3) → laudo vira approved. */
+  async confirmCash(token: string, reportId: string): Promise<IReportDetailResponse> {
+    const { data } = await api.post(`/${reportId}/confirm-cash`, {}, authHeader(token))
     return data
   },
 

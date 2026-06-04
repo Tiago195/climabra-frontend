@@ -8,7 +8,7 @@ import { reportService, type IReportDetailResponse, type IReportItemResponse } f
 import { uploadService } from "@/services/upload";
 import {
   ArrowLeft, Plus, Trash2, Camera, Send, CheckCircle2, Copy, Loader2,
-  Eye, User, Wind, ShieldCheck,
+  Eye, User, Wind, ShieldCheck, Banknote,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -23,6 +23,7 @@ const EQUIPMENT_TYPE_LABELS: Record<string, string> = {
 const STATUS_META: Record<string, { label: string; pillClass: string; dotClass: string }> = {
   draft:     { label: "Rascunho",                pillClass: "bg-amber-50 text-amber-700 border-amber-200",  dotClass: "bg-amber-500" },
   sent:      { label: "Aguardando aprovação",    pillClass: "bg-blue-50 text-blue-700 border-blue-200",     dotClass: "bg-blue-500" },
+  awaiting_payment: { label: "Aguardando pagamento", pillClass: "bg-amber-50 text-amber-700 border-amber-200", dotClass: "bg-amber-500" },
   approved:  { label: "Aprovado pelo cliente",   pillClass: "bg-teal-50 text-teal-700 border-teal-200",     dotClass: "bg-teal-500" },
   completed: { label: "Concluído",               pillClass: "bg-emerald-50 text-emerald-700 border-emerald-200", dotClass: "bg-emerald-500" },
 };
@@ -170,6 +171,7 @@ export function ReportEditor() {
   const [addingItem, setAddingItem] = useState(false);
   const [sending, setSending] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [confirmingCash, setConfirmingCash] = useState(false);
   const [confirmSend, setConfirmSend] = useState(false);
   const [copied, setCopied] = useState(false);
   // Estados locais (commit on-blur). Re-sincronizam quando o detail muda.
@@ -301,6 +303,21 @@ export function ReportEditor() {
     }
   };
 
+  const handleConfirmCash = async () => {
+    if (!token || !id) return;
+    setConfirmingCash(true);
+    try {
+      setDetail(await reportService.confirmCash(token, id));
+      toast.success("Pagamento confirmado! Laudo liberado.");
+    } catch (err) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+        ?? (err instanceof Error ? err.message : "Erro ao confirmar pagamento");
+      toast.error(msg);
+    } finally {
+      setConfirmingCash(false);
+    }
+  };
+
   const publicLink = useMemo(() => {
     if (!detail || !provider) return "";
     return `${window.location.origin}/providers/${provider.publicToken}/clients/${detail.client.id}/equipment/${detail.equipment.id}/laudo/${detail.report.publicToken}`;
@@ -345,6 +362,8 @@ export function ReportEditor() {
   const isDraft = report.status === "draft";
   const canExecute = report.status === "approved";
   const isCompleted = report.status === "completed";
+  const isAwaitingPayment = report.status === "awaiting_payment";
+  const isCashPending = isAwaitingPayment && detail.financial?.payment?.method === "cash";
   const activeItems = items.filter(i => !i.rejected);
   const itemsCompleted = activeItems.filter(i => i.photoBefore && i.photoAfter).length;
   const subtotal = items.filter(i => !i.rejected).reduce((s, it) => s + lineSubtotal(it), 0);
@@ -645,6 +664,30 @@ export function ReportEditor() {
 
             {report.status === "sent" && (
               <span className="text-xs text-gray-600">Aguardando aprovação do cliente pelo link acima.</span>
+            )}
+
+            {isAwaitingPayment && !isCashPending && (
+              <span className="text-xs text-amber-700 font-medium inline-flex items-center gap-1.5">
+                <Banknote className="w-4 h-4" />
+                Aguardando o pagamento do cliente.
+              </span>
+            )}
+
+            {isCashPending && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs text-gray-600">
+                  Cliente escolheu pagar em dinheiro. Confirme assim que receber para liberar o laudo.
+                </span>
+                <Button
+                  size="lg"
+                  className="bg-amber-500 hover:bg-amber-600 text-white shadow-sm"
+                  onClick={handleConfirmCash}
+                  disabled={confirmingCash}
+                >
+                  {confirmingCash ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Banknote className="w-4 h-4 mr-2" />}
+                  Confirmar dinheiro recebido
+                </Button>
+              </div>
             )}
 
             {canExecute && (

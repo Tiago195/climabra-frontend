@@ -18,6 +18,7 @@ import { compareScheduledShift, formatScheduledShift } from "@/lib/shifts";
 const STATUS_LABEL: Record<ReportStatus, { label: string; color: string }> = {
   draft:     { label: "Rascunho", color: "bg-gray-200 text-gray-700" },
   sent:      { label: "Aguardando cliente", color: "bg-yellow-100 text-yellow-800" },
+  awaiting_payment: { label: "Aguardando pagamento", color: "bg-amber-100 text-amber-800" },
   approved:  { label: "Aprovado", color: "bg-blue-100 text-blue-800" },
   completed: { label: "Concluído", color: "bg-green-100 text-green-800" },
 };
