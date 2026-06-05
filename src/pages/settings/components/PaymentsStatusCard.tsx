@@ -41,7 +41,7 @@ export function PaymentsStatusCard({ status, onConfigure }: Props) {
               </div>
               <p className="text-sm text-amber-800 mt-1">
                 Recebemos seus dados e estamos verificando tudo. Isso costuma levar até{" "}
-                <span className="font-medium">1 dia útil</span>. Avisaremos por e-mail e aqui no
+                <span className="font-medium">1 dia útil</span>. Avisaremos aqui no
                 painel assim que sua conta estiver pronta.
               </p>
             </div>

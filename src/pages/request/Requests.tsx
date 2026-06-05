@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/authContext";
-import { useRequireProfile } from "@/components/CompleteProfileDialog";
+import { useRequireAccess } from "@/components/SubscriptionGate";
 import {
   appointmentService,
   type IAppointmentDetailResponse,
@@ -28,7 +28,7 @@ type ViewMode = "timeline" | "map";
 export function Requests() {
   const navigate = useNavigate();
   const { token, provider } = useAuth();
-  const requireProfile = useRequireProfile();
+  const requireAccess = useRequireAccess();
 
   const [appointments, setAppointments] = useState<IAppointmentDetailResponse[]>([]);
   const [clients, setClients] = useState<IClientResponse[]>([]);
@@ -61,7 +61,7 @@ export function Requests() {
   const pastCount = appointments.length - futureCount;
 
   const handleNewClick = () => {
-    requireProfile(() => {
+    requireAccess(() => {
       if (!provider?.publicToken) {
         toast.error("Provider sem token público — recarregue a página");
         return;

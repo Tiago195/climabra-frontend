@@ -1,8 +1,10 @@
 import axios from "axios"
 import { DEFAULT_URL } from "."
+import { attachPaywall } from "./paywall"
 import type { AppointmentStatus, EquipmentType, ReportStatus, Shift } from "./enums"
 
 const api = axios.create({ baseURL: `${DEFAULT_URL}/appointments` })
+attachPaywall(api)
 
 const authHeader = (token: string) => ({ headers: { Authorization: `Bearer ${token}` } })
 

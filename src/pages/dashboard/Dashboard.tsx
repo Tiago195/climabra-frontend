@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users, CalendarDays, Plus, CheckCircle2, AlertCircle, ArrowRight, XCircle } from "lucide-react";
 import { useAuth } from "@/contexts/authContext";
-import { useRequireProfile } from "@/components/CompleteProfileDialog";
+import { useRequireAccess } from "@/components/SubscriptionGate";
 import { clientService, type IClientResponse } from "@/services/client";
 import { appointmentService, type IAppointmentDetailResponse } from "@/services/appointment";
 import { PaymentsBanner } from "./components/PaymentsBanner";
@@ -15,7 +15,7 @@ import { WeekVisitsChart } from "./components/WeekVisitsChart";
 export function Dashboard() {
   const { provider, token } = useAuth();
   const navigate = useNavigate();
-  const requireProfile = useRequireProfile();
+  const requireAccess = useRequireAccess();
 
   const [clients, setClients] = useState<IClientResponse[]>([]);
   const [appointments, setAppointments] = useState<IAppointmentDetailResponse[]>([]);
@@ -50,7 +50,7 @@ export function Dashboard() {
         </div>
         <Button
           className="bg-blue-600 hover:bg-blue-700 gap-2"
-          onClick={() => requireProfile(() => navigate("/dashboard/clients"))}
+          onClick={() => requireAccess(() => navigate("/dashboard/clients"))}
         >
           <Plus className="w-4 h-4" />
           Novo cliente
@@ -70,7 +70,7 @@ export function Dashboard() {
             <Button
               size="sm"
               className="bg-amber-600 hover:bg-amber-700 text-white shrink-0"
-              onClick={() => requireProfile(() => {})}
+              onClick={() => requireAccess(() => {})}
             >
               Completar
             </Button>
@@ -160,7 +160,7 @@ export function Dashboard() {
                   <Button
                     size="sm"
                     className="mt-3 bg-blue-600 hover:bg-blue-700"
-                    onClick={() => requireProfile(() => navigate("/dashboard/clients"))}
+                    onClick={() => requireAccess(() => navigate("/dashboard/clients"))}
                   >
                     <Plus className="w-3 h-3 mr-1" /> Adicionar cliente
                   </Button>

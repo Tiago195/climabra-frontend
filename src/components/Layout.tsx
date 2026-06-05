@@ -1,5 +1,6 @@
 import { useAuth } from "@/contexts/authContext";
 import { ProfileGateProvider } from "@/components/CompleteProfileDialog";
+import { SubscriptionGateProvider, SubscriptionBanner } from "@/components/SubscriptionGate";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Users, CalendarDays, ClipboardList, LogOut, Wind, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ export function Layout() {
 
   return (
     <ProfileGateProvider>
+    <SubscriptionGateProvider>
     <div className="min-h-[100dvh] flex flex-col bg-gray-50">
       <header className="bg-white border-b sticky top-0 z-40 shadow-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -89,9 +91,11 @@ export function Layout() {
       </nav>
 
       <main className="flex-1 container mx-auto p-4 md:p-8">
+        <SubscriptionBanner />
         <Outlet />
       </main>
     </div>
+    </SubscriptionGateProvider>
     </ProfileGateProvider>
   );
 }
