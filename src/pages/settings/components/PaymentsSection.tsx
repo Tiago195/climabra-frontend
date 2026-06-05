@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/authContext";
-import { paymentService, type IPaymentSettings } from "@/services/payment";
+import { paymentService, type IPaymentSettings, type IPaymentDocument } from "@/services/payment";
 import { PaymentsStatusCard } from "./PaymentsStatusCard";
+import { PaymentsDocumentsCard } from "./PaymentsDocumentsCard";
 import { ConnectPaymentsWizard } from "./ConnectPaymentsWizard";
 import { AcceptedMethodsCard } from "./AcceptedMethodsCard";
 import { AsaasDisclosure } from "@/components/AsaasDisclosure";
@@ -10,20 +11,44 @@ import { AsaasDisclosure } from "@/components/AsaasDisclosure";
 export function PaymentsSection() {
   const { provider, token, updateProvider } = useAuth();
   const [wizardOpen, setWizardOpen] = useState(false);
+  // pixEnabled e documentos não vêm no provider do login — só do sync ao vivo (Fase A/B).
+  const [pixEnabled, setPixEnabled] = useState(false);
+  const [documents, setDocuments] = useState<IPaymentDocument[]>([]);
+  const [syncing, setSyncing] = useState(false);
 
   const status = provider?.gatewayAccountStatus ?? "none";
   const accepted = provider?.acceptedPaymentMethods ?? [];
+  const hasAccount = status !== "none";
+  const fullyReady = status === "approved" && pixEnabled;
 
-  // Sincroniza o status real da subconta na Asaas ao abrir os Pagamentos (Fase A):
-  // sem isso, o gatewayAccountStatus de um provider real fica preso no que o onboarding gravou.
-  useEffect(() => {
-    if (!token || status === "none") return;
-    paymentService.getStatus(token)
-      .then(s => updateProvider({
+  // Sincroniza o status real da subconta + pendências documentais. Sem isso, o status do provider
+  // fica preso no que o onboarding gravou e o PIX nunca religa sozinho na UI.
+  const sync = useCallback(async () => {
+    if (!token) return;
+    setSyncing(true);
+    try {
+      const s = await paymentService.getStatus(token);
+      updateProvider({
         gatewayAccountStatus: s.gatewayAccountStatus,
         acceptedPaymentMethods: s.acceptedPaymentMethods,
-      }))
-      .catch(() => { /* silencioso — mantém o status atual se a sync falhar */ });
+      });
+      setPixEnabled(s.pixEnabled);
+      // Busca pendências enquanto a conta não está 100% pronta (cartão+boleto+PIX).
+      if (s.hasGatewayAccount && !(s.gatewayAccountStatus === "approved" && s.pixEnabled)) {
+        setDocuments(await paymentService.getDocuments(token).catch(() => []));
+      } else {
+        setDocuments([]);
+      }
+    } catch {
+      /* silencioso — mantém o estado atual se a sync falhar */
+    } finally {
+      setSyncing(false);
+    }
+  }, [token, updateProvider]);
+
+  useEffect(() => {
+    if (!token || status === "none") return;
+    sync();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -32,7 +57,10 @@ export function PaymentsSection() {
       gatewayAccountStatus: settings.gatewayAccountStatus,
       acceptedPaymentMethods: settings.acceptedPaymentMethods,
     });
+    setPixEnabled(settings.pixEnabled);
     setWizardOpen(false);
+    // logo após conectar, busca as pendências de documento p/ o provider concluir o cadastro
+    void sync();
   };
 
   return (
@@ -57,7 +85,17 @@ export function PaymentsSection() {
       ) : (
         <div className="space-y-4">
           <PaymentsStatusCard status={status} onConfigure={() => setWizardOpen(true)} />
-          {status === "approved" && <AcceptedMethodsCard status={status} accepted={accepted} />}
+          {hasAccount && status !== "rejected" && !fullyReady && (
+            <PaymentsDocumentsCard
+              documents={documents}
+              pixEnabled={pixEnabled}
+              syncing={syncing}
+              onRefresh={sync}
+            />
+          )}
+          {status === "approved" && (
+            <AcceptedMethodsCard status={status} accepted={accepted} pixEnabled={pixEnabled} />
+          )}
           {status !== "approved" && <AsaasDisclosure className="px-1" />}
         </div>
       )}

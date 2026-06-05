@@ -13,6 +13,17 @@ export interface IPaymentSettings {
   acceptedPaymentMethods: PaymentMethod[]
 }
 
+/** Pendência documental da conta de recebimento (Fase B). */
+export interface IPaymentDocument {
+  id: string
+  type: string
+  title?: string | null
+  description?: string | null
+  status: string
+  onboardingUrl?: string | null
+  onboardingUrlExpiration?: string | null
+}
+
 export type CompanyType = "MEI" | "LIMITED" | "INDIVIDUAL" | "ASSOCIATION"
 
 export interface IConnectPaymentsRequest {
@@ -45,6 +56,14 @@ export const paymentService = {
   async getStatus(token: string): Promise<IPaymentSettings> {
     const { data: result } = await paymentApi.get<IPaymentSettings>(
       "/me/payments/status", authHeader(token)
+    )
+    return result
+  },
+
+  /** Pendências documentais da subconta — p/ concluir o cadastro pelo onboardingUrl (Fase B). */
+  async getDocuments(token: string): Promise<IPaymentDocument[]> {
+    const { data: result } = await paymentApi.get<IPaymentDocument[]>(
+      "/me/payments/documents", authHeader(token)
     )
     return result
   },

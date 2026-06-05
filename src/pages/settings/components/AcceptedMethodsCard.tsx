@@ -20,18 +20,27 @@ const METHODS: { key: PaymentMethod; label: string; hint: string; icon: any; ele
 interface Props {
   status: GatewayAccountStatus;
   accepted: PaymentMethod[];
+  /** PIX exige a conta totalmente aprovada + chave ativa — gating mais estrito que cartão/boleto. */
+  pixEnabled: boolean;
 }
 
-export function AcceptedMethodsCard({ status, accepted }: Props) {
+export function AcceptedMethodsCard({ status, accepted, pixEnabled }: Props) {
   const { token, updateProvider } = useAuth();
   const [methods, setMethods] = useState<Set<PaymentMethod>>(new Set(accepted));
   const [savingKey, setSavingKey] = useState<PaymentMethod | null>(null);
 
   const isApproved = status === "approved";
 
+  // Cartão/débito liberam com a conta aprovada (comercial); PIX só com pixEnabled (aprovação total + chave).
+  const isMethodDisabled = (key: PaymentMethod, electronic: boolean) => {
+    if (!electronic) return false;
+    if (key === "pix") return !pixEnabled;
+    return !isApproved;
+  };
+
   const toggle = async (method: PaymentMethod, electronic: boolean) => {
     if (!token) return;
-    if (electronic && !isApproved) return;
+    if (isMethodDisabled(method, electronic)) return;
 
     const nextSet = new Set(methods);
     if (nextSet.has(method)) nextSet.delete(method);
@@ -66,12 +75,15 @@ export function AcceptedMethodsCard({ status, accepted }: Props) {
       </CardHeader>
       <CardContent className="space-y-1">
         {METHODS.map(({ key, label, hint, icon: Icon, electronic }) => {
-          const disabled = electronic && !isApproved;
+          const disabled = isMethodDisabled(key, electronic);
+          const disabledHint = key === "pix"
+            ? "Disponível após a conta ser totalmente aprovada"
+            : "Disponível após aprovação da conta";
           return (
             <div
               key={key}
               className={`flex items-center justify-between rounded-lg p-3 ${disabled ? "opacity-60" : "hover:bg-gray-50"}`}
-              title={disabled ? "Disponível após sua conta ser aprovada" : undefined}
+              title={disabled ? disabledHint : undefined}
             >
               <div className="flex items-center gap-3 min-w-0">
                 <span className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
@@ -86,7 +98,7 @@ export function AcceptedMethodsCard({ status, accepted }: Props) {
                       {electronic ? "Automático" : "Manual"}
                     </Badge>
                   </div>
-                  <p className="text-xs text-gray-500">{disabled ? "Disponível após aprovação da conta" : hint}</p>
+                  <p className="text-xs text-gray-500">{disabled ? disabledHint : hint}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
