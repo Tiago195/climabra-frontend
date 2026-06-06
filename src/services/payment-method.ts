@@ -1,8 +1,9 @@
 import axios from "axios"
 import { DEFAULT_URL } from "."
+import { clientSession } from "./clientSession"
 
-// Rotas públicas do portal do cliente (sem auth de cliente — identificado por
-// publicToken + clientId na URL, mesmo padrão do clientService).
+// Cartões do cliente: exigem a sessão do cliente (OTP/Q5). O header Authorization é
+// injetado a partir do clientSession (token emitido após validar o WhatsApp).
 const api = axios.create({ baseURL: `${DEFAULT_URL}/clients` })
 
 export interface IPaymentMethod {
@@ -29,21 +30,21 @@ const base = (publicToken: string, clientId: string) =>
 
 export const paymentMethodService = {
   async list(publicToken: string, clientId: string): Promise<IPaymentMethod[]> {
-    const { data } = await api.get(base(publicToken, clientId))
+    const { data } = await api.get(base(publicToken, clientId), clientSession.authHeader(clientId))
     return data
   },
 
   async save(publicToken: string, clientId: string, payload: ISaveCardRequest): Promise<IPaymentMethod> {
-    const { data } = await api.post(base(publicToken, clientId), payload)
+    const { data } = await api.post(base(publicToken, clientId), payload, clientSession.authHeader(clientId))
     return data
   },
 
   async setDefault(publicToken: string, clientId: string, id: string): Promise<IPaymentMethod> {
-    const { data } = await api.put(`${base(publicToken, clientId)}/${id}/default`)
+    const { data } = await api.put(`${base(publicToken, clientId)}/${id}/default`, undefined, clientSession.authHeader(clientId))
     return data
   },
 
   async remove(publicToken: string, clientId: string, id: string): Promise<void> {
-    await api.delete(`${base(publicToken, clientId)}/${id}`)
+    await api.delete(`${base(publicToken, clientId)}/${id}`, clientSession.authHeader(clientId))
   },
 }

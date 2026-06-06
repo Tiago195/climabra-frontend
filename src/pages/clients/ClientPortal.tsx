@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Loader2, AlertCircle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { clientService, type IClientPortalResponse } from "@/services/client";
+import { clientSession } from "@/services/clientSession";
+import { PortalOtpGate } from "@/components/PortalOtpGate";
 import { PortalProviderHeader } from "./components/PortalProviderHeader";
 import { PortalCalendarCard } from "./components/PortalCalendarCard";
 import { PortalVisitGroups } from "./components/PortalVisitGroups";
@@ -16,14 +18,39 @@ export function ClientPortal() {
   const [data, setData] = useState<IClientPortalResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Gate por OTP (Q5): só carrega o portal com uma sessão de cliente válida.
+  const [authed, setAuthed] = useState(() => !!clientSession.getToken(id));
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!publicToken || !id) return;
+    setLoading(true);
     clientService.getPortal(publicToken, id)
       .then(setData)
-      .catch(() => setError(true))
+      .catch(err => {
+        if (clientSession.isUnauthorized(err)) {
+          // sessão expirada/ausente → volta à tela de OTP
+          clientSession.clear(id);
+          setAuthed(false);
+        } else {
+          setError(true);
+        }
+      })
       .finally(() => setLoading(false));
   }, [publicToken, id]);
+
+  useEffect(() => {
+    if (authed) load();
+  }, [authed, load]);
+
+  if (!publicToken || !id) return null;
+
+  if (!authed) return (
+    <PortalOtpGate
+      publicToken={publicToken}
+      clientId={id}
+      onVerified={token => { clientSession.setToken(id, token); setAuthed(true); }}
+    />
+  );
 
   if (loading) return (
     <div className="min-h-dvh flex items-center justify-center">

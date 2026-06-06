@@ -95,8 +95,10 @@ export function ClientSignUp() {
         shift: selectedShift,
       });
       setSubmitted(true);
-    } catch {
-      toast.error("Erro ao agendar. Tente novamente.");
+    } catch (err) {
+      // surfacia a mensagem do backend (ex.: 422 "número não tem WhatsApp"); fallback genérico
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg ?? "Erro ao agendar. Tente novamente.");
     } finally {
       setSubmitting(false);
     }

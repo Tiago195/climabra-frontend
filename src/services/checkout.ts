@@ -1,10 +1,10 @@
 import axios from "axios"
 import { DEFAULT_URL } from "."
+import { clientSession } from "./clientSession"
 import type { PaymentMethod } from "./report"
 
-// Rotas públicas do portal do laudo (cadeia de tokens na URL, sem auth de
-// cliente — mesmo modelo do reportService público). DTO neutro: não menciona
-// gateway nenhum.
+// Checkout do laudo: exige a sessão do cliente (OTP/Q5). O header Authorization é
+// injetado a partir do clientSession (token vinculado a clientId+providerToken).
 const api = axios.create({ baseURL: `${DEFAULT_URL}/reports/public` })
 
 export type CheckoutMethod = "pix" | "credit" | "debit" | "cash"
@@ -50,12 +50,12 @@ export const checkoutService = {
     pt: string, cid: string, eid: string, rt: string,
     body: ICheckoutRequest,
   ): Promise<ICheckoutResponse> {
-    const { data } = await api.post(`${base(pt, cid, eid, rt)}/checkout`, body)
+    const { data } = await api.post(`${base(pt, cid, eid, rt)}/checkout`, body, clientSession.authHeader(cid))
     return data
   },
 
   async getStatus(pt: string, cid: string, eid: string, rt: string): Promise<IPaymentStatusResponse> {
-    const { data } = await api.get(`${base(pt, cid, eid, rt)}/payment`)
+    const { data } = await api.get(`${base(pt, cid, eid, rt)}/payment`, clientSession.authHeader(cid))
     return data
   },
 }

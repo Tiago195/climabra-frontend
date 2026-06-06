@@ -51,8 +51,10 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
       setForm({ name: "", phone: "", email: "" });
       setAddress(emptyAddress);
       toast.success("Cliente cadastrado!");
-    } catch {
-      toast.error("Erro ao cadastrar cliente");
+    } catch (err) {
+      // surfacia a mensagem do backend (ex.: 422 "número não tem WhatsApp"); fallback genérico
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg ?? "Erro ao cadastrar cliente");
     } finally {
       setSaving(false);
     }

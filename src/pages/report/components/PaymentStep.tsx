@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { AsaasDisclosure } from "@/components/AsaasDisclosure";
 import { checkoutService, type IPixData } from "@/services/checkout";
 import { paymentMethodService, type IPaymentMethod } from "@/services/payment-method";
+import { clientSession } from "@/services/clientSession";
+import { PortalOtpGate } from "@/components/PortalOtpGate";
 import type { IPublicReportItemResponse, IPaymentInfo, PaymentMethod } from "@/services/report";
 import { maskCpf, onlyDigits } from "@/lib/card";
 import { SavedCardsList } from "./SavedCardsList";
@@ -51,13 +53,16 @@ export function PaymentStep({
 
   const [cards, setCards] = useState<IPaymentMethod[]>([]);
   const [cardsLoading, setCardsLoading] = useState(true);
+  // Gate por OTP (Q5): pagar exige a sessão do cliente (mesmo token do portal).
+  const [authed, setAuthed] = useState(() => !!clientSession.getToken(tokens.cid));
 
   useEffect(() => {
+    if (!authed) return;
     paymentMethodService.list(tokens.pt, tokens.cid)
       .then(setCards)
       .catch(() => setCards([]))
       .finally(() => setCardsLoading(false));
-  }, [tokens.pt, tokens.cid]);
+  }, [tokens.pt, tokens.cid, authed]);
 
   const accepts = (m: PaymentMethod) => acceptedPaymentMethods.includes(m);
 
@@ -132,6 +137,14 @@ export function PaymentStep({
   };
 
   // ── Render ───────────────────────────────────────────────────────────────────
+
+  if (!authed) return (
+    <PortalOtpGate
+      publicToken={tokens.pt}
+      clientId={tokens.cid}
+      onVerified={token => { clientSession.setToken(tokens.cid, token); setAuthed(true); }}
+    />
+  );
 
   const lineItems = items.filter(i => !i.rejected && i.unitPriceCents != null);
 

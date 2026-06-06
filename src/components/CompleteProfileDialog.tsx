@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,13 +19,25 @@ const ProfileGateContext = createContext<Ctx | null>(null);
 export function ProfileGateProvider({ children }: { children: ReactNode }) {
   const { provider, token, updateProvider } = useAuth();
   const [open, setOpen] = useState(() => provider?.status === 'pending');
-  const [saving, setSaving] = useState(false);
+  // 2 passos: preencher dados → confirmar o código enviado ao WhatsApp (prova de posse).
+  const [step, setStep] = useState<"form" | "code">("form");
+  const [sending, setSending] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [code, setCode] = useState("");
+  const [phoneMasked, setPhoneMasked] = useState("");
+  const [cooldown, setCooldown] = useState(0);
   const [form, setForm] = useState({
     name: provider?.name ?? "",
     phone: provider?.phone ?? "",
     companyName: provider?.companyName ?? "",
   });
   const pendingAction = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setInterval(() => setCooldown(c => (c <= 1 ? 0 : c - 1)), 1000);
+    return () => clearInterval(t);
+  }, [cooldown]);
 
   const requireProfile = useCallback((action: () => void) => {
     if (provider?.status !== 'pending') {
@@ -38,11 +50,14 @@ export function ProfileGateProvider({ children }: { children: ReactNode }) {
       phone: provider?.phone ?? "",
       companyName: provider?.companyName ?? "",
     });
+    setStep("form");
+    setCode("");
     setOpen(true);
   }, [provider]);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Passo 1 → envia o código de confirmação ao WhatsApp informado.
+  const sendCode = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!form.name.trim() || form.name.trim().length < 2) {
       toast.error("Informe seu nome completo");
       return;
@@ -51,13 +66,34 @@ export function ProfileGateProvider({ children }: { children: ReactNode }) {
       toast.error("Informe um telefone válido");
       return;
     }
-    if (!token || !provider) return;
-    setSaving(true);
+    if (!token) return;
+    setSending(true);
     try {
-      const updated = await providerService.update(token, provider.id, {
+      const res = await providerService.requestPhoneOtp(token, form.phone.trim());
+      setPhoneMasked(res.phoneMasked);
+      setCooldown(res.resendInSeconds);
+      setStep("code");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? "Não foi possível enviar o código.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Passo 2 → valida o código e finaliza o cadastro (telefone confirmado).
+  const confirm = async () => {
+    if (code.trim().length < 4) {
+      toast.error("Digite o código que você recebeu no WhatsApp.");
+      return;
+    }
+    if (!token) return;
+    setConfirming(true);
+    try {
+      const updated = await providerService.confirmPhone(token, {
         name: form.name.trim(),
         phone: form.phone.trim(),
         companyName: form.companyName.trim() || null,
+        code: code.trim(),
       });
       updateProvider(updated);
       toast.success("Cadastro finalizado!");
@@ -66,9 +102,9 @@ export function ProfileGateProvider({ children }: { children: ReactNode }) {
       pendingAction.current = null;
       if (action) setTimeout(action, 100);
     } catch (err: any) {
-      toast.error(err.message ?? "Erro ao salvar");
+      toast.error(err?.response?.data?.message ?? "Código inválido ou expirado.");
     } finally {
-      setSaving(false);
+      setConfirming(false);
     }
   };
 
@@ -85,42 +121,81 @@ export function ProfileGateProvider({ children }: { children: ReactNode }) {
               Finalize seu cadastro
             </DialogTitle>
             <DialogDescription>
-              Pra continuar, complete seus dados. Eles aparecem pros seus clientes nos links e laudos.
+              {step === "form"
+                ? "Pra continuar, complete seus dados. Vamos confirmar seu WhatsApp com um código — é por ele que seus clientes e o sistema falam com você."
+                : <>Enviamos um código por WhatsApp para <span className="font-medium">{phoneMasked}</span>. Digite-o para confirmar o número.</>}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={submit} className="space-y-4 mt-2">
-            <div className="space-y-2">
-              <Label>Nome completo *</Label>
+
+          {step === "form" ? (
+            <form onSubmit={sendCode} className="space-y-4 mt-2">
+              <div className="space-y-2">
+                <Label>Nome completo *</Label>
+                <Input
+                  placeholder="João Silva"
+                  value={form.name}
+                  onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Telefone (WhatsApp) *</Label>
+                <Input
+                  type="tel"
+                  placeholder="(11) 99999-9999"
+                  value={form.phone}
+                  onChange={e => setForm(p => ({ ...p, phone: formatPhone(e.target.value) }))}
+                  maxLength={15}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Nome da empresa (opcional)</Label>
+                <Input
+                  placeholder="Refrigeração JS"
+                  value={form.companyName}
+                  onChange={e => setForm(p => ({ ...p, companyName: e.target.value }))}
+                />
+              </div>
+              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={sending}>
+                {sending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Enviar código pelo WhatsApp
+              </Button>
+            </form>
+          ) : (
+            <div className="space-y-4 mt-2">
               <Input
-                placeholder="João Silva"
-                value={form.name}
-                onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="000000"
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, ""))}
+                className="text-center text-2xl tracking-[0.4em] h-12"
                 autoFocus
               />
+              <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={confirm} disabled={confirming}>
+                {confirming ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Confirmar e finalizar
+              </Button>
+              <div className="flex items-center justify-between text-xs">
+                <button
+                  type="button"
+                  className="text-gray-500 hover:text-gray-700"
+                  onClick={() => setStep("form")}
+                >
+                  ← Corrigir número
+                </button>
+                <button
+                  type="button"
+                  className="text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                  onClick={() => sendCode()}
+                  disabled={cooldown > 0 || sending}
+                >
+                  {cooldown > 0 ? `Reenviar em ${cooldown}s` : "Reenviar código"}
+                </button>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Telefone (WhatsApp) *</Label>
-              <Input
-                type="tel"
-                placeholder="(11) 99999-9999"
-                value={form.phone}
-                onChange={e => setForm(p => ({ ...p, phone: formatPhone(e.target.value) }))}
-                maxLength={15}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Nome da empresa (opcional)</Label>
-              <Input
-                placeholder="Refrigeração JS"
-                value={form.companyName}
-                onChange={e => setForm(p => ({ ...p, companyName: e.target.value }))}
-              />
-            </div>
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={saving}>
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              Salvar e continuar
-            </Button>
-          </form>
+          )}
         </DialogContent>
       </Dialog>
     </ProfileGateContext.Provider>

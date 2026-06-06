@@ -1,6 +1,7 @@
 import axios from "axios"
 import { DEFAULT_URL } from "."
 import { attachPaywall } from "./paywall"
+import { clientSession } from "./clientSession"
 import type { AppointmentStatus, EquipmentType, ReportStatus, Shift } from "./enums"
 
 const api = axios.create({ baseURL: `${DEFAULT_URL}/clients` })
@@ -159,16 +160,35 @@ export const clientService = {
   },
 
   async getPortal(publicToken: string, clientId: string): Promise<IClientPortalResponse> {
-    const { data } = await api.get(`/providers/${publicToken}/clients/${clientId}`)
+    const { data } = await api.get(`/providers/${publicToken}/clients/${clientId}`, clientSession.authHeader(clientId))
     return data
   },
 
   async addEquipment(publicToken: string, clientId: string, payload: IAddEquipmentPayload): Promise<IPortalEquipment> {
-    const { data } = await api.post(`/providers/${publicToken}/clients/${clientId}/equipment`, payload)
+    const { data } = await api.post(`/providers/${publicToken}/clients/${clientId}/equipment`, payload, clientSession.authHeader(clientId))
     return data
   },
 
   async requestAppointment(publicToken: string, clientId: string, payload: IAppointmentRequestPayload): Promise<void> {
-    await api.post(`/providers/${publicToken}/clients/${clientId}/appointments`, payload)
+    await api.post(`/providers/${publicToken}/clients/${clientId}/appointments`, payload, clientSession.authHeader(clientId))
   },
+
+  // ── Acesso por OTP (WhatsApp) ───────────────────────────────────────────────
+
+  /** Pede o código OTP; o backend envia por WhatsApp. Resposta: telefone mascarado + cooldown. */
+  async requestOtp(publicToken: string, clientId: string): Promise<IOtpRequestResponse> {
+    const { data } = await api.post(`/providers/${publicToken}/clients/${clientId}/otp/request`)
+    return data
+  },
+
+  /** Valida o código; em sucesso devolve o JWT de sessão do cliente. */
+  async verifyOtp(publicToken: string, clientId: string, code: string): Promise<string> {
+    const { data } = await api.post(`/providers/${publicToken}/clients/${clientId}/otp/verify`, { code })
+    return data.token
+  },
+}
+
+export interface IOtpRequestResponse {
+  phoneMasked: string
+  resendInSeconds: number
 }
