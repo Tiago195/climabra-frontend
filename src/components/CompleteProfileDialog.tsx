@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -111,22 +111,23 @@ export function ProfileGateProvider({ children }: { children: ReactNode }) {
   return (
     <ProfileGateContext.Provider value={{ requireProfile }}>
       {children}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
-                <UserCheck className="w-5 h-5 text-blue-600" />
-              </div>
-              Finalize seu cadastro
-            </DialogTitle>
-            <DialogDescription>
-              {step === "form"
-                ? "Pra continuar, complete seus dados. Vamos confirmar seu WhatsApp com um código — é por ele que seus clientes e o sistema falam com você."
-                : <>Enviamos um código por WhatsApp para <span className="font-medium">{phoneMasked}</span>. Digite-o para confirmar o número.</>}
-            </DialogDescription>
-          </DialogHeader>
-
+      <ResponsiveModal
+        open={open}
+        onOpenChange={setOpen}
+        title={
+          <span className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
+              <UserCheck className="w-5 h-5 text-blue-600" />
+            </div>
+            Finalize seu cadastro
+          </span>
+        }
+        description={
+          step === "form"
+            ? "Pra continuar, complete seus dados. Vamos confirmar seu WhatsApp com um código — é por ele que seus clientes e o sistema falam com você."
+            : <>Enviamos um código por WhatsApp para <span className="font-medium">{phoneMasked}</span>. Digite-o para confirmar o número.</>
+        }
+      >
           {step === "form" ? (
             <form onSubmit={sendCode} className="space-y-4 mt-2">
               <div className="space-y-2">
@@ -196,8 +197,7 @@ export function ProfileGateProvider({ children }: { children: ReactNode }) {
               </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+      </ResponsiveModal>
     </ProfileGateContext.Provider>
   );
 }

@@ -1,7 +1,5 @@
 import { useNavigate } from "react-router-dom"
-import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog"
+import { ResponsiveModal } from "@/components/ui/responsive-modal"
 import { AirVent, FileText, ChevronRight } from "lucide-react"
 import type { IAppointmentDetailResponse } from "@/services/appointment"
 import type { ReportStatus } from "@/services/enums"
@@ -43,18 +41,17 @@ export function PastReportsDialog({ row, open, onOpenChange }: Props) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="w-4 h-4 text-blue-600" /> Laudos da visita
-          </DialogTitle>
-          {row && (
-            <DialogDescription>
-              {row.client.name} · {formatDateBr(row.appointment.scheduledDate)}
-            </DialogDescription>
-          )}
-        </DialogHeader>
+    <ResponsiveModal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="sm"
+      title={
+        <span className="flex items-center gap-2">
+          <FileText className="w-4 h-4 text-blue-600" /> Laudos da visita
+        </span>
+      }
+      description={row ? `${row.client.name} · ${formatDateBr(row.appointment.scheduledDate)}` : undefined}
+    >
         {row && (
           <div className="space-y-1.5">
             {row.equipments.map(eq => {
@@ -111,7 +108,6 @@ export function PastReportsDialog({ row, open, onOpenChange }: Props) {
             )}
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   )
 }

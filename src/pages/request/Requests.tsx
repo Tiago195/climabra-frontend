@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Plus, List, Map as MapIcon, CalendarDays, History, Ban,
@@ -256,14 +256,16 @@ export function Requests() {
         />
       )}
 
-      <Dialog open={!!photoModal} onOpenChange={() => setPhotoModal(null)}>
-        <DialogContent className="max-w-3xl p-2">
-          <DialogHeader className="sr-only"><DialogTitle>Foto</DialogTitle></DialogHeader>
+      <ResponsiveModal
+        open={!!photoModal}
+        onOpenChange={o => !o && setPhotoModal(null)}
+        size="2xl"
+        title="Foto"
+      >
           {photoModal && (
             <img src={photoModal} alt="Foto ampliada" className="w-full h-auto rounded max-h-[80vh] object-contain" />
           )}
-        </DialogContent>
-      </Dialog>
+      </ResponsiveModal>
     </div>
   );
 }

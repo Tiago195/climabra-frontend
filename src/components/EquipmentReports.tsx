@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/authContext";
 import { reportService, type IReportResponse } from "@/services/report";
@@ -137,17 +137,15 @@ export default function EquipmentReports({ equipment }: { equipment: IEquipmentR
         </div>
       )}
 
-      <Dialog
+      <ResponsiveModal
         open={open}
         onOpenChange={next => {
           setOpen(next);
           if (!next) resetForm();
         }}
+        size="lg"
+        title={`Novo laudo · ${equipment.label || equipment.type || "Equipamento"}`}
       >
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Novo laudo · {equipment.label || equipment.type || "Equipamento"}</DialogTitle>
-          </DialogHeader>
           <div className="space-y-3">
             {linkable.length > 0 && (
               <div className="space-y-1">
@@ -212,15 +210,14 @@ export default function EquipmentReports({ equipment }: { equipment: IEquipmentR
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-3">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Criar laudo
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+      </ResponsiveModal>
     </div>
   );
 }

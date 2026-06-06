@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { ResponsiveModal } from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
 import { Lock, ExternalLink, RefreshCw, CreditCard, Loader2 } from "lucide-react"
 import { toast } from "sonner"
@@ -185,18 +185,19 @@ function PaywallDialog({
     : "Seu período de uso terminou. Assine para continuar usando o Climabra."
 
   return (
-    <Dialog open={open} onOpenChange={o => !o && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center">
-              <Lock className="w-5 h-5 text-red-600" />
-            </div>
-            Pague para continuar
-          </DialogTitle>
-          <DialogDescription>{reason} Regularize para voltar a usar a ferramenta.</DialogDescription>
-        </DialogHeader>
-
+    <ResponsiveModal
+      open={open}
+      onOpenChange={o => !o && onClose()}
+      title={
+        <span className="flex items-center gap-2">
+          <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center">
+            <Lock className="w-5 h-5 text-red-600" />
+          </div>
+          Pague para continuar
+        </span>
+      }
+      description={`${reason} Regularize para voltar a usar a ferramenta.`}
+    >
         <div className="space-y-2 pt-1">
           {sub.invoiceUrl && (
             <Button
@@ -229,7 +230,6 @@ function PaywallDialog({
             </button>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   )
 }

@@ -3,9 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Plus, Trash2, Loader2, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { AsaasDisclosure } from "@/components/AsaasDisclosure";
@@ -165,11 +163,12 @@ export function PortalPaymentMethodsCard({ publicToken, clientId }: Props) {
         }
       />
 
-      <Dialog open={!!removing} onOpenChange={open => !open && setRemoving(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Remover este cartão?</DialogTitle>
-          </DialogHeader>
+      <ResponsiveModal
+        open={!!removing}
+        onOpenChange={open => !open && setRemoving(null)}
+        size="sm"
+        title="Remover este cartão?"
+      >
           {removing && (
             <div className="space-y-3">
               <p className="text-sm text-gray-500">
@@ -184,7 +183,7 @@ export function PortalPaymentMethodsCard({ publicToken, clientId }: Props) {
               </div>
             </div>
           )}
-          <DialogFooter className="gap-2 sm:gap-2">
+          <div className="flex gap-2 pt-3">
             <Button
               variant="outline"
               className="flex-1"
@@ -205,9 +204,8 @@ export function PortalPaymentMethodsCard({ publicToken, clientId }: Props) {
               )}
               Remover
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+      </ResponsiveModal>
     </>
   );
 }

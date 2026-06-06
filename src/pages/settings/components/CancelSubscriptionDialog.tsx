@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ResponsiveModal } from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
 import { Loader2, Check } from "lucide-react"
 import { formatShortDate } from "./format"
@@ -33,11 +33,12 @@ export function CancelSubscriptionDialog({ open, nextDueDate, onClose, onConfirm
   ]
 
   return (
-    <Dialog open={open} onOpenChange={o => !o && !loading && onClose()}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Cancelar assinatura?</DialogTitle>
-        </DialogHeader>
+    <ResponsiveModal
+      open={open}
+      onOpenChange={o => !o && !loading && onClose()}
+      size="sm"
+      title="Cancelar assinatura?"
+    >
         <p className="text-sm text-gray-500 -mt-1">
           Você não perde nada agora — o cancelamento só vale a partir do fim do período já pago.
         </p>
@@ -58,7 +59,6 @@ export function CancelSubscriptionDialog({ open, nextDueDate, onClose, onConfirm
             Sim, cancelar
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   )
 }

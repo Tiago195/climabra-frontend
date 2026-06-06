@@ -79,7 +79,7 @@ function CurrencyInput({ valueCents, onCommit, disabled }: CurrencyInputProps) {
         onChange={e => setText(e.target.value)}
         onBlur={commit}
         onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-        className="w-full h-9 pl-8 pr-2 text-sm text-right rounded-md border border-gray-200 bg-white tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
+        className="w-full h-11 md:h-9 pl-8 pr-2 text-sm text-right rounded-md border border-gray-200 bg-white tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
       />
     </div>
   );
@@ -115,7 +115,7 @@ function QtyInput({ value, onCommit, disabled }: QtyInputProps) {
       onChange={e => setText(e.target.value)}
       onBlur={commit}
       onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-      className="w-full h-9 px-2.5 text-sm text-right rounded-md border border-gray-200 bg-white tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
+      className="w-full h-11 md:h-9 px-2.5 text-sm text-right rounded-md border border-gray-200 bg-white tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
     />
   );
 }
@@ -150,7 +150,7 @@ function WarrantyInput({ value, onCommit, disabled }: WarrantyInputProps) {
         onChange={e => setText(e.target.value)}
         onBlur={commit}
         onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-        className="w-full h-9 pl-2.5 pr-10 text-sm text-right rounded-md border border-gray-200 bg-white tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
+        className="w-full h-11 md:h-9 pl-2.5 pr-10 text-sm text-right rounded-md border border-gray-200 bg-white tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 disabled:bg-gray-50 disabled:text-gray-500"
       />
       <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">dias</span>
     </div>
@@ -377,8 +377,8 @@ export function ReportEditor() {
     || "Equipamento";
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-6">
+    <div className="min-h-[100dvh] bg-gray-50">
+      <div className="max-w-4xl mx-auto px-4 pt-6 pb-28 md:pb-6">
         {/* Breadcrumb */}
         <div className="flex items-center justify-between mb-4">
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="-ml-2 text-gray-600">
@@ -415,14 +415,14 @@ export function ReportEditor() {
                   onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                   placeholder="Título do laudo…"
                   aria-label="Título do laudo"
-                  className="flex-1 text-xl font-bold tracking-tight text-gray-900 leading-snug bg-transparent px-1 -mx-1 py-0.5 rounded-md border border-transparent hover:border-gray-200 focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30 focus:outline-none placeholder:text-gray-400"
+                  className="flex-1 min-w-0 text-xl font-bold tracking-tight text-gray-900 leading-snug bg-transparent px-1 -mx-1 py-0.5 rounded-md border border-transparent hover:border-gray-200 focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-500/30 focus:outline-none placeholder:text-gray-400"
                 />
               ) : (
-                <h1 className="flex-1 text-xl font-bold tracking-tight text-gray-900 leading-snug">
+                <h1 className="flex-1 min-w-0 text-xl font-bold tracking-tight text-gray-900 leading-snug">
                   {report.title ?? "Laudo técnico"}
                 </h1>
               )}
-              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${status.pillClass}`}>
+              <span className={`inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${status.pillClass}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${status.dotClass}`} />
                 {status.label}
               </span>
@@ -460,27 +460,49 @@ export function ReportEditor() {
           {/* Link público (se já enviado) */}
           {!isDraft && (
             <div className="px-6 py-3 bg-blue-50/60 border-b border-blue-100">
-              <div className="flex items-center gap-2">
+              {/* Desktop: campo + ícones */}
+              <div className="hidden md:flex items-center gap-2">
                 <span className="text-[11px] uppercase tracking-wide text-blue-700 font-medium shrink-0">Link público</span>
                 <input
                   value={publicLink}
                   readOnly
-                  className="flex-1 text-xs font-mono px-2 py-1 rounded border border-blue-200 bg-white text-gray-700"
+                  className="flex-1 min-w-0 text-xs font-mono px-2 py-1 rounded border border-blue-200 bg-white text-gray-700"
                 />
                 <button
                   onClick={copyLink}
-                  className="h-7 px-2 rounded border border-blue-200 bg-white text-blue-700 hover:bg-blue-100 transition"
+                  className="h-7 px-2 shrink-0 rounded border border-blue-200 bg-white text-blue-700 hover:bg-blue-100 transition"
                   title="Copiar link"
                 >
                   {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
                 <a
                   href={publicLink} target="_blank" rel="noreferrer"
-                  className="h-7 px-2 rounded border border-blue-200 bg-white text-blue-700 hover:bg-blue-100 transition inline-flex items-center"
+                  className="h-7 px-2 shrink-0 rounded border border-blue-200 bg-white text-blue-700 hover:bg-blue-100 transition inline-flex items-center"
                   title="Abrir como o cliente vai ver"
                 >
                   <Eye className="w-3.5 h-3.5" />
                 </a>
+              </div>
+
+              {/* Mobile: botões de ação (link cru não ajuda numa tela pequena) */}
+              <div className="md:hidden">
+                <span className="text-[11px] uppercase tracking-wide text-blue-700 font-medium">Link público</span>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={copyLink}
+                    className="h-11 inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white text-sm font-medium text-blue-700 active:bg-blue-100 transition"
+                  >
+                    {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    {copied ? "Copiado!" : "Copiar link"}
+                  </button>
+                  <a
+                    href={publicLink} target="_blank" rel="noreferrer"
+                    className="h-11 inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white text-sm font-medium text-blue-700 active:bg-blue-100 transition"
+                  >
+                    <Eye className="w-4 h-4" />
+                    Ver como cliente
+                  </a>
+                </div>
               </div>
             </div>
           )}
@@ -619,8 +641,8 @@ export function ReportEditor() {
           </div>
         </div>
 
-        {/* Action bar */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 px-2">
+        {/* Action bar (desktop) */}
+        <div className="mt-4 hidden md:flex flex-wrap items-center justify-between gap-3 px-2">
           <div className="flex items-center gap-3 text-xs text-gray-500">
             <span className="inline-flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -709,6 +731,71 @@ export function ReportEditor() {
                 <CheckCircle2 className="w-4 h-4" />
                 Concluído em {new Date(report.completedAt!).toLocaleString("pt-BR")}
               </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Action bar (mobile, fixa no rodapé): total + ação contextual sempre à mão */}
+      <div className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+        <div className="max-w-4xl mx-auto flex items-center gap-3">
+          {!isCompleted && (
+            <div className="shrink-0">
+              <div className="text-[11px] leading-none text-gray-500">Total</div>
+              <div className="text-lg font-bold text-gray-900 tabular-nums leading-tight">{centsToBRL(total)}</div>
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            {isDraft && items.length === 0 && (
+              <p className="text-xs text-gray-500 text-center">Adicione itens para enviar o laudo.</p>
+            )}
+
+            {isDraft && items.length > 0 && (
+              !confirmSend ? (
+                <Button className="w-full h-11 text-sm bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setConfirmSend(true)}>
+                  <Send className="w-4 h-4 mr-2" /> Enviar pré-laudo
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" className="flex-1 h-11 text-sm" onClick={() => setConfirmSend(false)} disabled={sending}>
+                    Cancelar
+                  </Button>
+                  <Button className="flex-1 h-11 text-sm bg-blue-600 hover:bg-blue-700" onClick={handleSend} disabled={sending}>
+                    {sending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                    Confirmar
+                  </Button>
+                </div>
+              )
+            )}
+
+            {report.status === "sent" && (
+              <p className="text-xs text-gray-600 text-center">Aguardando aprovação do cliente.</p>
+            )}
+
+            {isAwaitingPayment && !isCashPending && (
+              <p className="w-full text-xs text-amber-700 font-medium inline-flex items-center justify-center gap-1.5">
+                <Banknote className="w-4 h-4" /> Aguardando pagamento.
+              </p>
+            )}
+
+            {isCashPending && (
+              <Button className="w-full h-11 text-sm bg-amber-500 hover:bg-amber-600 text-white" onClick={handleConfirmCash} disabled={confirmingCash}>
+                {confirmingCash ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Banknote className="w-4 h-4 mr-2" />}
+                Confirmar dinheiro recebido
+              </Button>
+            )}
+
+            {canExecute && (
+              <Button className="w-full h-11 text-sm bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleComplete} disabled={completing || itemsCompleted < activeItems.length}>
+                {completing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+                {itemsCompleted < activeItems.length ? `Faltam ${activeItems.length - itemsCompleted} item(ns)` : "Finalizar laudo"}
+              </Button>
+            )}
+
+            {isCompleted && (
+              <p className="w-full text-xs text-emerald-700 font-medium inline-flex items-center justify-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4" /> Concluído em {new Date(report.completedAt!).toLocaleString("pt-BR")}
+              </p>
             )}
           </div>
         </div>
@@ -819,7 +906,7 @@ function ItemCard({
         {isDraft && (
           <button
             onClick={onDelete}
-            className="p-1.5 rounded-md text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition shrink-0"
+            className="h-11 w-11 md:h-8 md:w-8 flex items-center justify-center rounded-md text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition shrink-0"
             title="Remover item"
           >
             <Trash2 className="w-4 h-4" />

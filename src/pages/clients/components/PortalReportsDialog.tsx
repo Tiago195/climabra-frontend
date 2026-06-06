@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText, ExternalLink, AlertCircle, ChevronDown } from "lucide-react";
@@ -51,11 +51,13 @@ function ReportRow({ r, accent = false }: { r: IPortalReport; accent?: boolean }
 }
 
 interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   equipment: IPortalEquipment;
   reports: IPortalReport[];
 }
 
-export function PortalReportsDialog({ equipment, reports }: Props) {
+export function PortalReportsDialog({ open, onOpenChange, equipment, reports }: Props) {
   const [showAll, setShowAll] = useState(false);
 
   const pending = reports.filter(r => r.status === "sent");
@@ -69,15 +71,17 @@ export function PortalReportsDialog({ equipment, reports }: Props) {
   const eqSub = [equipment.brand, equipment.model].filter(Boolean).join(" · ");
 
   return (
-    <DialogContent className="max-w-md p-0 gap-0 max-h-[85vh] flex flex-col">
-      <DialogHeader className="px-5 pt-5 pb-3 border-b">
-        <DialogTitle className="text-base flex items-center gap-2">
+    <ResponsiveModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title={
+        <span className="flex items-center gap-2">
           <FileText className="w-4 h-4" /> Laudos · {eqLabel}
-        </DialogTitle>
-        {eqSub && <p className="text-xs text-gray-500">{eqSub}</p>}
-      </DialogHeader>
-
-      <div className="overflow-y-auto px-5 py-4 space-y-5">
+        </span>
+      }
+      description={eqSub || undefined}
+    >
+      <div className="space-y-5 pt-1">
         {pending.length > 0 && (
           <section>
             <div className="flex items-center gap-2 mb-2">
@@ -122,6 +126,6 @@ export function PortalReportsDialog({ equipment, reports }: Props) {
           )}
         </section>
       </div>
-    </DialogContent>
+    </ResponsiveModal>
   );
 }

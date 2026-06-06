@@ -90,7 +90,7 @@ export function AvailabilityDayDetail({
               </div>
 
               {config.isActive && (
-                <div className="grid grid-cols-[1fr_1fr_88px] gap-3 mt-3">
+                <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_auto] gap-3 mt-3">
                   <div className="flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                     <Input
@@ -111,7 +111,7 @@ export function AvailabilityDayDetail({
                       aria-label="Fim"
                     />
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 min-w-0">
                     <Users className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                     <Input
                       type="number"
@@ -122,10 +122,10 @@ export function AvailabilityDayDetail({
                       onChange={e => onUpdate(selectedDow, shift, {
                         capacity: Math.max(1, Math.min(50, parseInt(e.target.value) || 1)),
                       })}
-                      className="text-sm h-9 w-14"
+                      className="text-sm h-9 w-14 shrink-0"
                       aria-label="Vagas"
                     />
-                    <span className="text-[11px] text-gray-500">vagas</span>
+                    <span className="text-[11px] text-gray-500 whitespace-nowrap shrink-0">vagas</span>
                   </div>
                 </div>
               )}

@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { ResponsiveModal } from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Check, ShieldCheck, CreditCard, FileText } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/authContext"
-import { useMediaQuery } from "@/hooks/useMediaQuery"
 import { AsaasDisclosure } from "@/components/AsaasDisclosure"
 import { maskCardNumber, maskExpiry, maskCpf, onlyDigits, validateCard, parseCard } from "@/lib/card"
 import {
@@ -32,36 +30,6 @@ interface Props {
 type Step = "select" | "card" | "confirm"
 
 const maskCep = (v: string) => onlyDigits(v).slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2")
-
-/** Modal responsivo: Dialog no desktop, Sheet (bottom) no mobile. */
-function ResponsiveModal({
-  open, onOpenChange, title, children,
-}: {
-  open: boolean
-  onOpenChange: (o: boolean) => void
-  title: React.ReactNode
-  children: React.ReactNode
-}) {
-  const isDesktop = useMediaQuery("(min-width: 768px)")
-  if (isDesktop) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
-          {children}
-        </DialogContent>
-      </Dialog>
-    )
-  }
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-2xl px-4 pt-3 pb-8 max-h-[92vh] overflow-y-auto text-sm">
-        <SheetHeader className="px-0 text-left"><SheetTitle>{title}</SheetTitle></SheetHeader>
-        {children}
-      </SheetContent>
-    </Sheet>
-  )
-}
 
 export function SubscriptionPlanDialog({ open, plans, currentPlan, initialStep, onClose, onDone }: Props) {
   const { token } = useAuth()

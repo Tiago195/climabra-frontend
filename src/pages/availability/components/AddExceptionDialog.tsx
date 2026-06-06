@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { ResponsiveModal } from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -97,27 +97,22 @@ export function AddExceptionDialog({ open, onOpenChange, initialDate, onCreated 
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm w-full border-0 shadow-2xl p-0 gap-0 bg-white">
-        {/* Header */}
-        <div className="flex items-start justify-between px-5 pt-5 pb-4 border-b">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-              <Calendar className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-gray-900 leading-tight">
-                Bloquear data na agenda
-              </h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Defina o período e os turnos bloqueados
-              </p>
-            </div>
-          </div>
-        </div>
-
+    <ResponsiveModal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="sm"
+      title={
+        <span className="flex items-center gap-2">
+          <span className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+            <Calendar className="w-5 h-5 text-blue-600" />
+          </span>
+          Bloquear data na agenda
+        </span>
+      }
+      description="Defina o período e os turnos bloqueados"
+    >
         {/* Corpo */}
-        <div className="px-5 py-5 space-y-5">
+        <div className="space-y-5 pt-2">
           {/* Datas início/fim */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -245,7 +240,6 @@ export function AddExceptionDialog({ open, onOpenChange, initialDate, onCreated 
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   )
 }
