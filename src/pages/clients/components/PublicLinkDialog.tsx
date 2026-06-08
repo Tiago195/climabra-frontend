@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
@@ -26,11 +26,7 @@ export function PublicLinkDialog({ open, onOpenChange, signupUrl }: Props) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Link para novos clientes</DialogTitle>
-        </DialogHeader>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange} title="Link para novos clientes">
         <div className="space-y-3 mt-2">
           <p className="text-sm text-gray-600">
             Compartilhe esse link com pessoas que ainda não são suas clientes. Elas vão preencher os dados e agendar a visita em uma única tela.
@@ -45,7 +41,6 @@ export function PublicLinkDialog({ open, onOpenChange, signupUrl }: Props) {
             Este link é permanente. Qualquer pessoa que acessar pode se cadastrar e agendar uma visita.
           </p>
         </div>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   );
 }

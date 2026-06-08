@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { DEFAULT_URL } from '.'
-import type { ProviderStatus } from './enums'
+import type { GatewayAccountStatus, PaymentMethod, ProviderStatus } from './enums'
 
 const auth = axios.create({
   baseURL: `${DEFAULT_URL}/providers`
@@ -32,8 +32,25 @@ export interface IProviderResponse {
   companyName: string
   status: ProviderStatus
   publicToken: string
+  cpfCnpj?: string | null
+  gatewayAccountStatus: GatewayAccountStatus
+  acceptedPaymentMethods: PaymentMethod[]
+  // Toggles de cobrança (provider_config)
+  chargesLabor: boolean
+  chargesTravel: boolean
+  travel: ITravelConfig | null
   createdAt: string
   updatedAt: string
+}
+
+export interface ITravelConfig {
+  originCep: string | null
+  pricePerKmCents: number | null
+  freeRadiusKm: number | null
+  minCents: number | null
+  capCents: number | null
+  roundTrip: boolean
+  originGeocoded: boolean
 }
 
 export interface IProviderLoginResponse {

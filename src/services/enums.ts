@@ -2,8 +2,12 @@ export type EquipmentType = "split" | "janela" | "cassete" | "piso_teto" | "cent
 
 export type AppointmentStatus = "scheduled" | "completed" | "canceled" | "no_show"
 
-export type ReportStatus = "draft" | "sent" | "approved" | "completed"
+export type ReportStatus = "draft" | "sent" | "awaiting_payment" | "approved" | "completed"
 
 export type ProviderStatus = "pending" | "blocked" | "active" | "canceled"
 
 export type Shift = "morning" | "afternoon" | "night"
+
+export type GatewayAccountStatus = "none" | "pending" | "approved" | "rejected"
+
+export type PaymentMethod = "pix" | "credit" | "debit" | "cash" | "boleto"

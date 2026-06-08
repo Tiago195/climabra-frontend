@@ -1,6 +1,7 @@
+import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { MapPin, Navigation, Home, ExternalLink, Info } from "lucide-react"
+import { MapPin, Navigation, Home, ExternalLink, Info, Route, Clock, Loader2 } from "lucide-react"
 import { ShiftBadge } from "@/components/ShiftBadge"
 import type {
   IAppointmentDetailResponse,
@@ -8,12 +9,15 @@ import type {
   IAppointmentReportInfo,
 } from "@/services/appointment"
 import type { IClientResponse } from "@/services/client"
+import { providerService, type IRoutePlanResponse } from "@/services/provider"
 import {
   googleMapsRouteUrl, googleMapsSingleUrl, wazeUrl, formatFullAddress,
 } from "@/lib/maps"
 import { AppointmentActions } from "./AppointmentActions"
+import { RouteMap } from "./RouteMap"
 
 interface Props {
+  token: string
   appointments: IAppointmentDetailResponse[]
   clientsById: Map<string, IClientResponse>
   creatingReportFor: string | null
@@ -27,20 +31,41 @@ const todayISO = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
 
+const fmtMin = (min: number) => {
+  const m = Math.round(min)
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}`
+}
+
 /**
- * Modo Mapa adaptado do canvas Solicitações B - Timeline.
- *
- * O canvas original renderiza um SVG dos clientes + ETA por turno (chega/sai)
- * usando lat/lng. A API ainda não expõe coordenadas, então:
- * - Listamos as visitas do dia numeradas (1 → 2 → 3...) ordenadas por bairro
- * - Os botões abrem Google Maps/Waze com o endereço em texto livre
- * - Sem ETA por enquanto (precisa de viagem em minutos)
+ * Modo Mapa (Fase 5 — localização). Busca o plano de rota do dia em
+ * `GET /providers/me/route` (ordem ótima via OSRM + ETA + geometria; fallback Haversine no
+ * backend) e renderiza um mapa Leaflet/OSM com pinos numerados, a linha da rota e o ETA por
+ * parada. As visitas são listadas na ordem da rota; as sem coordenadas ficam ao final (sem
+ * pino/ETA). Mantém os deep-links Google Maps/Waze.
  */
 export function AppointmentMapView({
-  appointments, clientsById, creatingReportFor,
+  token, appointments, clientsById, creatingReportFor,
   onCreateReport, onComplete, onCancel,
 }: Props) {
   const today = todayISO()
+
+  const [plan, setPlan] = useState<IRoutePlanResponse | null>(null)
+  const [loadingPlan, setLoadingPlan] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoadingPlan(true)
+    providerService.getRoute(token, today)
+      .then(p => { if (!cancelled) setPlan(p) })
+      .catch(() => { if (!cancelled) setPlan(null) })
+      .finally(() => { if (!cancelled) setLoadingPlan(false) })
+    return () => { cancelled = true }
+  }, [token, today])
+
+  // Ordem ótima + ETA por appointmentId (só paradas com coords entram no plano).
+  const planOrder = new Map(plan?.orderedStops.map((s, i) => [s.appointmentId, i]) ?? [])
+  const planMeta = new Map(plan?.orderedStops.map(s => [s.appointmentId, s]) ?? [])
+  const hasPlanStops = (plan?.orderedStops.length ?? 0) > 0
 
   const todayItems = appointments
     .filter(row =>
@@ -51,10 +76,16 @@ export function AppointmentMapView({
       row,
       client: clientsById.get(row.client.id),
     }))
-    .sort((a, b) =>
-      (a.client?.neighborhood ?? "").localeCompare(b.client?.neighborhood ?? "", "pt-BR") ||
-      a.row.client.name.localeCompare(b.row.client.name, "pt-BR")
-    )
+    .sort((a, b) => {
+      // Paradas no plano vêm primeiro, na ordem da rota; o resto cai no critério por bairro.
+      const oa = planOrder.has(a.row.appointment.id) ? planOrder.get(a.row.appointment.id)! : Infinity
+      const ob = planOrder.has(b.row.appointment.id) ? planOrder.get(b.row.appointment.id)! : Infinity
+      if (oa !== ob) return oa - ob
+      return (a.client?.neighborhood ?? "").localeCompare(b.client?.neighborhood ?? "", "pt-BR") ||
+        a.row.client.name.localeCompare(b.row.client.name, "pt-BR")
+    })
+
+  const uncoveredCount = todayItems.length - (plan?.orderedStops.length ?? 0)
 
   const stopsForUrl = todayItems
     .map(it => it.client)
@@ -72,7 +103,14 @@ export function AppointmentMapView({
           </div>
           <p className="text-[11px] text-gray-500 flex items-center gap-1">
             <Home className="w-3 h-3" />
-            <span className="text-gray-500">Ordenadas por bairro</span>
+            {hasPlanStops ? (
+              <span className="text-gray-500">
+                {plan!.optimized ? "Ordem ótima" : "Estimativa por proximidade"}
+                {" · "}~{Math.round(plan!.totalKm)} km · ~{fmtMin(plan!.totalMin)}
+              </span>
+            ) : (
+              <span className="text-gray-500">Ordenadas por bairro</span>
+            )}
           </p>
           {todayItems.length > 0 && (
             <div className="flex items-center gap-1.5 pt-1">
@@ -108,15 +146,41 @@ export function AppointmentMapView({
         </CardContent>
       </Card>
 
-      {/* Aviso: mapa visual + ETA requerem coordenadas */}
-      <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-md p-3 text-[11px] text-amber-800">
-        <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-        <p className="leading-snug">
-          Mapa visual e estimativa de chegada (ETA) serão habilitados quando as visitas tiverem
-          coordenadas geográficas. Por enquanto, use os botões Google Maps/Waze acima para abrir
-          a rota com os endereços.
-        </p>
-      </div>
+      {/* Mapa da rota (Fase 5) — pinos numerados + linha da rota + ETA */}
+      {loadingPlan ? (
+        <div className="flex items-center justify-center gap-2 py-6 text-sm text-gray-500 bg-gray-50 rounded-md">
+          <Loader2 className="w-4 h-4 animate-spin" /> Calculando rota do dia...
+        </div>
+      ) : hasPlanStops ? (
+        <div className="space-y-2">
+          <RouteMap plan={plan!} />
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-0.5">
+            {plan!.optimized ? (
+              <span className="text-[11px] text-green-700 flex items-center gap-1">
+                <Route className="w-3 h-3" /> Rota real via OSRM
+              </span>
+            ) : (
+              <span className="text-[11px] text-amber-700 flex items-center gap-1">
+                <Route className="w-3 h-3" /> Estimativa (linha reta) — rota real quando o OSRM estiver ativo
+              </span>
+            )}
+            {uncoveredCount > 0 && (
+              <span className="text-[11px] text-gray-400">
+                {uncoveredCount} visita{uncoveredCount > 1 ? "s" : ""} sem coordenadas fora do mapa
+              </span>
+            )}
+          </div>
+        </div>
+      ) : todayItems.length > 0 ? (
+        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-md p-3 text-[11px] text-amber-800">
+          <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <p className="leading-snug">
+            As visitas de hoje ainda não têm coordenadas geográficas (geocoding por CEP), então o
+            mapa e o ETA não aparecem. Use os botões Google Maps/Waze acima para abrir a rota com
+            os endereços.
+          </p>
+        </div>
+      ) : null}
 
       {todayItems.length === 0 ? (
         <Card>
@@ -148,6 +212,12 @@ export function AppointmentMapView({
                           {client ? formatFullAddress(client) : "Endereço indisponível"}
                         </span>
                       </p>
+                      {planMeta.has(appt.id) && (
+                        <p className="text-[11px] text-blue-700 flex items-center gap-1 mt-0.5">
+                          <Clock className="w-3 h-3 shrink-0" />
+                          <span>chega em ~{fmtMin(planMeta.get(appt.id)!.cumulativeMin)} de rota</span>
+                        </p>
+                      )}
                     </div>
                   </div>
 

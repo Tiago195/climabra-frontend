@@ -1,7 +1,5 @@
 import { useNavigate } from "react-router-dom"
-import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog"
+import { ResponsiveModal } from "@/components/ui/responsive-modal"
 import { AirVent, FileText, ChevronRight } from "lucide-react"
 import type { IAppointmentDetailResponse } from "@/services/appointment"
 import type { ReportStatus } from "@/services/enums"
@@ -11,6 +9,7 @@ import { formatDateBr } from "@/lib/shifts"
 const REPORT_STATUS_LABELS: Record<ReportStatus, string> = {
   draft: "Rascunho",
   sent: "Aguardando cliente",
+  awaiting_payment: "Aguardando pagamento",
   approved: "Aprovado",
   completed: "Concluído",
 }
@@ -18,6 +17,7 @@ const REPORT_STATUS_LABELS: Record<ReportStatus, string> = {
 const REPORT_STATUS_COLORS: Record<ReportStatus, string> = {
   draft: "bg-gray-100 text-gray-700",
   sent: "bg-yellow-100 text-yellow-800",
+  awaiting_payment: "bg-amber-100 text-amber-800",
   approved: "bg-violet-100 text-violet-700",
   completed: "bg-green-100 text-green-700",
 }
@@ -41,18 +41,17 @@ export function PastReportsDialog({ row, open, onOpenChange }: Props) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="w-4 h-4 text-blue-600" /> Laudos da visita
-          </DialogTitle>
-          {row && (
-            <DialogDescription>
-              {row.client.name} · {formatDateBr(row.appointment.scheduledDate)}
-            </DialogDescription>
-          )}
-        </DialogHeader>
+    <ResponsiveModal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="sm"
+      title={
+        <span className="flex items-center gap-2">
+          <FileText className="w-4 h-4 text-blue-600" /> Laudos da visita
+        </span>
+      }
+      description={row ? `${row.client.name} · ${formatDateBr(row.appointment.scheduledDate)}` : undefined}
+    >
         {row && (
           <div className="space-y-1.5">
             {row.equipments.map(eq => {
@@ -109,7 +108,6 @@ export function PastReportsDialog({ row, open, onOpenChange }: Props) {
             )}
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   )
 }

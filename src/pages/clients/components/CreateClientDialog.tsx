@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -51,19 +51,17 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
       setForm({ name: "", phone: "", email: "" });
       setAddress(emptyAddress);
       toast.success("Cliente cadastrado!");
-    } catch {
-      toast.error("Erro ao cadastrar cliente");
+    } catch (err) {
+      // surfacia a mensagem do backend (ex.: 422 "número não tem WhatsApp"); fallback genérico
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg ?? "Erro ao cadastrar cliente");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Cadastrar novo cliente</DialogTitle>
-        </DialogHeader>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange} title="Cadastrar novo cliente">
         <form onSubmit={handleCreate} className="space-y-4 mt-2">
           <div className="space-y-2">
             <Label>Nome *</Label>
@@ -101,7 +99,6 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
             Cadastrar e gerar link
           </Button>
         </form>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   );
 }

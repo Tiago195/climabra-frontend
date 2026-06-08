@@ -38,6 +38,10 @@ export const router = createBrowserRouter([
         lazy: () => import("@/pages/availability/Availability").then(({ Availability }) => ({ Component: Availability })),
       },
       {
+        path: "/dashboard/settings",
+        lazy: () => import("@/pages/settings/Settings").then(({ Settings }) => ({ Component: Settings })),
+      },
+      {
         path: "/dashboard/reports/:id",
         lazy: () => import("@/pages/report/ReportEditor").then(({ ReportEditor }) => ({ Component: ReportEditor })),
       },

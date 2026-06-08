@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Search, Users, Link2 } from "lucide-react";
-import { useRequireProfile } from "@/components/CompleteProfileDialog";
+import { useRequireAccess } from "@/components/SubscriptionGate";
 import { useAuth } from "@/contexts/authContext";
 import { clientService, type IClientResponse } from "@/services/client";
 import { toast } from "sonner";
@@ -14,7 +14,7 @@ import { PublicLinkDialog } from "./components/PublicLinkDialog";
 
 export function Client() {
   const { provider, token } = useAuth();
-  const requireProfile = useRequireProfile();
+  const requireAccess = useRequireAccess();
   const [clients, setClients] = useState<IClientResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -50,13 +50,13 @@ export function Client() {
           <Button
             variant="outline"
             className="gap-2"
-            onClick={() => requireProfile(() => setSignupOpen(true))}
+            onClick={() => requireAccess(() => setSignupOpen(true))}
           >
             <Link2 className="w-4 h-4" /> Link público
           </Button>
           <Button
             className="bg-blue-600 hover:bg-blue-700 gap-2"
-            onClick={() => requireProfile(() => setOpen(true))}
+            onClick={() => requireAccess(() => setOpen(true))}
           >
             <Plus className="w-4 h-4" /> Novo cliente
           </Button>
@@ -88,7 +88,7 @@ export function Client() {
               <p className="text-gray-400 text-sm mt-1 mb-4">Comece adicionando seu primeiro cliente</p>
             )}
             {!search && (
-              <Button onClick={() => requireProfile(() => setOpen(true))} className="bg-blue-600 hover:bg-blue-700 gap-2">
+              <Button onClick={() => requireAccess(() => setOpen(true))} className="bg-blue-600 hover:bg-blue-700 gap-2">
                 <Plus className="w-4 h-4" /> Adicionar cliente
               </Button>
             )}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ResponsiveModal } from "@/components/ui/responsive-modal"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -142,14 +142,14 @@ export function NewAppointmentDialog({
   const canSubmit = !!client && !!picked && selectedEqs.length > 0 && !submitting
 
   return (
-    <Dialog open={open} onOpenChange={isOpen => { if (!isOpen) onClose() }}>
-      <DialogContent className="max-w-lg max-h-[92dvh] overflow-y-auto p-0 gap-0">
-        <DialogHeader className="px-5 pt-5 pb-3 border-b">
-          <DialogTitle>Nova solicitação</DialogTitle>
-          <p className="text-xs text-gray-500">Sugestões otimizadas por proximidade</p>
-        </DialogHeader>
-
-        <div className="px-5 py-4 space-y-4">
+    <ResponsiveModal
+      open={open}
+      onOpenChange={isOpen => { if (!isOpen) onClose() }}
+      size="lg"
+      title="Nova solicitação"
+      description="Sugestões otimizadas por proximidade"
+    >
+        <div className="space-y-4 pt-1">
           {/* Cliente + equipamentos */}
           <Card>
             <CardContent className="py-4 space-y-3">
@@ -274,7 +274,24 @@ export function NewAppointmentDialog({
                                 {trimTime(s.startTime)}–{trimTime(s.endTime)}
                               </span>
                             </div>
-                            {s.sameNeighborhoodCount > 0 ? (
+                            {s.usesCoords && s.nearbyCount > 0 ? (
+                              <p className="text-[11px] text-green-700 flex items-center gap-1">
+                                <MapPin className="w-3 h-3 shrink-0" />
+                                <span className="font-semibold">
+                                  {s.nearbyCount} visita{s.nearbyCount > 1 ? "s" : ""}
+                                </span>
+                                <span>
+                                  {s.nearestKm != null && s.nearestKm < 1
+                                    ? " a menos de 1 km"
+                                    : ` a ~${Math.round(s.nearestKm ?? 0)} km`}
+                                </span>
+                              </p>
+                            ) : s.usesCoords && s.nearestKm != null ? (
+                              <p className="text-[11px] text-blue-700 flex items-center gap-1">
+                                <MapPin className="w-3 h-3 shrink-0" />
+                                <span>Visita mais próxima a ~{Math.round(s.nearestKm)} km</span>
+                              </p>
+                            ) : s.sameNeighborhoodCount > 0 ? (
                               <p className="text-[11px] text-green-700 flex items-center gap-1">
                                 <MapPin className="w-3 h-3 shrink-0" />
                                 <span className="font-semibold">
@@ -382,8 +399,8 @@ export function NewAppointmentDialog({
           )}
         </div>
 
-        {/* Footer sticky */}
-        <div className="flex gap-2 sticky bottom-0 bg-white px-5 py-3 border-t">
+        {/* Footer */}
+        <div className="flex gap-2 sticky bottom-0 bg-white pt-3 mt-1 border-t -mx-4 px-4 pb-1">
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={submitting}>
             Cancelar
           </Button>
@@ -396,7 +413,6 @@ export function NewAppointmentDialog({
             Agendar
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   )
 }

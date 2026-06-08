@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { AirVent, FileText, Plus } from "lucide-react";
 import type { IPortalEquipment, IPortalReport } from "@/services/client";
 import { EQUIPMENT_TYPE_LABELS } from "@/lib/equipment";
@@ -27,6 +26,8 @@ export function PortalEquipmentsCard({
   onEquipmentAdded,
 }: Props) {
   const [addOpen, setAddOpen] = useState(false);
+  const [openEqId, setOpenEqId] = useState<string | null>(null);
+  const selectedEq = equipments.find(e => e.id === openEqId) ?? null;
 
   return (
     <>
@@ -61,47 +62,54 @@ export function PortalEquipmentsCard({
                 .join(" · ");
 
               return (
-                <Dialog key={eq.id}>
-                  <DialogTrigger asChild>
-                    <button
-                      type="button"
-                      className="text-left w-full"
-                      aria-label={`Abrir laudos de ${eqLabel}`}
-                    >
-                      <Card className="hover:border-blue-300 transition-colors">
-                        <CardContent className="py-3 space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <div className="w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center">
-                              <AirVent className="w-4 h-4" />
-                            </div>
-                            <div className="relative">
-                              <FileText
-                                className={`w-3.5 h-3.5 ${pendingCount > 0 ? "text-yellow-500" : "text-gray-300"}`}
-                              />
-                              {pendingCount > 0 && (
-                                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-3.5 h-3.5 px-0.5 rounded-full bg-yellow-500 text-white text-[8px] font-bold leading-none">
-                                  {pendingCount}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-gray-800 truncate">{eqLabel}</p>
-                            {subtitle && (
-                              <p className="text-[10px] text-gray-500 truncate">{subtitle}</p>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </button>
-                  </DialogTrigger>
-                  <PortalReportsDialog equipment={eq} reports={eqReports} />
-                </Dialog>
+                <button
+                  key={eq.id}
+                  type="button"
+                  onClick={() => setOpenEqId(eq.id)}
+                  className="text-left w-full"
+                  aria-label={`Abrir laudos de ${eqLabel}`}
+                >
+                  <Card className="hover:border-blue-300 transition-colors">
+                    <CardContent className="py-3 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center">
+                          <AirVent className="w-4 h-4" />
+                        </div>
+                        <div className="relative">
+                          <FileText
+                            className={`w-3.5 h-3.5 ${pendingCount > 0 ? "text-yellow-500" : "text-gray-300"}`}
+                          />
+                          {pendingCount > 0 && (
+                            <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-3.5 h-3.5 px-0.5 rounded-full bg-yellow-500 text-white text-[8px] font-bold leading-none">
+                              {pendingCount}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-800 truncate">{eqLabel}</p>
+                        {subtitle && (
+                          <p className="text-[10px] text-gray-500 truncate">{subtitle}</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </button>
               );
             })}
           </div>
         )}
       </div>
+
+      {selectedEq && (
+        <PortalReportsDialog
+          key={selectedEq.id}
+          open={!!openEqId}
+          onOpenChange={o => !o && setOpenEqId(null)}
+          equipment={selectedEq}
+          reports={reports.filter(r => r.equipmentId === selectedEq.id)}
+        />
+      )}
 
       <AddEquipmentDialog
         open={addOpen}

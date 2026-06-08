@@ -38,6 +38,11 @@ export function ClientSignUp() {
   const [shifts, setShifts] = useState<IShiftSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
+  const [recommendedShifts, setRecommendedShifts] = useState<Set<Shift>>(new Set());
+  const [discouragedShifts, setDiscouragedShifts] = useState<Set<Shift>>(new Set());
+  const [recommendedDates, setRecommendedDates] = useState<Set<string>>(new Set());
+  const [discouragedDates, setDiscouragedDates] = useState<Set<string>>(new Set());
+  const [dayStatus, setDayStatus] = useState<Map<string, { capacity: number; available: number }>>(new Map());
 
   useEffect(() => {
     if (!token) return;
@@ -53,19 +58,58 @@ export function ClientSignUp() {
     window.scrollTo(0, 0);
   };
 
+  // Recomendação (Fase 6) + vagas por dia do mês visível — destaca o calendário antes do clique.
+  useEffect(() => {
+    if (step !== 2 || !token) return;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const from = `${viewYear}-${pad(viewMonth + 1)}-01`;
+    const last = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const to = `${viewYear}-${pad(viewMonth + 1)}-${pad(last)}`;
+    let cancelled = false;
+
+    availabilityService.getDayStatus(token, from, to)
+      .then(res => { if (!cancelled) setDayStatus(new Map(res.days.map(d => [d.date, d]))); })
+      .catch(() => { if (!cancelled) setDayStatus(new Map()); });
+
+    const cep = formData?.address.cep.replace(/\D/g, "");
+    if (cep && cep.length === 8) {
+      availabilityService.getProximityDays(token, from, to, { cep })
+        .then(res => {
+          if (cancelled) return;
+          setRecommendedDates(new Set(res.days.filter(d => d.level === "recommended").map(d => d.date)));
+          setDiscouragedDates(new Set(res.days.filter(d => d.level === "discouraged").map(d => d.date)));
+        })
+        .catch(() => { if (!cancelled) { setRecommendedDates(new Set()); setDiscouragedDates(new Set()); } });
+    }
+    return () => { cancelled = true; };
+  }, [step, token, formData, viewYear, viewMonth]);
+
   const handleSelectDate = async (date: Date) => {
     setSelectedDate(date);
     setSelectedShift(null);
     setShifts([]);
+    setRecommendedShifts(new Set());
+    setDiscouragedShifts(new Set());
     setLoadingSlots(true);
+    const dateStr = fmtDateLocal(date);
     try {
-      const dateStr = fmtDateLocal(date);
       const res = await availabilityService.getSignUpSlots(token!, dateStr);
       setShifts(res.shifts ?? []);
     } catch {
       toast.error("Erro ao carregar turnos");
     } finally {
       setLoadingSlots(false);
+    }
+    // Recomendação por proximidade (Fase 6) — não bloqueia a UI; degrada em silêncio.
+    const cep = formData?.address.cep.replace(/\D/g, "");
+    if (cep && cep.length === 8) {
+      try {
+        const prox = await availabilityService.getSlotProximity(token!, dateStr, { cep });
+        setRecommendedShifts(new Set(prox.shifts.filter(s => s.level === "recommended").map(s => s.shift)));
+        setDiscouragedShifts(new Set(prox.shifts.filter(s => s.level === "discouraged").map(s => s.shift)));
+      } catch {
+        // proximidade é best-effort; ignora falhas
+      }
     }
   };
 
@@ -95,8 +139,10 @@ export function ClientSignUp() {
         shift: selectedShift,
       });
       setSubmitted(true);
-    } catch {
-      toast.error("Erro ao agendar. Tente novamente.");
+    } catch (err) {
+      // surfacia a mensagem do backend (ex.: 422 "número não tem WhatsApp"); fallback genérico
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg ?? "Erro ao agendar. Tente novamente.");
     } finally {
       setSubmitting(false);
     }
@@ -158,6 +204,9 @@ export function ClientSignUp() {
               onPrevMonth={prevMonth}
               onNextMonth={nextMonth}
               onSelectDate={handleSelectDate}
+              recommendedDates={recommendedDates}
+              discouragedDates={discouragedDates}
+              dayStatus={dayStatus}
             />
 
             {selectedDate && (
@@ -167,6 +216,8 @@ export function ClientSignUp() {
                 loading={loadingSlots}
                 selectedShift={selectedShift}
                 onSelectShift={setSelectedShift}
+                recommended={recommendedShifts}
+                discouraged={discouragedShifts}
               />
             )}
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,11 +58,12 @@ export function AddEquipmentDialog({ open, onClose, publicToken, clientId, onAdd
   };
 
   return (
-    <Dialog open={open} onOpenChange={open => !open && handleClose()}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Adicionar equipamento</DialogTitle>
-        </DialogHeader>
+    <ResponsiveModal
+      open={open}
+      onOpenChange={open => !open && handleClose()}
+      size="sm"
+      title="Adicionar equipamento"
+    >
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div className="space-y-1">
             <Label className="text-xs">Apelido (opcional)</Label>
@@ -105,7 +106,6 @@ export function AddEquipmentDialog({ open, onClose, publicToken, clientId, onAdd
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveModal>
   );
 }
