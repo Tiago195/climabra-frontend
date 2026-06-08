@@ -6,6 +6,7 @@ import { PaymentsStatusCard } from "./PaymentsStatusCard";
 import { PaymentsDocumentsCard } from "./PaymentsDocumentsCard";
 import { ConnectPaymentsWizard } from "./ConnectPaymentsWizard";
 import { AcceptedMethodsCard } from "./AcceptedMethodsCard";
+import { ChargesCard } from "./ChargesCard";
 import { AsaasDisclosure } from "@/components/AsaasDisclosure";
 
 export function PaymentsSection() {
@@ -84,6 +85,7 @@ export function PaymentsSection() {
         </Card>
       ) : (
         <div className="space-y-4">
+          <ChargesCard />
           <PaymentsStatusCard status={status} onConfigure={() => setWizardOpen(true)} />
           {hasAccount && status !== "rejected" && !fullyReady && (
             <PaymentsDocumentsCard

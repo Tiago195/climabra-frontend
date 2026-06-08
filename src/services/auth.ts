@@ -35,8 +35,22 @@ export interface IProviderResponse {
   cpfCnpj?: string | null
   gatewayAccountStatus: GatewayAccountStatus
   acceptedPaymentMethods: PaymentMethod[]
+  // Toggles de cobrança (provider_config)
+  chargesLabor: boolean
+  chargesTravel: boolean
+  travel: ITravelConfig | null
   createdAt: string
   updatedAt: string
+}
+
+export interface ITravelConfig {
+  originCep: string | null
+  pricePerKmCents: number | null
+  freeRadiusKm: number | null
+  minCents: number | null
+  capCents: number | null
+  roundTrip: boolean
+  originGeocoded: boolean
 }
 
 export interface IProviderLoginResponse {

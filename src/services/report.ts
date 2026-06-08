@@ -59,6 +59,8 @@ export interface IPaymentInfo {
 
 export interface IFinancialInfo {
   subtotalCents: number | null
+  laborCents: number | null
+  travelCents: number | null
   discountCents: number | null
   totalCents: number | null
   payment: IPaymentInfo | null
@@ -189,7 +191,7 @@ export const reportService = {
   async updateReport(
     token: string,
     reportId: string,
-    body: { title?: string; diagnosis?: string; finalNotes?: string }
+    body: { title?: string; diagnosis?: string; finalNotes?: string; laborCents?: number; travelCents?: number }
   ): Promise<IReportDetailResponse> {
     const { data } = await api.patch(`/${reportId}`, body, authHeader(token))
     return data

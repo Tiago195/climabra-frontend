@@ -42,4 +42,45 @@ export const providerService = {
     })
     return result
   },
+
+  /** Atualiza os toggles de cobrança (mão de obra / deslocamento). */
+  async updateConfig(
+    token: string,
+    data: { chargesLabor: boolean; chargesTravel: boolean },
+  ): Promise<IProviderResponse> {
+    const { data: result } = await providerApi.put<IProviderResponse>(`/me/config`, data, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    return result
+  },
+
+  /** Salva a tarifa de deslocamento (por km) e geocoda a base. */
+  async updateTravelConfig(
+    token: string,
+    data: {
+      travelOriginCep: string
+      travelPricePerKmCents: number
+      travelFreeRadiusKm: number
+      travelMinCents: number
+      travelCapCents: number | null
+      travelRoundTrip: boolean
+    },
+  ): Promise<IProviderResponse> {
+    const { data: result } = await providerApi.put<IProviderResponse>(`/me/travel-config`, data, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    return result
+  },
+
+  /** Estima a taxa de deslocamento até um cliente. */
+  async getTravelEstimate(
+    token: string,
+    clientId: string,
+  ): Promise<{ distanceKm: number | null; suggestedCents: number | null; available: boolean }> {
+    const { data } = await providerApi.get(`/me/travel-estimate`, {
+      params: { clientId },
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    return data
+  },
 }

@@ -32,11 +32,13 @@ const PAYMENT_LABEL: Record<PaymentMethod, string> = {
 type Mode = "choose" | "pixCpf" | "pix" | "card" | "cash" | "success" | "error";
 
 export function PaymentStep({
-  tokens, amountCents, items, acceptedPaymentMethods, paymentState, onPaid,
+  tokens, amountCents, items, laborCents = 0, travelCents = 0, acceptedPaymentMethods, paymentState, onPaid,
 }: {
   tokens: { pt: string; cid: string; eid: string; rt: string };
   amountCents: number;
   items: IPublicReportItemResponse[];
+  laborCents?: number;
+  travelCents?: number;
   acceptedPaymentMethods: PaymentMethod[];
   paymentState: IPaymentInfo | null;
   onPaid: () => void;
@@ -157,7 +159,7 @@ export function PaymentStep({
             <p className="text-xs font-semibold text-gray-800">Total a pagar</p>
             <p className="text-xl font-bold text-gray-900 tabular-nums">{fmtMoney(amountCents)}</p>
           </div>
-          {lineItems.length > 0 && (
+          {(lineItems.length > 0 || laborCents > 0 || travelCents > 0) && (
             <ul className="space-y-0.5 text-[11px] text-gray-500">
               {lineItems.map(it => (
                 <li key={it.id} className="flex items-center justify-between gap-2">
@@ -165,6 +167,18 @@ export function PaymentStep({
                   <span className="tabular-nums shrink-0">{fmtMoney((it.quantity ?? 1) * (it.unitPriceCents ?? 0))}</span>
                 </li>
               ))}
+              {laborCents > 0 && (
+                <li className="flex items-center justify-between gap-2">
+                  <span className="truncate">Mão de obra</span>
+                  <span className="tabular-nums shrink-0">{fmtMoney(laborCents)}</span>
+                </li>
+              )}
+              {travelCents > 0 && (
+                <li className="flex items-center justify-between gap-2">
+                  <span className="truncate">Deslocamento</span>
+                  <span className="tabular-nums shrink-0">{fmtMoney(travelCents)}</span>
+                </li>
+              )}
             </ul>
           )}
         </div>

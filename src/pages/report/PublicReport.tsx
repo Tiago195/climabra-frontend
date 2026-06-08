@@ -262,6 +262,8 @@ export function PublicReport() {
         {isSent && (
           <ApprovalSection
             items={items}
+            laborCents={financial?.laborCents ?? 0}
+            travelCents={financial?.travelCents ?? 0}
             selectedIds={selectedIds}
             setSelectedIds={setSelectedIds}
             confirmOpen={confirmOpen}
@@ -277,6 +279,8 @@ export function PublicReport() {
             tokens={{ pt: providerToken, cid: clientId, eid: equipmentId, rt: reportToken }}
             amountCents={financial?.totalCents ?? 0}
             items={items}
+            laborCents={financial?.laborCents ?? 0}
+            travelCents={financial?.travelCents ?? 0}
             acceptedPaymentMethods={provider.acceptedPaymentMethods ?? []}
             paymentState={financial?.payment ?? null}
             onPaid={async () => { toast.success("Pagamento confirmado!"); await handleRefresh(); }}
@@ -589,8 +593,8 @@ function ItemsCard({ items }: { items: IPublicReportItemResponse[] }) {
 }
 
 function FinancialCard({ financial }: { financial: IFinancialInfo }) {
-  const { subtotalCents, discountCents, totalCents, payment } = financial;
-  if (subtotalCents == null || subtotalCents === 0) return null;
+  const { subtotalCents, laborCents, travelCents, discountCents, totalCents, payment } = financial;
+  if ((subtotalCents == null || subtotalCents === 0) && !(laborCents && laborCents > 0) && !(travelCents && travelCents > 0)) return null;
   return (
     <Card>
       <CardContent className="py-3 space-y-2">
@@ -603,6 +607,18 @@ function FinancialCard({ financial }: { financial: IFinancialInfo }) {
             <span>Subtotal</span>
             <span>{fmtMoney(subtotalCents)}</span>
           </div>
+          {laborCents != null && laborCents > 0 && (
+            <div className="flex items-center justify-between text-gray-600">
+              <span>Mão de obra</span>
+              <span>{fmtMoney(laborCents)}</span>
+            </div>
+          )}
+          {travelCents != null && travelCents > 0 && (
+            <div className="flex items-center justify-between text-gray-600">
+              <span>Deslocamento</span>
+              <span>{fmtMoney(travelCents)}</span>
+            </div>
+          )}
           {discountCents != null && discountCents > 0 && (
             <div className="flex items-center justify-between text-emerald-700">
               <span>Desconto</span>
@@ -731,13 +747,21 @@ function RatingForm({
 }
 
 function ApprovalSection({
-  items, selectedIds, setSelectedIds, confirmOpen, setConfirmOpen, approving, onApprove,
+  items, laborCents, travelCents, selectedIds, setSelectedIds, confirmOpen, setConfirmOpen, approving, onApprove,
 }: {
   items: IPublicReportItemResponse[];
+  laborCents: number;
+  travelCents: number;
   selectedIds: Set<string>; setSelectedIds: (s: Set<string>) => void;
   confirmOpen: boolean; setConfirmOpen: (b: boolean) => void;
   approving: boolean; onApprove: () => void;
 }) {
+  // Subtotal dos serviços SELECIONADOS (atualiza ao marcar/desmarcar) + mão de obra + deslocamento = total.
+  const selectedSubtotal = items
+    .filter(i => selectedIds.has(i.id) && i.unitPriceCents != null)
+    .reduce((s, it) => s + (it.quantity ?? 1) * (it.unitPriceCents ?? 0), 0);
+  const total = selectedSubtotal + (laborCents ?? 0) + (travelCents ?? 0);
+  const hasMoney = items.some(i => i.unitPriceCents != null) || laborCents > 0 || travelCents > 0;
   return (
     <>
       <Card>
@@ -796,6 +820,39 @@ function ApprovalSection({
           </ul>
         </CardContent>
       </Card>
+
+      {hasMoney && (
+        <Card>
+          <CardContent className="py-3 space-y-2">
+            <div className="flex items-center gap-1.5">
+              <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+              <p className="text-xs font-semibold text-gray-800">Resumo</p>
+            </div>
+            <div className="space-y-1 text-[12px] tabular-nums">
+              <div className="flex items-center justify-between text-gray-600">
+                <span>Subtotal ({selectedIds.size} {selectedIds.size === 1 ? "serviço" : "serviços"})</span>
+                <span>{fmtMoney(selectedSubtotal)}</span>
+              </div>
+              {laborCents > 0 && (
+                <div className="flex items-center justify-between text-gray-600">
+                  <span>Mão de obra</span>
+                  <span>{fmtMoney(laborCents)}</span>
+                </div>
+              )}
+              {travelCents > 0 && (
+                <div className="flex items-center justify-between text-gray-600">
+                  <span>Deslocamento</span>
+                  <span>{fmtMoney(travelCents)}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-between rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 mt-1">
+              <span className="text-[12px] font-semibold text-emerald-900">Total a pagar</span>
+              <span className="text-lg font-bold text-emerald-700 tabular-nums">{fmtMoney(total)}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="py-3 space-y-3">

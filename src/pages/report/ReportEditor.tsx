@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/authContext";
 import { reportService, type IReportDetailResponse, type IReportItemResponse } from "@/services/report";
+import { providerService } from "@/services/provider";
 import { uploadService } from "@/services/upload";
 import {
   ArrowLeft, Plus, Trash2, Camera, Send, CheckCircle2, Copy, Loader2,
@@ -171,6 +172,7 @@ export function ReportEditor() {
   const [addingItem, setAddingItem] = useState(false);
   const [sending, setSending] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [suggestingTravel, setSuggestingTravel] = useState(false);
   const [confirmingCash, setConfirmingCash] = useState(false);
   const [confirmSend, setConfirmSend] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -289,6 +291,50 @@ export function ReportEditor() {
     }
   };
 
+  const handleCommitLabor = async (cents: number) => {
+    if (!token || !id || !detail) return;
+    if (cents === (detail.financial?.laborCents ?? 0)) return;
+    try {
+      const updated = await reportService.updateReport(token, id, { laborCents: cents });
+      setDetail(updated);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao salvar mão de obra";
+      toast.error(msg);
+    }
+  };
+
+  const handleCommitTravel = async (cents: number) => {
+    if (!token || !id || !detail) return;
+    if (cents === (detail.financial?.travelCents ?? 0)) return;
+    try {
+      const updated = await reportService.updateReport(token, id, { travelCents: cents });
+      setDetail(updated);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao salvar deslocamento";
+      toast.error(msg);
+    }
+  };
+
+  // Sugere o deslocamento pela distância (config de tarifa + coords do cliente).
+  const handleSuggestTravel = async () => {
+    if (!token || !id || !detail) return;
+    setSuggestingTravel(true);
+    try {
+      const est = await providerService.getTravelEstimate(token, detail.client.id);
+      if (!est.available || est.suggestedCents == null) {
+        toast.message("Não foi possível estimar — confira o CEP da sua base e o endereço do cliente.");
+        return;
+      }
+      await handleCommitTravel(est.suggestedCents);
+      const km = est.distanceKm != null ? `${est.distanceKm.toLocaleString("pt-BR")} km` : "";
+      toast.success(`Deslocamento sugerido${km ? ` (${km})` : ""} aplicado.`);
+    } catch {
+      toast.error("Erro ao estimar o deslocamento.");
+    } finally {
+      setSuggestingTravel(false);
+    }
+  };
+
   const handleComplete = async () => {
     if (!token || !id) return;
     setCompleting(true);
@@ -367,8 +413,12 @@ export function ReportEditor() {
   const activeItems = items.filter(i => !i.rejected);
   const itemsCompleted = activeItems.filter(i => i.photoBefore && i.photoAfter).length;
   const subtotal = items.filter(i => !i.rejected).reduce((s, it) => s + lineSubtotal(it), 0);
+  const labor = detail.financial?.laborCents ?? 0;
+  const travel = detail.financial?.travelCents ?? 0;
   const discount = detail.financial?.discountCents ?? 0;
-  const total = detail.financial?.totalCents ?? Math.max(0, subtotal - discount);
+  const total = detail.financial?.totalCents ?? Math.max(0, subtotal + labor + travel - discount);
+  const showLabor = !!provider?.chargesLabor || labor > 0;
+  const showTravel = !!provider?.chargesTravel || travel > 0;
 
   const equipLabel =
     equipment.label
@@ -616,12 +666,52 @@ export function ReportEditor() {
                 Total do laudo
               </div>
 
-              <div className="flex items-center justify-between text-sm border-b border-gray-100 pb-3">
+              <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">
                   Subtotal ({activeItems.length} {activeItems.length === 1 ? "item" : "itens"})
                 </span>
                 <span className="font-semibold text-gray-900 tabular-nums">{centsToBRL(subtotal)}</span>
               </div>
+
+              {showLabor && (
+                <div className="flex items-center justify-between gap-3 text-sm border-t border-gray-100 pt-3">
+                  <span className="text-gray-600 shrink-0">Mão de obra</span>
+                  {isDraft && provider?.chargesLabor ? (
+                    <div className="w-32">
+                      <CurrencyInput valueCents={labor} onCommit={handleCommitLabor} />
+                    </div>
+                  ) : (
+                    <span className="font-semibold text-gray-900 tabular-nums">{centsToBRL(labor)}</span>
+                  )}
+                </div>
+              )}
+
+              {showTravel && (
+                <div className="flex items-center justify-between gap-3 text-sm border-t border-gray-100 pt-3">
+                  <div className="min-w-0">
+                    <span className="text-gray-600">Deslocamento</span>
+                    {isDraft && provider?.chargesTravel && (
+                      <button
+                        type="button"
+                        onClick={handleSuggestTravel}
+                        disabled={suggestingTravel}
+                        className="block text-[11px] text-blue-600 hover:text-blue-700 disabled:opacity-50"
+                      >
+                        {suggestingTravel ? "Estimando…" : "Sugerir pela distância"}
+                      </button>
+                    )}
+                  </div>
+                  {isDraft && provider?.chargesTravel ? (
+                    <div className="w-32 shrink-0">
+                      <CurrencyInput valueCents={travel} onCommit={handleCommitTravel} />
+                    </div>
+                  ) : (
+                    <span className="font-semibold text-gray-900 tabular-nums">{centsToBRL(travel)}</span>
+                  )}
+                </div>
+              )}
+
+              <div className="border-b border-gray-100" />
 
               {discount > 0 && (
                 <div className="flex items-center justify-between text-sm pb-1">
