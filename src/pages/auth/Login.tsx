@@ -7,8 +7,10 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/authContext";
 import { Link, useNavigate } from "react-router-dom";
 import { authService } from "@/services/auth";
-import { Loader2, Wind } from "lucide-react";
+import { Loader2, Server, Wind } from "lucide-react";
 import { toast } from "sonner";
+import axios from "axios";
+import { DEFAULT_URL } from "@/services";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -16,6 +18,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [upping, setUpping] = useState(false);
   // const [resetting, setResetting] = useState(false);
 
   // const handleReset = async () => {
@@ -32,6 +35,18 @@ export default function Login() {
   //     setResetting(false);
   //   }
   // };
+
+  const handleUp = async () => {
+    setUpping(true)
+    try {
+      await axios.get(`${DEFAULT_URL}/actuator/health/liveness`)
+      toast.success('Servidor acordado')
+    } catch {
+      toast.error('Erro ao acordar o servidor.')
+    } finally {
+      setUpping(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +69,7 @@ export default function Login() {
 
   return (
     <div className="min-h-[100dvh] flex items-center justify-center bg-gradient-to-br from-blue-50 to-slate-100 px-4">
+
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 text-white mb-2 shadow-lg">
@@ -116,6 +132,20 @@ export default function Login() {
             {resetting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Database className="w-4 h-4 mr-2" />}
             Resetar banco e recriar dados de teste (dev)
           </Button> */}
+          
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full text-orange-700 border-orange-300 hover:bg-orange-50"
+            onClick={handleUp}
+            disabled={upping}
+          >
+            {upping ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Server className="w-4 h-4 mr-2" />}
+            Acordar o servidor (dev)
+          </Button>
+
+
           <p className="text-center text-xs text-gray-400 mt-2">
             Login de teste: provider@email.com / senha1234
           </p>
