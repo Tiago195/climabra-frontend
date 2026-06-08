@@ -21,6 +21,8 @@ export interface IClientResponse {
   neighborhood: string
   city: string
   state: string
+  lat?: number | null
+  lng?: number | null
   createdAt: string
   updatedAt: string
 }

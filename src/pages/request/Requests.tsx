@@ -235,6 +235,7 @@ export function Requests() {
         />
       ) : (
         <AppointmentMapView
+          token={token!}
           appointments={appointments}
           clientsById={clientsById}
           creatingReportFor={creatingReportFor}

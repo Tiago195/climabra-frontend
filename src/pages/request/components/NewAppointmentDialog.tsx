@@ -274,7 +274,24 @@ export function NewAppointmentDialog({
                                 {trimTime(s.startTime)}–{trimTime(s.endTime)}
                               </span>
                             </div>
-                            {s.sameNeighborhoodCount > 0 ? (
+                            {s.usesCoords && s.nearbyCount > 0 ? (
+                              <p className="text-[11px] text-green-700 flex items-center gap-1">
+                                <MapPin className="w-3 h-3 shrink-0" />
+                                <span className="font-semibold">
+                                  {s.nearbyCount} visita{s.nearbyCount > 1 ? "s" : ""}
+                                </span>
+                                <span>
+                                  {s.nearestKm != null && s.nearestKm < 1
+                                    ? " a menos de 1 km"
+                                    : ` a ~${Math.round(s.nearestKm ?? 0)} km`}
+                                </span>
+                              </p>
+                            ) : s.usesCoords && s.nearestKm != null ? (
+                              <p className="text-[11px] text-blue-700 flex items-center gap-1">
+                                <MapPin className="w-3 h-3 shrink-0" />
+                                <span>Visita mais próxima a ~{Math.round(s.nearestKm)} km</span>
+                              </p>
+                            ) : s.sameNeighborhoodCount > 0 ? (
                               <p className="text-[11px] text-green-700 flex items-center gap-1">
                                 <MapPin className="w-3 h-3 shrink-0" />
                                 <span className="font-semibold">

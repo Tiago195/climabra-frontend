@@ -56,7 +56,33 @@ export default function ClientForm() {
   const [shifts, setShifts] = useState<IShiftSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
+  const [recommendedShifts, setRecommendedShifts] = useState<Set<Shift>>(new Set());
+  const [discouragedShifts, setDiscouragedShifts] = useState<Set<Shift>>(new Set());
+  const [recommendedDates, setRecommendedDates] = useState<Set<string>>(new Set());
+  const [discouragedDates, setDiscouragedDates] = useState<Set<string>>(new Set());
+  const [dayStatus, setDayStatus] = useState<Map<string, { capacity: number; available: number }>>(new Map());
   const [submitting, setSubmitting] = useState(false);
+
+  // Recomendação (Fase 6) + vagas por dia do mês visível — destaca o calendário antes do clique.
+  useEffect(() => {
+    if (step !== 2 || !publicToken || !id) return;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const from = `${viewYear}-${pad(viewMonth + 1)}-01`;
+    const last = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const to = `${viewYear}-${pad(viewMonth + 1)}-${pad(last)}`;
+    let cancelled = false;
+    availabilityService.getProximityDays(publicToken, from, to, { clientId: id })
+      .then(res => {
+        if (cancelled) return;
+        setRecommendedDates(new Set(res.days.filter(d => d.level === "recommended").map(d => d.date)));
+        setDiscouragedDates(new Set(res.days.filter(d => d.level === "discouraged").map(d => d.date)));
+      })
+      .catch(() => { if (!cancelled) { setRecommendedDates(new Set()); setDiscouragedDates(new Set()); } });
+    availabilityService.getDayStatus(publicToken, from, to)
+      .then(res => { if (!cancelled) setDayStatus(new Map(res.days.map(d => [d.date, d]))); })
+      .catch(() => { if (!cancelled) setDayStatus(new Map()); });
+    return () => { cancelled = true; };
+  }, [step, publicToken, id, viewYear, viewMonth]);
 
   useEffect(() => {
     if (!publicToken || !id) return;
@@ -90,15 +116,27 @@ export default function ClientForm() {
     setSelectedDate(date);
     setSelectedShift(null);
     setShifts([]);
+    setRecommendedShifts(new Set());
+    setDiscouragedShifts(new Set());
     setLoadingSlots(true);
+    const dateStr = fmtDateLocal(date);
     try {
-      const dateStr = fmtDateLocal(date);
       const res = await availabilityService.getSignUpSlots(publicToken!, dateStr);
       setShifts(res.shifts ?? []);
     } catch {
       toast.error("Erro ao carregar turnos");
     } finally {
       setLoadingSlots(false);
+    }
+    // Recomendação por proximidade (Fase 6) — cliente existente: usa as coords salvas (clientId).
+    if (publicToken && id) {
+      try {
+        const prox = await availabilityService.getSlotProximity(publicToken, dateStr, { clientId: id });
+        setRecommendedShifts(new Set(prox.shifts.filter(s => s.level === "recommended").map(s => s.shift)));
+        setDiscouragedShifts(new Set(prox.shifts.filter(s => s.level === "discouraged").map(s => s.shift)));
+      } catch {
+        // best-effort; ignora falhas
+      }
     }
   };
 
@@ -263,6 +301,9 @@ export default function ClientForm() {
               onPrevMonth={prevMonth}
               onNextMonth={nextMonth}
               onSelectDate={handleSelectDate}
+              recommendedDates={recommendedDates}
+              discouragedDates={discouragedDates}
+              dayStatus={dayStatus}
             />
 
             {selectedDate && (
@@ -272,6 +313,8 @@ export default function ClientForm() {
                 loading={loadingSlots}
                 selectedShift={selectedShift}
                 onSelectShift={setSelectedShift}
+                recommended={recommendedShifts}
+                discouraged={discouragedShifts}
               />
             )}
 

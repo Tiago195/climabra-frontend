@@ -91,4 +91,57 @@ export const availabilityService = {
     const { data } = await publicApi.get(`/${publicToken}/availability/slots`, { params: { date } })
     return data
   },
+
+  /**
+   * Recomendação privacy-safe de proximidade por turno (Fase 6). Devolve só `{shift, nearbyScore}`
+   * por turno ativo do dia — sem coords/endereço de terceiros. `nearbyScore > 0` = região atendida.
+   */
+  async getSlotProximity(
+    publicToken: string, date: string, who: { cep?: string; clientId?: string },
+  ): Promise<ISlotProximityResponse> {
+    const { data } = await publicApi.get(`/${publicToken}/availability/proximity`, {
+      params: { date, ...who },
+    })
+    return data
+  },
+
+  /**
+   * Dias recomendados por proximidade num intervalo (mês), Fase 6 — destaca o calendário antes do
+   * clique. `from`/`to` = "YYYY-MM-DD". Só dias com `nearbyScore > 0` voltam. Privacy-safe.
+   */
+  async getProximityDays(
+    publicToken: string, from: string, to: string, who: { cep?: string; clientId?: string },
+  ): Promise<IProximityDaysResponse> {
+    const { data } = await publicApi.get(`/${publicToken}/availability/proximity-days`, {
+      params: { from, to, ...who },
+    })
+    return data
+  },
+
+  /** Resumo de vagas por dia num intervalo (mês) — p/ sinalizar lotado/poucas vagas no calendário. */
+  async getDayStatus(
+    publicToken: string, from: string, to: string,
+  ): Promise<IDayAvailabilityResponse> {
+    const { data } = await publicApi.get(`/${publicToken}/availability/day-status`, {
+      params: { from, to },
+    })
+    return data
+  },
+}
+
+export interface ISlotProximityResponse {
+  shifts: { shift: Shift; nearbyScore: number; level: "recommended" | "discouraged" | "neutral" }[]
+}
+
+export interface IProximityDaysResponse {
+  /**
+   * Dias com sinal de proximidade (omite neutros); `date` = "YYYY-MM-DD".
+   * `level`: "recommended" (provider já atende a região) | "discouraged" (visitas só muito longe).
+   */
+  days: { date: string; nearbyScore: number; level: "recommended" | "discouraged" }[]
+}
+
+export interface IDayAvailabilityResponse {
+  /** Um item por dia com turno ativo no intervalo; `date` = "YYYY-MM-DD". */
+  days: { date: string; capacity: number; available: number }[]
 }

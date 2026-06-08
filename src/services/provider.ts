@@ -83,4 +83,39 @@ export const providerService = {
     })
     return data
   },
+
+  /** Plano de rota do dia (ordem ótima + ETA + geometria). `date` = "YYYY-MM-DD". */
+  async getRoute(token: string, date: string): Promise<IRoutePlanResponse> {
+    const { data } = await providerApi.get(`/me/route`, {
+      params: { date },
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    return data
+  },
+}
+
+export interface IRouteStop {
+  appointmentId: string
+  clientId: string
+  clientName: string
+  shift: string | null
+  lat: number
+  lng: number
+  /** Minutos acumulados desde a base até chegar nesta parada. */
+  cumulativeMin: number
+}
+
+export interface IRoutePlanResponse {
+  date: string
+  origin: { lat: number | null; lng: number | null }
+  orderedStops: IRouteStop[]
+  legDurationMin: number[]
+  legDistanceKm: number[]
+  totalMin: number
+  totalKm: number
+  /** Polyline da rota real (cada ponto [lat, lng]); vazia no fallback. */
+  geometry: [number, number][]
+  /** true = OSRM (rota real); false = fallback Haversine (estimativa). */
+  optimized: boolean
+  roundTrip: boolean
 }
