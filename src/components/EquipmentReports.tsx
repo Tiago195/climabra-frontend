@@ -20,6 +20,7 @@ const STATUS_LABEL: Record<ReportStatus, { label: string; color: string }> = {
   sent:      { label: "Aguardando cliente", color: "bg-yellow-100 text-yellow-800" },
   awaiting_payment: { label: "Aguardando pagamento", color: "bg-amber-100 text-amber-800" },
   approved:  { label: "Aprovado", color: "bg-blue-100 text-blue-800" },
+  awaiting_execution: { label: "Aguardando execução", color: "bg-amber-100 text-amber-800" },
   completed: { label: "Concluído", color: "bg-green-100 text-green-800" },
 };
 

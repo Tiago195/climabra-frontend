@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportVisitsTimeline } from "@/components/ReportVisitsTimeline";
+import { ScheduleExecutionDialog } from "./components/ScheduleExecutionDialog";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/authContext";
 import { reportService, type IReportDetailResponse, type IReportItemResponse } from "@/services/report";
@@ -9,8 +11,14 @@ import { providerService } from "@/services/provider";
 import { uploadService } from "@/services/upload";
 import {
   ArrowLeft, Plus, Trash2, Camera, Send, CheckCircle2, Copy, Loader2,
-  Eye, User, Wind, ShieldCheck, Banknote,
+  Eye, User, Wind, ShieldCheck, Banknote, CalendarClock, CalendarPlus, Zap,
 } from "lucide-react";
+
+// Data local (YYYY-MM-DD) — usada p/ detectar visita de execução já marcada hoje.
+const todayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -26,6 +34,7 @@ const STATUS_META: Record<string, { label: string; pillClass: string; dotClass: 
   sent:      { label: "Aguardando aprovação",    pillClass: "bg-blue-50 text-blue-700 border-blue-200",     dotClass: "bg-blue-500" },
   awaiting_payment: { label: "Aguardando pagamento", pillClass: "bg-amber-50 text-amber-700 border-amber-200", dotClass: "bg-amber-500" },
   approved:  { label: "Aprovado pelo cliente",   pillClass: "bg-teal-50 text-teal-700 border-teal-200",     dotClass: "bg-teal-500" },
+  awaiting_execution: { label: "Aguardando execução", pillClass: "bg-amber-50 text-amber-700 border-amber-200", dotClass: "bg-amber-500" },
   completed: { label: "Concluído",               pillClass: "bg-emerald-50 text-emerald-700 border-emerald-200", dotClass: "bg-emerald-500" },
 };
 
@@ -176,6 +185,9 @@ export function ReportEditor() {
   const [confirmingCash, setConfirmingCash] = useState(false);
   const [confirmSend, setConfirmSend] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Agendamento da visita de execução (laudo "aguardando execução").
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [executingToday, setExecutingToday] = useState(false);
   // Estados locais (commit on-blur). Re-sincronizam quando o detail muda.
   const [titleDraft, setTitleDraft] = useState("");
   const [prevTitle, setPrevTitle] = useState<string | null | undefined>(undefined);
@@ -364,6 +376,32 @@ export function ReportEditor() {
     }
   };
 
+  // Recarrega o detalhe (ex.: após agendar/criar uma visita de execução, p/ a timeline).
+  const reloadDetail = async () => {
+    if (!token || !id) return;
+    try {
+      setDetail(await reportService.getDetail(token, id));
+    } catch {
+      toast.error("Erro ao recarregar o laudo");
+    }
+  };
+
+  // Atalho "Executar hoje": cria a visita de execução de hoje E leva o laudo de
+  // awaiting_execution → approved (num só endpoint), liberando a execução agora.
+  const handleExecuteToday = async () => {
+    if (!token || !id) return;
+    setExecutingToday(true);
+    try {
+      setDetail(await reportService.executeToday(token, id));
+      toast.success("Execução de hoje iniciada! Suba as fotos antes/depois e finalize o laudo.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao iniciar a execução de hoje";
+      toast.error(msg);
+    } finally {
+      setExecutingToday(false);
+    }
+  };
+
   const publicLink = useMemo(() => {
     if (!detail || !provider) return "";
     return `${window.location.origin}/providers/${provider.publicToken}/clients/${detail.client.id}/equipment/${detail.equipment.id}/laudo/${detail.report.publicToken}`;
@@ -406,7 +444,21 @@ export function ReportEditor() {
   const { report, items, equipment, client } = detail;
   const status = STATUS_META[report.status] ?? { label: report.status, pillClass: "bg-gray-100 text-gray-700 border-gray-200", dotClass: "bg-gray-400" };
   const isDraft = report.status === "draft";
-  const canExecute = report.status === "approved";
+  // approved (visita padrão) e awaiting_execution (laudo de avaliação aprovado,
+  // executado em visita(s) de retorno) compartilham a execução: iniciar serviço,
+  // subir fotos antes/depois e finalizar. Ver Fase F3.
+  const isAwaitingExecution = report.status === "awaiting_execution";
+  // Já existe uma visita de execução agendada para hoje? Então "Executar hoje"
+  // não deve criar outra (não faz sentido marcar a mesma visita N vezes no dia).
+  const hasExecutionToday = detail.visits.some(
+    v => v.role === "execution" && v.scheduledDate === todayISO() && v.status === "scheduled"
+  );
+  // Já há qualquer visita de execução agendada (hoje ou futura)? Muda o texto do
+  // aviso de "agende a visita" para "suba as fotos e finalize".
+  const hasScheduledExecution = detail.visits.some(
+    v => v.role === "execution" && v.status === "scheduled"
+  );
+  const canExecute = report.status === "approved" || isAwaitingExecution;
   const isCompleted = report.status === "completed";
   const isAwaitingPayment = report.status === "awaiting_payment";
   const isCashPending = isAwaitingPayment && detail.financial?.payment?.method === "cash";
@@ -579,6 +631,48 @@ export function ReportEditor() {
                 <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50/70 rounded-md border border-gray-100 p-2.5">
                   {report.diagnosis}
                 </p>
+              )}
+            </div>
+          )}
+
+          {/* Visitas deste laudo (Fase F4) — avaliação + execuções */}
+          {detail.visits.length > 0 && (
+            <div className="px-6 py-5 border-b border-gray-100">
+              <h2 className="text-sm font-semibold text-gray-900 mb-3">Visitas deste laudo</h2>
+              <ReportVisitsTimeline visits={detail.visits} />
+
+              {/* Aguardando execução: agendar uma visita de retorno OU executar hoje */}
+              {isAwaitingExecution && (
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setScheduleOpen(true)}
+                    className="flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-dashed border-gray-300 text-sm font-medium text-gray-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/30 transition"
+                  >
+                    <CalendarPlus className="w-4 h-4" />
+                    Agendar nova visita de execução
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExecuteToday}
+                    disabled={executingToday || hasExecutionToday}
+                    title={hasExecutionToday ? "Já existe uma visita de execução agendada para hoje" : undefined}
+                    className={`flex items-center justify-center gap-2 py-3 rounded-lg border-2 text-sm font-semibold transition disabled:cursor-not-allowed ${
+                      hasExecutionToday
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600 hover:border-emerald-600 disabled:opacity-60"
+                    }`}
+                  >
+                    {executingToday ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : hasExecutionToday ? (
+                      <CheckCircle2 className="w-4 h-4" />
+                    ) : (
+                      <Zap className="w-4 h-4" />
+                    )}
+                    {hasExecutionToday ? "Execução de hoje já criada" : "Executar hoje"}
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -803,17 +897,27 @@ export function ReportEditor() {
             )}
 
             {canExecute && (
-              <Button
-                size="lg"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                onClick={handleComplete}
-                disabled={completing || itemsCompleted < activeItems.length}
-              >
-                {completing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-                {itemsCompleted < activeItems.length
-                  ? `Faltam ${activeItems.length - itemsCompleted} item(ns)`
-                  : "Finalizar laudo"}
-              </Button>
+              <div className="flex flex-col items-end gap-1.5">
+                {isAwaitingExecution && (
+                  <span className="text-xs text-amber-700 font-medium inline-flex items-center gap-1.5">
+                    <CalendarClock className="w-4 h-4" />
+                    {hasScheduledExecution
+                      ? "Execução agendada — suba as fotos antes/depois e finalize após executar."
+                      : "Aguardando execução — agende a visita de execução e finalize após executar."}
+                  </span>
+                )}
+                <Button
+                  size="lg"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                  onClick={handleComplete}
+                  disabled={completing || itemsCompleted < activeItems.length}
+                >
+                  {completing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+                  {itemsCompleted < activeItems.length
+                    ? `Faltam ${activeItems.length - itemsCompleted} item(ns)`
+                    : "Finalizar laudo"}
+                </Button>
+              </div>
             )}
 
             {isCompleted && (
@@ -876,10 +980,18 @@ export function ReportEditor() {
             )}
 
             {canExecute && (
-              <Button className="w-full h-11 text-sm bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleComplete} disabled={completing || itemsCompleted < activeItems.length}>
-                {completing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-                {itemsCompleted < activeItems.length ? `Faltam ${activeItems.length - itemsCompleted} item(ns)` : "Finalizar laudo"}
-              </Button>
+              <div className="flex flex-col gap-1.5">
+                {isAwaitingExecution && (
+                  <p className="w-full text-[11px] text-amber-700 font-medium inline-flex items-center justify-center gap-1 text-center">
+                    <CalendarClock className="w-3.5 h-3.5 shrink-0" />
+                    Aguardando execução — agende a visita de execução.
+                  </p>
+                )}
+                <Button className="w-full h-11 text-sm bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleComplete} disabled={completing || itemsCompleted < activeItems.length}>
+                  {completing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+                  {itemsCompleted < activeItems.length ? `Faltam ${activeItems.length - itemsCompleted} item(ns)` : "Finalizar laudo"}
+                </Button>
+              </div>
             )}
 
             {isCompleted && (
@@ -890,6 +1002,19 @@ export function ReportEditor() {
           </div>
         </div>
       </div>
+
+      {/* Agendar visita de execução (laudo aguardando execução) */}
+      {token && provider?.publicToken && (
+        <ScheduleExecutionDialog
+          open={scheduleOpen}
+          onClose={() => setScheduleOpen(false)}
+          token={token}
+          publicToken={provider.publicToken}
+          clientId={client.id}
+          reportId={report.id}
+          onScheduled={reloadDetail}
+        />
+      )}
     </div>
   );
 }

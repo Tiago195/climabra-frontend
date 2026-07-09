@@ -1,7 +1,7 @@
 import axios from "axios"
 import { DEFAULT_URL } from "."
 import { attachPaywall } from "./paywall"
-import type { AppointmentStatus, EquipmentType, ReportStatus, Shift } from "./enums"
+import type { AppointmentStatus, EquipmentType, ReportStatus, Shift, VisitType } from "./enums"
 
 const api = axios.create({ baseURL: `${DEFAULT_URL}/appointments` })
 attachPaywall(api)
@@ -13,6 +13,7 @@ export interface IAppointmentInfo {
   scheduledDate: string      // "YYYY-MM-DD"
   shift: Shift               // "morning" | "afternoon" | "night"
   status: AppointmentStatus
+  visitType: VisitType       // "standard" | "assessment" | "execution"
   equipmentIds: string[]
   submissionId: string | null
   notes: string | null
@@ -61,6 +62,8 @@ export interface ICreateAppointmentRequest {
   scheduledDate: string      // "YYYY-MM-DD"
   shift: Shift
   notes?: string
+  visitType?: VisitType      // "standard" (default) | "assessment" | "execution"
+  reportId?: string          // vincula a um laudo existente (visita de execução) — F2
 }
 
 export const appointmentService = {

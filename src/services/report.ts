@@ -1,7 +1,7 @@
 import axios from "axios"
 import { DEFAULT_URL } from "."
 import { attachPaywall } from "./paywall"
-import type { EquipmentType, ReportStatus } from "./enums"
+import type { AppointmentStatus, EquipmentType, ReportStatus, Shift, VisitType } from "./enums"
 
 const api = axios.create({ baseURL: `${DEFAULT_URL}/reports` })
 attachPaywall(api)
@@ -73,6 +73,14 @@ export interface IRatingInfo {
   ratedAt: string
 }
 
+/** Uma visita vinculada ao laudo (avaliação + execuções) — timeline (Fase B4/F4). */
+export interface IReportVisit {
+  scheduledDate: string          // "YYYY-MM-DD"
+  shift: Shift                   // "morning" | "afternoon" | "night"
+  role: Exclude<VisitType, "standard">  // "assessment" | "execution"
+  status: AppointmentStatus      // "scheduled" | "completed" | "canceled" | "no_show"
+}
+
 export interface IReportDetailResponse {
   report: {
     id: string
@@ -96,6 +104,7 @@ export interface IReportDetailResponse {
   client: { id: string; name: string; phone: string; email: string }
   financial: IFinancialInfo | null
   rating: IRatingInfo | null
+  visits: IReportVisit[]
 }
 
 export interface IReportCreateRequest {
@@ -103,6 +112,15 @@ export interface IReportCreateRequest {
   appointmentId?: string
   diagnosis?: string
   items: IReportItemRequest[]
+}
+
+/** Laudo em aberto do cliente, para vincular uma visita de execução (Fase F2). */
+export interface IOpenReport {
+  id: string
+  displayCode: string | null
+  status: ReportStatus          // "approved" | "awaiting_execution"
+  equipmentId: string
+  equipmentLabel: string | null
 }
 
 export interface IReportItemRequest {
@@ -155,6 +173,7 @@ export interface IPublicReportResponse {
   }
   financial: IFinancialInfo | null
   rating: IRatingInfo | null
+  visits: IReportVisit[]
 }
 
 export interface ISubmitRatingRequest {
@@ -175,6 +194,12 @@ export interface ISubmitRatingResponse {
 export const reportService = {
   async listByEquipment(token: string, equipmentId: string): Promise<IReportResponse[]> {
     const { data } = await api.get(`/equipment/${equipmentId}`, authHeader(token))
+    return data
+  },
+
+  /** Laudos do cliente em aberto (approved/awaiting_execution) p/ vincular execução (F2). */
+  async listOpenReports(token: string, clientId: string): Promise<IOpenReport[]> {
+    const { data } = await api.get("/open", { params: { clientId }, ...authHeader(token) })
     return data
   },
 
@@ -232,6 +257,16 @@ export const reportService = {
 
   async startService(token: string, reportId: string): Promise<IReportDetailResponse> {
     const { data } = await api.put(`/${reportId}/start-service`, {}, authHeader(token))
+    return data
+  },
+
+  /**
+   * "Executar hoje": cria a visita de execução de hoje e leva o laudo de
+   * `awaiting_execution` para `approved`, liberando a execução. Devolve o
+   * detalhe já atualizado (novo status + visita na timeline).
+   */
+  async executeToday(token: string, reportId: string): Promise<IReportDetailResponse> {
+    const { data } = await api.post(`/${reportId}/execute-today`, {}, authHeader(token))
     return data
   },
 

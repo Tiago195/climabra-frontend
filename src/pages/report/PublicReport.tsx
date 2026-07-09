@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { ReportVisitsTimeline } from "@/components/ReportVisitsTimeline";
 import { toast } from "sonner";
 import {
   reportService,
@@ -68,7 +69,7 @@ const EQUIPMENT_TYPE_LABELS: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "Rascunho", sent: "Aguardando aprovação", awaiting_payment: "Aguardando pagamento",
-  approved: "Aprovado", completed: "Concluído",
+  approved: "Aprovado", awaiting_execution: "Aguardando execução", completed: "Concluído",
 };
 
 // Calcula gap entre approved e serviceStartedAt — usado como highlight da timeline
@@ -229,7 +230,7 @@ export function PublicReport() {
     );
   }
 
-  const { report, items, equipment, provider, financial, rating } = data;
+  const { report, items, equipment, provider, financial, rating, visits } = data;
   const isSent = report.status === "sent";
   const isAwaitingPayment = report.status === "awaiting_payment";
   const isApproved = report.status === "approved";
@@ -257,6 +258,16 @@ export function PublicReport() {
           photoAfterAt={report.photoAfterAt}
           completedAt={report.completedAt}
         />
+
+        {/* ═════════════ VISITAS DESTE LAUDO (Fase F4) ═════════════ */}
+        {visits.length > 0 && (
+          <Card>
+            <CardContent className="py-3 space-y-2">
+              <h2 className="text-sm font-semibold text-gray-900">Visitas deste laudo</h2>
+              <ReportVisitsTimeline visits={visits} />
+            </CardContent>
+          </Card>
+        )}
 
         {/* ═════════════ ESTADO: SENT (cliente aprovando) ═════════════ */}
         {isSent && (
@@ -391,6 +402,7 @@ function ReportHeader({
   const isCompleted = status === "completed";
   const statusColor = isCompleted ? "bg-green-100 text-green-700"
     : status === "approved" ? "bg-purple-100 text-purple-700"
+    : status === "awaiting_execution" ? "bg-amber-100 text-amber-700"
     : status === "awaiting_payment" ? "bg-amber-100 text-amber-700"
     : status === "sent" ? "bg-blue-100 text-blue-700"
     : "bg-gray-100 text-gray-700";

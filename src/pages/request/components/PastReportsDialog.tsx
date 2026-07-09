@@ -11,6 +11,7 @@ const REPORT_STATUS_LABELS: Record<ReportStatus, string> = {
   sent: "Aguardando cliente",
   awaiting_payment: "Aguardando pagamento",
   approved: "Aprovado",
+  awaiting_execution: "Aguardando execução",
   completed: "Concluído",
 }
 
@@ -19,6 +20,7 @@ const REPORT_STATUS_COLORS: Record<ReportStatus, string> = {
   sent: "bg-yellow-100 text-yellow-800",
   awaiting_payment: "bg-amber-100 text-amber-800",
   approved: "bg-violet-100 text-violet-700",
+  awaiting_execution: "bg-amber-100 text-amber-700",
   completed: "bg-green-100 text-green-700",
 }
 

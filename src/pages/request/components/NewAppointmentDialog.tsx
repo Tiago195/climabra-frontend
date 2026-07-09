@@ -8,7 +8,7 @@ import {
   AirVent, MapPin, Navigation, Users, AlertCircle, CheckCircle2, Loader2,
 } from "lucide-react"
 import { toast } from "sonner"
-import type { Shift } from "@/services/enums"
+import type { Shift, VisitType } from "@/services/enums"
 import {
   availabilityService,
   type IShiftSlot,
@@ -23,6 +23,7 @@ import {
   type IClientResponse,
   type IEquipmentResponse,
 } from "@/services/client"
+import { reportService, type IOpenReport } from "@/services/report"
 import {
   SHIFT_LABELS, SHIFT_COLORS, SHIFT_ICONS,
   DAY_NAMES_SHORT, MONTH_NAMES_SHORT, trimTime,
@@ -46,10 +47,25 @@ interface Props {
 
 const DAYS_TO_LOAD = 14
 
+// Tipos de visita oferecidos no agendamento. "execution" vincula a visita a um
+// laudo já avaliado (não cria laudo novo) — ver bloco "Vincular a um laudo".
+const VISIT_TYPE_OPTIONS: { value: VisitType; label: string }[] = [
+  { value: "standard", label: "Padrão" },
+  { value: "assessment", label: "Avaliação" },
+  { value: "execution", label: "Execução" },
+]
+
+// Cores/rótulos dos status que um laudo em aberto pode ter (F2).
+const OPEN_REPORT_STATUS: Record<"approved" | "awaiting_execution", { label: string; color: string }> = {
+  approved: { label: "Aprovado", color: "bg-green-100 text-green-700" },
+  awaiting_execution: { label: "Aguardando execução", color: "bg-amber-100 text-amber-700" },
+}
+
 export function NewAppointmentDialog({
   open, onClose, token, publicToken, clients, appointments, onCreated,
 }: Props) {
   const [clientId, setClientId] = useState("")
+  const [visitType, setVisitType] = useState<VisitType>("standard")
   const [equipments, setEquipments] = useState<IEquipmentResponse[]>([])
   const [selectedEqs, setSelectedEqs] = useState<string[]>([])
   const [notes, setNotes] = useState("")
@@ -57,6 +73,10 @@ export function NewAppointmentDialog({
   const [slotsByDate, setSlotsByDate] = useState<Record<string, IShiftSlot[]>>({})
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  // F2 — vincular a um laudo em aberto (visita de execução)
+  const [openReports, setOpenReports] = useState<IOpenReport[]>([])
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null)
+  const [loadingOpenReports, setLoadingOpenReports] = useState(false)
 
   const client = clientId ? clients.find(c => c.id === clientId) ?? null : null
 
@@ -64,11 +84,28 @@ export function NewAppointmentDialog({
   useEffect(() => {
     if (!open) return
     setClientId("")
+    setVisitType("standard")
     setEquipments([])
     setSelectedEqs([])
     setNotes("")
     setPicked(null)
+    setOpenReports([])
+    setSelectedReportId(null)
   }, [open])
+
+  // Laudos em aberto do cliente (só no modo execução) p/ vincular a visita (F2)
+  useEffect(() => {
+    setSelectedReportId(null)
+    if (visitType !== "execution" || !clientId) {
+      setOpenReports([])
+      return
+    }
+    setLoadingOpenReports(true)
+    reportService.listOpenReports(token, clientId)
+      .then(setOpenReports)
+      .catch(() => setOpenReports([]))
+      .finally(() => setLoadingOpenReports(false))
+  }, [token, clientId, visitType])
 
   // Equipamentos do cliente selecionado
   useEffect(() => {
@@ -121,12 +158,16 @@ export function NewAppointmentDialog({
     if (!client || !picked) return
     setSubmitting(true)
     try {
+      const isExecution = visitType === "execution"
       const payload: ICreateAppointmentRequest = {
         clientId: client.id,
-        equipmentIds: selectedEqs.length > 0 ? selectedEqs : undefined,
+        // Execução não seleciona equipamentos (o laudo vinculado já carrega o equipamento).
+        equipmentIds: !isExecution && selectedEqs.length > 0 ? selectedEqs : undefined,
         scheduledDate: picked.date,
         shift: picked.shift,
         notes: notes || undefined,
+        visitType,
+        reportId: isExecution ? selectedReportId ?? undefined : undefined,
       }
       const created = await appointmentService.create(token, payload)
       onCreated(created)
@@ -139,7 +180,10 @@ export function NewAppointmentDialog({
     }
   }
 
-  const canSubmit = !!client && !!picked && selectedEqs.length > 0 && !submitting
+  // Execução exige um laudo selecionado; os demais tipos exigem ≥1 equipamento.
+  const canSubmit = !!client && !!picked && !submitting && (
+    visitType === "execution" ? !!selectedReportId : selectedEqs.length > 0
+  )
 
   return (
     <ResponsiveModal
@@ -150,6 +194,44 @@ export function NewAppointmentDialog({
       description="Sugestões otimizadas por proximidade"
     >
         <div className="space-y-4 pt-1">
+          {/* Tipo de visita (Fase F1) */}
+          <Card>
+            <CardContent className="py-4 space-y-2">
+              <Label className="text-xs">Tipo de visita</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {VISIT_TYPE_OPTIONS.map(opt => {
+                  const active = visitType === opt.value
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setVisitType(opt.value)}
+                      className={`min-h-11 rounded-lg border-2 px-3 py-2 text-sm font-medium transition-colors ${
+                        active
+                          ? "border-blue-600 bg-blue-600 text-white"
+                          : "border-gray-200 text-gray-700 hover:border-gray-300"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  )
+                })}
+              </div>
+              {visitType === "assessment" && (
+                <p className="text-[11px] text-gray-500">
+                  Avaliação: você diagnostica e envia o orçamento agora; a execução do serviço é
+                  agendada em uma visita de retorno.
+                </p>
+              )}
+              {visitType === "execution" && !client && (
+                <p className="text-[11px] text-gray-500">
+                  Execução: selecione o cliente para escolher o laudo em aberto a vincular.
+                  Nenhum laudo novo será criado.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Cliente + equipamentos */}
           <Card>
             <CardContent className="py-4 space-y-3">
@@ -173,7 +255,7 @@ export function NewAppointmentDialog({
                 )}
               </div>
 
-              {client && (
+              {client && visitType !== "execution" && (
                 <div className="space-y-1.5">
                   <Label className="text-xs">Equipamentos ({selectedEqs.length})</Label>
                   {equipments.length === 0 ? (
@@ -211,6 +293,62 @@ export function NewAppointmentDialog({
               )}
             </CardContent>
           </Card>
+
+          {/* Vincular a um laudo em aberto (Fase F2) */}
+          {visitType === "execution" && client && (
+            <Card>
+              <CardContent className="py-4 space-y-2">
+                <Label className="text-xs">Vincular a um laudo em aberto</Label>
+                {loadingOpenReports ? (
+                  <div className="flex items-center justify-center gap-2 py-4 text-sm text-gray-500">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Buscando laudos...
+                  </div>
+                ) : openReports.length === 0 ? (
+                  <p className="text-xs text-gray-400 py-2">
+                    Este cliente não tem laudos aguardando execução.
+                  </p>
+                ) : (
+                  <>
+                    <div className="space-y-1.5">
+                      {openReports.map(r => {
+                        const on = selectedReportId === r.id
+                        const badge = OPEN_REPORT_STATUS[r.status as "approved" | "awaiting_execution"]
+                        return (
+                          <label
+                            key={r.id}
+                            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border-2 cursor-pointer transition-colors ${
+                              on ? "border-blue-600 bg-blue-50" : "border-gray-200 hover:border-gray-300"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="openReport"
+                              checked={on}
+                              onChange={() => setSelectedReportId(r.id)}
+                              className="accent-blue-600"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-gray-900">{r.displayCode ?? "Laudo"}</p>
+                              <p className="text-[11px] text-gray-500 truncate">{r.equipmentLabel ?? "Equipamento"}</p>
+                            </div>
+                            {badge && (
+                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap ${badge.color}`}>
+                                {badge.label}
+                              </span>
+                            )}
+                          </label>
+                        )
+                      })}
+                    </div>
+                    <p className="text-[11px] text-gray-500 flex items-start gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
+                      A visita será vinculada a este laudo. Nenhum laudo novo será criado.
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Sugestões */}
           {client && (
