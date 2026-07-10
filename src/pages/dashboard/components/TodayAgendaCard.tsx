@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sun, Sunset, Moon, MapPin, Loader2, CalendarDays } from "lucide-react";
 import type { IAppointmentDetailResponse } from "@/services/appointment";
 import type { IClientResponse } from "@/services/client";
+import { routeService } from "@/services/route";
 import type { Shift } from "@/services/enums";
 
 type RowStatus = "done" | "in_progress" | "scheduled" | "canceled";
@@ -56,14 +57,26 @@ function serviceLabel(a: IAppointmentDetailResponse): string {
  * um laudo com {@code serviceStartedAt}. (Sem legs de deslocamento/duração.)
  */
 export function TodayAgendaCard({
-  appointments, clientsById,
+  token, appointments, clientsById,
 }: {
+  token: string | null;
   appointments: IAppointmentDetailResponse[];
   clientsById: Map<string, IClientResponse>;
 }) {
   const [filter, setFilter] = useState<"all" | Shift>("all");
   const today = toISO(new Date());
   const nowShift = currentShift();
+
+  // Ordem única da rota do dia (fonte: backend) — ordena as visitas dentro de cada turno.
+  const [routeOrder, setRouteOrder] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    if (!token) return;
+    let alive = true;
+    routeService.get(token, today)
+      .then(p => { if (alive) setRouteOrder(new Map(p.orderedStops.map((s, i) => [s.appointmentId, i]))); })
+      .catch(() => { if (alive) setRouteOrder(new Map()); });
+    return () => { alive = false; };
+  }, [token, today]);
 
   const todays = useMemo(
     () => appointments.filter(a => a.appointment.scheduledDate === today),
@@ -73,8 +86,12 @@ export function TodayAgendaCard({
   const byPeriod = useMemo(() => {
     const groups: Record<Shift, IAppointmentDetailResponse[]> = { morning: [], afternoon: [], night: [] };
     for (const a of todays) groups[a.appointment.shift]?.push(a);
+    const rank = (id: string) => routeOrder.has(id) ? routeOrder.get(id)! : Infinity;
+    for (const s of ["morning", "afternoon", "night"] as Shift[]) {
+      groups[s].sort((a, b) => rank(a.appointment.id) - rank(b.appointment.id));
+    }
     return groups;
-  }, [todays]);
+  }, [todays, routeOrder]);
 
   const counts = {
     done: todays.filter(a => rowStatus(a) === "done").length,

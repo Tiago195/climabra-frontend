@@ -4,7 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Bell, MessageSquareText, Loader2, RotateCcw, ChevronDown } from "lucide-react";
+import { Bell, MessageSquareText, Loader2, RotateCcw, ChevronDown, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/authContext";
 import {
@@ -12,6 +12,7 @@ import {
   type IMessageTemplate,
   type INotificationPref,
 } from "@/services/notification";
+import { providerService } from "@/services/provider";
 import { NOTIFICATION_TYPE_META, type NotificationType } from "@/services/enums";
 import { getApiErrorMessage } from "@/services/apiError";
 
@@ -22,10 +23,25 @@ const VARIABLES_HINT = "Variáveis: {nome}, {prestador}, {valor}, {data}, {link}
  * mensagem automática e permite editar/restaurar o texto de cada template. Mobile-first.
  */
 export function NotificationsSection() {
-  const { token } = useAuth();
+  const { token, provider, updateProvider } = useAuth();
   const [prefs, setPrefs] = useState<INotificationPref[] | null>(null);
   const [templates, setTemplates] = useState<IMessageTemplate[] | null>(null);
   const [savingPref, setSavingPref] = useState<NotificationType | null>(null);
+  const [savingRouteAuto, setSavingRouteAuto] = useState(false);
+
+  const toggleRouteAuto = async (enabled: boolean) => {
+    if (!token) return;
+    setSavingRouteAuto(true);
+    updateProvider({ routeAutoOnMyWay: enabled }); // otimista
+    try {
+      await providerService.updateRouteConfig(token, enabled);
+    } catch (e) {
+      updateProvider({ routeAutoOnMyWay: !enabled });
+      toast.error(getApiErrorMessage(e, "Não foi possível salvar"));
+    } finally {
+      setSavingRouteAuto(false);
+    }
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -66,6 +82,29 @@ export function NotificationsSection() {
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardContent className="py-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Navigation className="w-4 h-4 text-gray-500" />
+            <h3 className="text-sm font-semibold text-gray-900">Aviso "estou a caminho"</h3>
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-900">Avisar o próximo cliente automaticamente</p>
+              <p className="text-xs text-gray-500">
+                Quando você concluir uma visita de uma rota iniciada, o próximo cliente da fila recebe
+                automaticamente o aviso de que você está a caminho. Desligado, o app apenas sugere o botão.
+              </p>
+            </div>
+            <Switch
+              checked={!!provider?.routeAutoOnMyWay}
+              disabled={savingRouteAuto}
+              onCheckedChange={toggleRouteAuto}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardContent className="py-4 space-y-3">
           <div className="flex items-center gap-2">

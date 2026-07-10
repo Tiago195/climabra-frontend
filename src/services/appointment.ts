@@ -92,4 +92,10 @@ export const appointmentService = {
   async cancel(token: string, id: string): Promise<void> {
     await api.put(`/${id}/cancel`, {}, authHeader(token))
   },
+
+  /** Move a visita para outro turno da rota do dia (valida capacidade do destino no backend). */
+  async moveShift(token: string, id: string, shift: string): Promise<IAppointmentDetailResponse> {
+    const { data } = await api.patch(`/${id}/shift`, { shift }, authHeader(token))
+    return data
+  },
 }

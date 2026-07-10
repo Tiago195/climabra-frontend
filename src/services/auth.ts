@@ -36,6 +36,8 @@ export interface IProviderResponse {
   chargesLabor: boolean
   chargesTravel: boolean
   travel: ITravelConfig | null
+  /** Dispara o "a caminho" automaticamente ao concluir a visita anterior (rota iniciada). */
+  routeAutoOnMyWay: boolean
   createdAt: string
   updatedAt: string
 }

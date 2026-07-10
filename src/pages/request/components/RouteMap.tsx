@@ -2,12 +2,18 @@ import { useMemo } from "react"
 import { MapContainer, TileLayer, Marker, Polyline, Popup } from "react-leaflet"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
-import type { IRoutePlanResponse } from "@/services/provider"
+import type { IRoutePlanResponse } from "@/services/route"
 
 /**
- * Mapa da rota do dia (Fase 5). Desenha a base do provider, pinos numerados na ordem ótima,
- * a linha da rota real (geometry do OSRM) ou — no fallback — segmentos retos entre as paradas,
- * com ETA acumulado por parada no popup. Tiles OSM (grátis, atribuição obrigatória).
+ * Mapa da rota do dia. Desenha a base do provider, pinos numerados na ordem vigente (que pode
+ * ser manual — drag&drop — ou otimizada), a linha da rota real (geometry do OSRM: Trip quando
+ * otimizada, Route perna-a-perna quando manual/perna avulsa) ou — só quando o OSRM está mesmo
+ * indisponível — segmentos retos entre as paradas, com ETA acumulado por parada no popup. Tiles
+ * OSM (grátis, atribuição obrigatória).
+ *
+ * A linha sólida/tracejada depende de `plan.geometry` estar preenchida (geometria REAL), não de
+ * `plan.optimized` (que é só sobre a ORDEM) — retrabalho pós-feedback: ordem manual com OSRM
+ * ligado também tem geometria real e não deve virar linha reta/tracejada.
  */
 
 const STOP_COLOR = "#2563eb" // blue-600
@@ -41,7 +47,11 @@ function fmtMin(min: number): string {
   return `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}`
 }
 
-export function RouteMap({ plan }: { plan: IRoutePlanResponse }) {
+/**
+ * @param heightClassName altura do contêiner do mapa (Tailwind); default preenche o pai
+ *                         (use um wrapper com altura definida, ex. `h-[40dvh]`).
+ */
+export function RouteMap({ plan, heightClassName = "h-full" }: { plan: IRoutePlanResponse; heightClassName?: string }) {
   const origin = plan.origin
   const hasOrigin = origin.lat != null && origin.lng != null
 
@@ -67,7 +77,7 @@ export function RouteMap({ plan }: { plan: IRoutePlanResponse }) {
     // isolation: isolate contém os z-index altos dos panes/controles do Leaflet dentro deste
     // wrapper, para não "vazarem" para o stacking context do documento e cobrirem dialogs
     // (Requests.tsx renderiza este mapa na mesma tela que NewAppointmentDialog/AppointmentActions).
-    <div className="relative isolate z-0 rounded-lg overflow-hidden border border-gray-200">
+    <div className={`relative isolate z-0 rounded-lg overflow-hidden border border-gray-200 ${heightClassName}`}>
       <MapContainer
         bounds={bounds.length > 1 ? (bounds as L.LatLngBoundsExpression) : undefined}
         center={bounds.length === 1 ? bounds[0] : undefined}
@@ -75,7 +85,7 @@ export function RouteMap({ plan }: { plan: IRoutePlanResponse }) {
         boundsOptions={{ padding: [30, 30] }}
         scrollWheelZoom={false}
         className="z-0"
-        style={{ height: 280, width: "100%" }}
+        style={{ height: "100%", width: "100%" }}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -88,8 +98,9 @@ export function RouteMap({ plan }: { plan: IRoutePlanResponse }) {
             pathOptions={{
               color: STOP_COLOR,
               weight: 4,
-              opacity: plan.optimized ? 0.8 : 0.5,
-              dashArray: plan.optimized ? undefined : "6 8",
+              // sólida quando há geometria real (Trip OU Route); tracejada só no fallback Haversine.
+              opacity: plan.geometry.length > 0 ? 0.8 : 0.5,
+              dashArray: plan.geometry.length > 0 ? undefined : "6 8",
             }}
           />
         )}

@@ -139,7 +139,7 @@ export function Dashboard() {
           {loading ? (
             <Skeleton className="h-80" />
           ) : (
-            <TodayAgendaCard appointments={appointments} clientsById={clientsById} />
+            <TodayAgendaCard token={token} appointments={appointments} clientsById={clientsById} />
           )}
         </div>
 

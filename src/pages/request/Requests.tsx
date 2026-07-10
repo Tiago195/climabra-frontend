@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Plus, List, Map as MapIcon, CalendarDays, History, Ban,
+  Plus, List, CalendarDays, History, Ban, Route as RouteIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/authContext";
@@ -20,12 +20,13 @@ import { clientService, type IClientResponse } from "@/services/client";
 import { reportService } from "@/services/report";
 import { NewAppointmentDialog } from "./components/NewAppointmentDialog";
 import { AppointmentTimelineView } from "./components/AppointmentTimelineView";
-import { AppointmentMapView } from "./components/AppointmentMapView";
 import { AppointmentHistoryView } from "./components/AppointmentHistoryView";
+import { RouteDayView } from "./components/RouteDayView";
 import { getApiErrorMessage } from "@/services/apiError";
 
 type Tab = "future" | "past";
-type ViewMode = "timeline" | "map";
+// "map" foi fundido em "route" (retrabalho pós-feedback: mapa + plano numa visão só).
+type ViewMode = "timeline" | "route";
 
 export function Requests() {
   const navigate = useNavigate();
@@ -74,6 +75,11 @@ export function Requests() {
 
   const handleAppointmentCreated = (appt: IAppointmentDetailResponse) => {
     setAppointments(prev => [appt, ...prev]);
+  };
+
+  // Visita movida de turno na rota — reflete a mudança na lista (Timeline/Dashboard/Mapa).
+  const handleApptMoved = (updated: IAppointmentDetailResponse) => {
+    setAppointments(prev => prev.map(row => row.appointment.id === updated.appointment.id ? updated : row));
   };
 
   const handleComplete = async (appt: IAppointmentInfo, reports: IAppointmentReportInfo[]) => {
@@ -140,7 +146,8 @@ export function Requests() {
   const effectiveView: ViewMode = isPastTab ? "timeline" : view;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
+    // A visão Rota (mapa + plano lado a lado no desktop) precisa de mais largura que as demais.
+    <div className={`${effectiveView === "route" ? "max-w-6xl" : "max-w-3xl"} mx-auto space-y-4`}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -199,19 +206,19 @@ export function Requests() {
             effectiveView === "timeline" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
           }`}
         >
-          <List className="w-3.5 h-3.5" /> Timeline
+          <List className="w-3.5 h-3.5" /> Lista
         </button>
         <button
           type="button"
-          onClick={() => !isPastTab && setView("map")}
+          onClick={() => !isPastTab && setView("route")}
           disabled={isPastTab}
           title={isPastTab ? "Disponível só para próximas" : undefined}
           className={`flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-medium rounded-md py-1.5 transition ${
-            effectiveView === "map" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+            effectiveView === "route" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
           } ${isPastTab ? "opacity-40 cursor-not-allowed" : ""}`}
         >
-          {isPastTab ? <Ban className="w-3.5 h-3.5" /> : <MapIcon className="w-3.5 h-3.5" />}
-          Mapa
+          {isPastTab ? <Ban className="w-3.5 h-3.5" /> : <RouteIcon className="w-3.5 h-3.5" />}
+          Rota
         </button>
       </div>
 
@@ -232,6 +239,7 @@ export function Requests() {
         />
       ) : effectiveView === "timeline" ? (
         <AppointmentTimelineView
+          token={token!}
           appointments={appointments}
           clientsById={clientsById}
           creatingReportFor={creatingReportFor}
@@ -240,7 +248,7 @@ export function Requests() {
           onCancel={handleCancel}
         />
       ) : (
-        <AppointmentMapView
+        <RouteDayView
           token={token!}
           appointments={appointments}
           clientsById={clientsById}
@@ -248,6 +256,7 @@ export function Requests() {
           onCreateReport={handleCreateReport}
           onComplete={handleComplete}
           onCancel={handleCancel}
+          onApptMoved={handleApptMoved}
         />
       )}
 

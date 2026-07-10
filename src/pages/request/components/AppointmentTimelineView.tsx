@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { CalendarDays, MapPin, Navigation, AlertTriangle } from "lucide-react"
 import { ShiftBadge } from "@/components/ShiftBadge"
@@ -7,6 +8,7 @@ import type {
   IAppointmentReportInfo,
 } from "@/services/appointment"
 import type { IClientResponse } from "@/services/client"
+import { routeService } from "@/services/route"
 import {
   FUTURE_BUCKET_BARS, FUTURE_BUCKET_LABELS,
   DAY_NAMES_SHORT, MONTH_NAMES_SHORT,
@@ -16,6 +18,7 @@ import { AppointmentActions } from "./AppointmentActions"
 import { VisitTypePill } from "./VisitTypePill"
 
 interface Props {
+  token: string
   appointments: IAppointmentDetailResponse[]
   clientsById: Map<string, IClientResponse>
   creatingReportFor: string | null
@@ -37,10 +40,20 @@ const todayISO = () => {
  * (destaque âmbar) porque precisam de ação do provider.
  */
 export function AppointmentTimelineView({
-  appointments, clientsById, creatingReportFor,
+  token, appointments, clientsById, creatingReportFor,
   onCreateReport, onComplete, onCancel,
 }: Props) {
   const today = todayISO()
+
+  // Ordem única da rota do dia (fonte: backend) — usada para ordenar o bucket "hoje".
+  const [routeOrder, setRouteOrder] = useState<Map<string, number>>(new Map())
+  useEffect(() => {
+    let alive = true
+    routeService.get(token, today)
+      .then(p => { if (alive) setRouteOrder(new Map(p.orderedStops.map((s, i) => [s.appointmentId, i]))) })
+      .catch(() => { if (alive) setRouteOrder(new Map()) })
+    return () => { alive = false }
+  }, [token, today])
 
   const scheduled = appointments
     .filter(row => row.appointment.status === "scheduled")
@@ -59,10 +72,16 @@ export function AppointmentTimelineView({
       bucket: b,
       items: scheduled
         .filter(e => e.bucket === b)
-        // pendentes: mais antigas primeiro (mais urgentes); demais: bairro+nome
+        // pendentes: mais antigas primeiro; hoje: ordem da rota (fonte única);
+        // demais: bairro+nome.
         .sort((a, b) => {
           if (a.bucket === "pending") {
             return a.row.appointment.scheduledDate.localeCompare(b.row.appointment.scheduledDate)
+          }
+          if (a.bucket === "today" && routeOrder.size > 0) {
+            const oa = routeOrder.has(a.row.appointment.id) ? routeOrder.get(a.row.appointment.id)! : Infinity
+            const ob = routeOrder.has(b.row.appointment.id) ? routeOrder.get(b.row.appointment.id)! : Infinity
+            if (oa !== ob) return oa - ob
           }
           return (
             a.neighborhood.localeCompare(b.neighborhood, "pt-BR") ||
