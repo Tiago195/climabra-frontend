@@ -1,10 +1,11 @@
 import { useNavigate } from "react-router-dom"
 import { AirVent, FileText, FilePlus2, CheckCircle2, Loader2, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type {
-  IAppointmentDetailResponse,
-  IAppointmentInfo,
-  IAppointmentReportInfo,
+import {
+  isReportDeliverableForVisit,
+  type IAppointmentDetailResponse,
+  type IAppointmentInfo,
+  type IAppointmentReportInfo,
 } from "@/services/appointment"
 import type { ReportStatus } from "@/services/enums"
 import { EQUIPMENT_TYPE_LABELS } from "@/lib/equipment"
@@ -48,15 +49,85 @@ export function AppointmentActions({
   const navigate = useNavigate()
   const { appointment: appt, equipments, reports } = row
   const isScheduled = appt.status === "scheduled"
-  const canComplete = reports.length > 0 && reports.every(r => r.status === "completed")
+  const isExecutionVisit = appt.visitType === "execution"
+  // "Entregável" espelha o backend: completed, ou avaliação em awaiting_execution.
+  const canComplete = reports.length > 0 && reports.every(isReportDeliverableForVisit)
   const completeTitle = reports.length === 0
     ? "Crie um laudo para cada equipamento antes de concluir"
     : !canComplete
-      ? "Aguarde todos os laudos serem aprovados pelo cliente"
+      ? isExecutionVisit
+        ? "Finalize o laudo (fotos antes/depois) antes de concluir a visita"
+        : "Aguarde o cliente aprovar o orçamento de todos os laudos"
       : "Concluir visita"
+  // Sufixo do botão desabilitado conforme o motivo: sem laudo × laudos ainda não entregáveis.
+  const blockedSuffix = reports.length === 0 ? "(faltam laudos)" : "(laudos pendentes)"
+
+  const completeCancelButtons = (
+    <div className="flex items-center gap-1.5">
+      <Button
+        size="sm"
+        onClick={() => onComplete(appt, reports)}
+        disabled={!canComplete}
+        title={completeTitle}
+        className={`flex-1 h-8 gap-1.5 ${canComplete ? "bg-green-600 hover:bg-green-700" : ""}`}
+      >
+        <CheckCircle2 className="w-3.5 h-3.5" />
+        Concluir visita
+        {!canComplete && (
+          <span className="text-[10px] opacity-70">{blockedSuffix}</span>
+        )}
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-8 px-3 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+        onClick={() => onCancel(appt.id)}
+        title="Cancelar visita"
+      >
+        <XCircle className="w-3.5 h-3.5" />
+      </Button>
+    </div>
+  )
 
   if (equipments.length === 0) {
     if (!isScheduled) return null
+
+    // Visita de EXECUÇÃO (equipmentIds vazio): mostra o laudo vinculado com
+    // "Ver laudo" + "Concluir visita" + "Cancelar" — não apenas cancelar.
+    if (isExecutionVisit && reports.length > 0) {
+      return (
+        <div className="space-y-2">
+          <ul className="space-y-1.5">
+            {reports.map(r => (
+              <li
+                key={r.id}
+                className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2.5 py-1.5"
+              >
+                <FileText className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">
+                    Laudo da execução
+                  </p>
+                </div>
+                <span className={`hidden sm:inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full ${REPORT_STATUS_COLORS[r.status]}`}>
+                  {REPORT_STATUS_LABELS[r.status]}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-[11px] gap-1 px-2 shrink-0"
+                  onClick={() => navigate(`/dashboard/reports/${r.id}`)}
+                >
+                  <FileText className="w-3 h-3" /> Ver laudo
+                </Button>
+              </li>
+            ))}
+          </ul>
+          {completeCancelButtons}
+        </div>
+      )
+    }
+
     return (
       <div className="flex items-center gap-1.5">
         <Button
@@ -126,32 +197,7 @@ export function AppointmentActions({
         })}
       </ul>
 
-      {isScheduled && (
-        <div className="flex items-center gap-1.5">
-          <Button
-            size="sm"
-            onClick={() => onComplete(appt, reports)}
-            disabled={!canComplete}
-            title={completeTitle}
-            className={`flex-1 h-8 gap-1.5 ${canComplete ? "bg-green-600 hover:bg-green-700" : ""}`}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Concluir visita
-            {!canComplete && (
-              <span className="text-[10px] opacity-70">(faltam laudos)</span>
-            )}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 px-3 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-            onClick={() => onCancel(appt.id)}
-            title="Cancelar visita"
-          >
-            <XCircle className="w-3.5 h-3.5" />
-          </Button>
-        </div>
-      )}
+      {isScheduled && completeCancelButtons}
     </div>
   )
 }

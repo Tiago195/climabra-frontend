@@ -15,6 +15,7 @@ import {
 } from "@/lib/maps"
 import { AppointmentActions } from "./AppointmentActions"
 import { RouteMap } from "./RouteMap"
+import { VisitTypePill } from "./VisitTypePill"
 
 interface Props {
   token: string
@@ -50,11 +51,11 @@ export function AppointmentMapView({
   const today = todayISO()
 
   const [plan, setPlan] = useState<IRoutePlanResponse | null>(null)
-  const [loadingPlan, setLoadingPlan] = useState(false)
+  // Começa true: o efeito de fetch roda já no mount (evita setState síncrono no efeito).
+  const [loadingPlan, setLoadingPlan] = useState(true)
 
   useEffect(() => {
     let cancelled = false
-    setLoadingPlan(true)
     providerService.getRoute(token, today)
       .then(p => { if (!cancelled) setPlan(p) })
       .catch(() => { if (!cancelled) setPlan(null) })
@@ -204,7 +205,10 @@ export function AppointmentMapView({
                         <p className="text-sm font-semibold text-gray-900 truncate">
                           {row.client.name}
                         </p>
-                        <ShiftBadge shift={appt.shift} size="xs" />
+                        <div className="flex items-center gap-1 shrink-0">
+                          <VisitTypePill visitType={appt.visitType} />
+                          <ShiftBadge shift={appt.shift} size="xs" />
+                        </div>
                       </div>
                       <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
                         <MapPin className="w-3 h-3 shrink-0" />

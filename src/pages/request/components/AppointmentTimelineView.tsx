@@ -13,6 +13,7 @@ import {
   futureBucketFor, type FutureBucket,
 } from "@/lib/shifts"
 import { AppointmentActions } from "./AppointmentActions"
+import { VisitTypePill } from "./VisitTypePill"
 
 interface Props {
   appointments: IAppointmentDetailResponse[]
@@ -157,7 +158,10 @@ export function AppointmentTimelineView({
                           <p className="text-sm font-semibold text-gray-900 truncate">
                             {row.client.name}
                           </p>
-                          <ShiftBadge shift={appt.shift} size="xs" />
+                          <div className="flex items-center gap-1 shrink-0">
+                            <VisitTypePill visitType={appt.visitType} />
+                            <ShiftBadge shift={appt.shift} size="xs" />
+                          </div>
                         </div>
                         <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
                           <MapPin className="w-3 h-3 shrink-0" />

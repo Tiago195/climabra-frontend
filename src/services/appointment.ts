@@ -46,6 +46,17 @@ export interface IAppointmentReportInfo {
   equipmentId: string
   status: ReportStatus
   serviceStartedAt: string | null   // != null = serviço em execução ("Em curso")
+  role: "assessment" | "execution" | null   // papel do vínculo laudo↔visita
+}
+
+/**
+ * Espelha `AppointmentFacade.isVisitDeliverableForReport` (backend): um laudo é
+ * "entregável" para a visita quando está `completed`, ou quando é a AVALIAÇÃO de
+ * um laudo que já chegou a `awaiting_execution` (orçamento aprovado; a execução
+ * virá em outra visita). Ver ROADMAP_MULTIPLAS_VISITAS.md.
+ */
+export function isReportDeliverableForVisit(r: IAppointmentReportInfo): boolean {
+  return r.status === "completed" || (r.role === "assessment" && r.status === "awaiting_execution")
 }
 
 export interface IAppointmentDetailResponse {

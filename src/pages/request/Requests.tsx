@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/authContext";
 import { useRequireAccess } from "@/components/SubscriptionGate";
 import {
   appointmentService,
+  isReportDeliverableForVisit,
   type IAppointmentDetailResponse,
   type IAppointmentInfo,
   type IAppointmentReportInfo,
@@ -80,8 +81,12 @@ export function Requests() {
       toast.warning("Crie um laudo para cada equipamento antes de concluir");
       return;
     }
-    if (!reports.every(r => r.status === "completed")) {
-      toast.warning("Aguarde todos os laudos serem aprovados pelo cliente");
+    if (!reports.every(isReportDeliverableForVisit)) {
+      toast.warning(
+        appt.visitType === "execution"
+          ? "Finalize o laudo (fotos antes/depois) antes de concluir a visita"
+          : "Aguarde o cliente aprovar o orçamento de todos os laudos"
+      );
       return;
     }
     try {

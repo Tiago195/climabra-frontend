@@ -4,6 +4,7 @@ import {
   AirVent, FileText, MapPin, Clock, CheckCircle2, XCircle, UserX,
 } from "lucide-react"
 import { ShiftBadge } from "@/components/ShiftBadge"
+import { VisitTypePill } from "./VisitTypePill"
 import type { IAppointmentDetailResponse } from "@/services/appointment"
 import type { AppointmentStatus } from "@/services/enums"
 import type { IClientResponse } from "@/services/client"
@@ -77,7 +78,8 @@ export function PastVisitCard({ row, client, onOpenReports }: Props) {
                 {relativeDateLabel(appt.scheduledDate)}
               </span>
             </p>
-            <p className="text-[10px] text-gray-400 mt-0.5">
+            <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+              <VisitTypePill visitType={appt.visitType} />
               <ShiftBadge shift={appt.shift} size="xs" />
             </p>
           </div>
