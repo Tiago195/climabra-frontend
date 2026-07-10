@@ -11,7 +11,7 @@ import {
   SHIFT_LABELS, SHIFT_COLORS, SHIFT_ICONS,
   DAY_NAMES_SHORT, MONTH_NAMES_SHORT, trimTime,
 } from "@/lib/shifts"
-import { nextBusinessDays } from "@/lib/slotSuggestions"
+import { nextBusinessDays, isSlotInPast } from "@/lib/slotSuggestions"
 
 interface Props {
   open: boolean
@@ -61,7 +61,10 @@ export function ScheduleExecutionDialog({
         const flat: FlatSlot[] = []
         for (const [date, shifts] of results) {
           for (const slot of shifts) {
-            if (!slot.blocked && slot.available > 0) flat.push({ date, slot })
+            // Ignora turnos de hoje cujo horário já passou (janela encerrada).
+            if (!slot.blocked && slot.available > 0 && !isSlotInPast(date, slot.endTime)) {
+              flat.push({ date, slot })
+            }
           }
         }
         setSlots(flat)

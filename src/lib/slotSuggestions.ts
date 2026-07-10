@@ -63,6 +63,30 @@ function hasCoords(c: { lat?: number | null; lng?: number | null }): boolean {
   return typeof c.lat === "number" && typeof c.lng === "number"
 }
 
+/** ISO local (YYYY-MM-DD) de uma data. */
+function toIsoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
+/** "HH:mm[:ss]" → minutos desde meia-noite (para comparar horários). */
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(":").map(Number)
+  return (h || 0) * 60 + (m || 0)
+}
+
+/**
+ * Um turno é "passado" quando é hoje e sua janela (endTime) já terminou — não
+ * faz sentido agendar uma visita para um horário que já passou.
+ */
+export function isSlotInPast(
+  date: string,
+  endTime: string,
+  now: Date = new Date()
+): boolean {
+  if (date !== toIsoDate(now)) return false
+  return timeToMinutes(endTime) <= now.getHours() * 60 + now.getMinutes()
+}
+
 /** Distância em km entre duas coordenadas (Haversine). */
 function haversineKm(
   aLat: number, aLng: number, bLat: number, bLng: number
@@ -83,7 +107,8 @@ export function buildSlotSuggestions(
   client: IClientResponse,
   clients: IClientResponse[],
   appointments: IAppointmentDetailResponse[],
-  slotsByDate: SlotsByDate
+  slotsByDate: SlotsByDate,
+  now: Date = new Date()
 ): ScoredSlot[] {
   const clientById = new Map(clients.map(c => [c.id, c]))
   const targetNeighborhood = normalize(client.neighborhood)
@@ -99,6 +124,8 @@ export function buildSlotSuggestions(
     const slots = slotsByDate[date]
     for (const s of slots) {
       if (s.blocked || s.available <= 0) continue
+      // Turno de hoje cuja janela já encerrou → horário no passado, não sugerir.
+      if (isSlotInPast(date, s.endTime, now)) continue
 
       const sameSlotClients = appointments
         .filter(a =>
