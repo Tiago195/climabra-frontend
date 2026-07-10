@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/authContext";
 import { ProfileGateProvider } from "@/components/CompleteProfileDialog";
 import { SubscriptionGateProvider, SubscriptionBanner } from "@/components/SubscriptionGate";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, CalendarDays, ClipboardList, LogOut, Wind, Settings, Menu } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, ClipboardList, LogOut, Wind, Settings, Menu, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
@@ -11,6 +11,7 @@ const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/dashboard/clients", label: "Clientes", icon: Users },
   { to: "/dashboard/requests", label: "Solicitações", icon: ClipboardList },
+  { to: "/dashboard/financeiro", label: "Financeiro", icon: Wallet },
   { to: "/dashboard/availability", label: "Agenda", icon: CalendarDays },
   { to: "/dashboard/settings", label: "Configurações", icon: Settings },
 ];

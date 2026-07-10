@@ -11,6 +11,7 @@ import { appointmentService, type IAppointmentDetailResponse } from "@/services/
 import { PaymentsBanner } from "./components/PaymentsBanner";
 import { TodayAgendaCard } from "./components/TodayAgendaCard";
 import { WeekVisitsChart } from "./components/WeekVisitsChart";
+import { RevenueCard } from "./components/RevenueCard";
 
 export function Dashboard() {
   const { provider, token } = useAuth();
@@ -81,6 +82,8 @@ export function Dashboard() {
       {isProfileComplete && (provider?.gatewayAccountStatus ?? "none") === "none" && (
         <PaymentsBanner />
       )}
+
+      {isProfileComplete && <RevenueCard />}
 
       {loading ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

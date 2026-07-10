@@ -5,6 +5,31 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/** Centavos → "R$ 1.234,56". */
+export function formatCents(cents: number): string {
+  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+}
+
+/** Delta % entre dois valores (base 0 → 100% se atual > 0, senão 0). */
+export function deltaPercent(current: number, previous: number): number {
+  if (previous === 0) return current > 0 ? 100 : 0
+  return Math.round(((current - previous) / previous) * 100)
+}
+
+/**
+ * Intervalo [start, end) em ISO date-time local para um período nomeado.
+ * `current` = mês corrente; `previous` = mês anterior.
+ */
+export function monthRange(period: "current" | "previous"): { start: string; end: string } {
+  const now = new Date()
+  const offset = period === "previous" ? -1 : 0
+  const start = new Date(now.getFullYear(), now.getMonth() + offset, 1, 0, 0, 0)
+  const end = new Date(now.getFullYear(), now.getMonth() + offset + 1, 1, 0, 0, 0)
+  const toLocalIso = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T00:00:00`
+  return { start: toLocalIso(start), end: toLocalIso(end) }
+}
+
 export function formatPhone(value: string) {
   const d = value.replace(/\D/g, "").slice(0, 11)
   if (d.length === 0) return ""

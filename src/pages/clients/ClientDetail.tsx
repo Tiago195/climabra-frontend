@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ClientInfoCard } from "./components/ClientInfoCard";
 import { ClientEquipmentsCard } from "./components/ClientEquipmentsCard";
 import { ClientPortalCard } from "./components/ClientPortalCard";
+import { ClientFinancialsCard } from "./components/ClientFinancialsCard";
 
 export function ClientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -47,6 +48,8 @@ export function ClientDetail() {
       </div>
 
       <ClientInfoCard client={data.client} />
+
+      {token && <ClientFinancialsCard token={token} clientId={data.client.id.toString()} />}
 
       {provider?.publicToken && (
         <ClientPortalCard
