@@ -1,5 +1,4 @@
-import axios from "axios"
-import { DEFAULT_URL } from "."
+import { createApi } from "."
 import type { DeclinedReason } from "./enums"
 
 /**
@@ -7,7 +6,7 @@ import type { DeclinedReason } from "./enums"
  * Σ valor em centavos + cards) construída sobre os estados do laudo e as
  * solicitações em aberto. Somente leitura. Formatação em R$ fica no componente.
  */
-const pipelineApi = axios.create({ baseURL: `${DEFAULT_URL}/providers/me` })
+const pipelineApi = createApi("/providers/me")
 
 const authHeader = (token: string) => ({ headers: { Authorization: `Bearer ${token}` } })
 

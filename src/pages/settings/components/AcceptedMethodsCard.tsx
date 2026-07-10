@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/authContext";
 import { paymentService } from "@/services/payment";
 import type { GatewayAccountStatus, PaymentMethod } from "@/services/enums";
 import { toast } from "sonner";
+import { getApiErrorMessage } from "@/services/apiError";
 
 const METHODS: { key: PaymentMethod; label: string; hint: string; icon: any; electronic: boolean }[] = [
   { key: "pix", label: "PIX", hint: "Confirmação na hora", icon: QrCode, electronic: true },
@@ -57,8 +58,8 @@ export function AcceptedMethodsCard({ status, accepted, pixEnabled }: Props) {
       setMethods(new Set(settings.acceptedPaymentMethods));
       updateProvider({ acceptedPaymentMethods: settings.acceptedPaymentMethods });
       toast.success("Métodos atualizados");
-    } catch (err: any) {
-      toast.error(err?.response?.data?.error ?? "Não foi possível atualizar os métodos");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Não foi possível atualizar os métodos"));
     } finally {
       setSavingKey(null);
     }

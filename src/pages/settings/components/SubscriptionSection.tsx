@@ -13,6 +13,7 @@ import { formatCents, formatShortDate, daysUntil } from "./format"
 import { PLAN_META, planPriceCents } from "./subscription-plans"
 import { SubscriptionPlanDialog } from "./SubscriptionPlanDialog"
 import { CancelSubscriptionDialog } from "./CancelSubscriptionDialog"
+import { getApiErrorMessage } from "@/services/apiError"
 
 type PillTone = "amber" | "purple" | "green" | "red" | "gray" | "blue"
 const PILL: Record<PillTone, string> = {
@@ -48,7 +49,7 @@ export function SubscriptionSection() {
     if (!token) return
     subscriptionService.get(token)
       .then(setSub)
-      .catch(() => toast.error("Não foi possível carregar sua assinatura."))
+      .catch(e => toast.error(getApiErrorMessage(e, "Não foi possível carregar sua assinatura")))
       .finally(() => setLoading(false))
   }, [token])
 
@@ -64,9 +65,7 @@ export function SubscriptionSection() {
       setCancelOpen(false)
       toast.success("Assinatura cancelada.")
     } catch (err) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        ?? "Não foi possível cancelar."
-      toast.error(msg)
+      toast.error(getApiErrorMessage(err, "Não foi possível cancelar"))
     }
   }
 

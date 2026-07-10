@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
@@ -10,6 +9,7 @@ import { providerService } from "@/services/provider";
 import { Loader2, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { formatPhone } from "@/lib/utils";
+import { getApiErrorMessage } from "@/services/apiError";
 
 interface Ctx {
   requireProfile: (action: () => void) => void;
@@ -73,8 +73,8 @@ export function ProfileGateProvider({ children }: { children: ReactNode }) {
       setPhoneMasked(res.phoneMasked);
       setCooldown(res.resendInSeconds);
       setStep("code");
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? "Não foi possível enviar o código.");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err));
     } finally {
       setSending(false);
     }
@@ -101,8 +101,8 @@ export function ProfileGateProvider({ children }: { children: ReactNode }) {
       const action = pendingAction.current;
       pendingAction.current = null;
       if (action) setTimeout(action, 100);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? "Código inválido ou expirado.");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err));
     } finally {
       setConfirming(false);
     }

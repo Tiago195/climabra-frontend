@@ -1,3 +1,6 @@
+import axios from "axios"
+import { attachPaywall } from "./paywall"
+
 // Base URL da API.
 // Regra: o backend roda na MESMA máquina que serve o front, na porta 8080.
 //  - aberto em localhost            → http://localhost:8080
@@ -15,3 +18,21 @@ function resolveApiUrl(): string {
 }
 
 export const DEFAULT_URL = resolveApiUrl()
+
+/**
+ * Factory central das instâncias axios dos services (Fase 1 do refino de erros — KANBAN.md).
+ * Antes cada service criava seu próprio `axios.create`; agora todos passam por aqui.
+ *
+ * IMPORTANTE: não normaliza nem transforma o formato do erro — os fluxos especiais (402 paywall,
+ * 401 do portal, 429/cooldown do OTP) continuam recebendo o AxiosError original em seus próprios
+ * handlers/interceptors. A normalização para exibição ao usuário é responsabilidade de
+ * `getApiErrorMessage`/`getFieldErrors` (services/apiError.ts), chamados no ponto de uso (catch).
+ *
+ * `withPaywall`: mantém o precedente de paywall.ts — só os services que já anexavam
+ * `attachPaywall` continuam anexando (ações sensíveis/escrita).
+ */
+export function createApi(path: string, opts?: { withPaywall?: boolean }) {
+  const instance = axios.create({ baseURL: `${DEFAULT_URL}${path}` })
+  if (opts?.withPaywall) attachPaywall(instance)
+  return instance
+}

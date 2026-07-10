@@ -1,5 +1,4 @@
-import axios from "axios"
-import { DEFAULT_URL } from "."
+import { createApi } from "."
 import type { NotificationType } from "./enums"
 
 /**
@@ -7,7 +6,7 @@ import type { NotificationType } from "./enums"
  * Templates + preferências no Settings do provider e envio manual de WhatsApp ao cliente.
  * Sempre autenticado como provider; o backend valida ownership.
  */
-const api = axios.create({ baseURL: `${DEFAULT_URL}/notifications` })
+const api = createApi("/notifications")
 
 const authHeader = (token: string) => ({ headers: { Authorization: `Bearer ${token}` } })
 

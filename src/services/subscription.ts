@@ -1,7 +1,6 @@
-import axios from "axios"
-import { DEFAULT_URL } from "."
+import { createApi } from "."
 
-const subscriptionApi = axios.create({ baseURL: `${DEFAULT_URL}/providers` })
+const subscriptionApi = createApi("/providers")
 const authHeader = (token: string) => ({ headers: { Authorization: `Bearer ${token}` } })
 
 export type SubscriptionStatus = "none" | "trialing" | "active" | "past_due" | "canceled"

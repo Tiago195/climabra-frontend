@@ -12,6 +12,8 @@ import { TagsEditor } from "@/components/TagsEditor";
 import { clientService, type ClientType, type IClientResponse } from "@/services/client";
 import { toast } from "sonner";
 import { formatPhone } from "@/lib/utils";
+import { getApiErrorMessage, getFieldErrors } from "@/services/apiError";
+import { FieldError } from "@/components/ui/field-error";
 
 interface Props {
   open: boolean;
@@ -26,6 +28,7 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
   const [address, setAddress] = useState<AddressData>(emptyAddress);
   const [clientType, setClientType] = useState<ClientType | "">("");
   const [tags, setTags] = useState<string[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string> | null>(null);
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -38,6 +41,7 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
       toast.error("Informe o número do endereço");
       return;
     }
+    setFieldErrors(null);
     setSaving(true);
     try {
       const created = await clientService.create(token, {
@@ -62,9 +66,13 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
       setTags([]);
       toast.success("Cliente cadastrado!");
     } catch (err) {
-      // surfacia a mensagem do backend (ex.: 422 "número não tem WhatsApp"); fallback genérico
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg ?? "Erro ao cadastrar cliente");
+      const fields = getFieldErrors(err);
+      if (fields) {
+        setFieldErrors(fields);
+      } else {
+        // surfacia a mensagem do backend (ex.: 422 "número não tem WhatsApp"); fallback genérico
+        toast.error(getApiErrorMessage(err, "Erro ao cadastrar cliente"));
+      }
     } finally {
       setSaving(false);
     }
@@ -79,7 +87,9 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
               placeholder="Nome do cliente"
               value={form.name}
               onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+              aria-invalid={!!fieldErrors?.name}
             />
+            <FieldError message={fieldErrors?.name} />
           </div>
           <div className="space-y-2">
             <Label>Telefone *</Label>
@@ -89,7 +99,9 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
               value={form.phone}
               onChange={e => setForm(p => ({ ...p, phone: formatPhone(e.target.value) }))}
               maxLength={15}
+              aria-invalid={!!fieldErrors?.phone}
             />
+            <FieldError message={fieldErrors?.phone} />
           </div>
           <div className="space-y-2">
             <Label>Email *</Label>
@@ -98,7 +110,9 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
               placeholder="cliente@email.com"
               value={form.email}
               onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+              aria-invalid={!!fieldErrors?.email}
             />
+            <FieldError message={fieldErrors?.email} />
           </div>
           <div className="space-y-2">
             <Label>Tipo de cliente</Label>
@@ -118,7 +132,7 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
           </div>
           <div className="pt-2 border-t">
             <p className="text-sm font-medium text-gray-700 mb-3">Endereço</p>
-            <AddressFieldsForm value={address} onChange={setAddress} />
+            <AddressFieldsForm value={address} onChange={setAddress} errors={fieldErrors ?? undefined} />
           </div>
           <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={saving}>
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}

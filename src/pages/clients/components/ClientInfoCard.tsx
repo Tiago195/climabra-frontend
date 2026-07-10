@@ -12,6 +12,7 @@ import { TagsEditor } from "@/components/TagsEditor";
 import { Phone, Mail, MapPin, Pencil, Loader2, Building2, Home } from "lucide-react";
 import { clientService, type ClientType, type IClientResponse } from "@/services/client";
 import { toast } from "sonner";
+import { getApiErrorMessage } from "@/services/apiError";
 
 function buildAddress(c: IClientResponse): string {
   const parts: string[] = [];
@@ -64,8 +65,8 @@ export function ClientInfoCard({ client, token, onUpdated }: Props) {
       onUpdated(updated);
       setEditing(false);
       toast.success("Cliente atualizado!");
-    } catch {
-      toast.error("Erro ao atualizar cliente");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao atualizar cliente"));
     } finally {
       setSaving(false);
     }

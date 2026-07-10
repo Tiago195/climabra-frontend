@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Search } from "lucide-react";
+import { FieldError } from "@/components/ui/field-error";
 
 export type AddressData = {
   cep: string;
@@ -33,9 +34,11 @@ type Props = {
   value: AddressData;
   onChange: (next: AddressData) => void;
   compact?: boolean;
+  /** Erros de validação do backend (422 `fields`) por campo do endereço — opcional. */
+  errors?: Partial<Record<keyof AddressData, string>>;
 };
 
-export default function AddressFieldsForm({ value, onChange, compact = false }: Props) {
+export default function AddressFieldsForm({ value, onChange, compact = false, errors }: Props) {
   const [lookingUp, setLookingUp] = useState(false);
   const [cepError, setCepError] = useState<string | null>(null);
 
@@ -117,12 +120,14 @@ export default function AddressFieldsForm({ value, onChange, compact = false }: 
           )}
         </div>
         {cepError && <p className="text-xs text-red-500">{cepError}</p>}
+        <FieldError message={errors?.cep} />
       </div>
 
       <div className="grid grid-cols-3 gap-2">
         <div className="space-y-1 col-span-2">
           <Label className={labelClass}>Rua</Label>
-          <Input value={value.street} onChange={e => update({ street: e.target.value })} placeholder="Nome da rua" />
+          <Input value={value.street} onChange={e => update({ street: e.target.value })} placeholder="Nome da rua" aria-invalid={!!errors?.street} />
+          <FieldError message={errors?.street} />
         </div>
         <div className="space-y-1">
           <Label className={labelClass}>Número</Label>
@@ -131,7 +136,9 @@ export default function AddressFieldsForm({ value, onChange, compact = false }: 
             onChange={e => update({ streetNumber: e.target.value.replace(/\D/g, "") })}
             placeholder="123"
             inputMode="numeric"
+            aria-invalid={!!errors?.streetNumber}
           />
+          <FieldError message={errors?.streetNumber} />
         </div>
       </div>
 
@@ -143,17 +150,20 @@ export default function AddressFieldsForm({ value, onChange, compact = false }: 
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
           <Label className={labelClass}>Bairro</Label>
-          <Input value={value.neighborhood} onChange={e => update({ neighborhood: e.target.value })} placeholder="Bairro" />
+          <Input value={value.neighborhood} onChange={e => update({ neighborhood: e.target.value })} placeholder="Bairro" aria-invalid={!!errors?.neighborhood} />
+          <FieldError message={errors?.neighborhood} />
         </div>
         <div className="space-y-1">
           <Label className={labelClass}>Cidade</Label>
-          <Input value={value.city} onChange={e => update({ city: e.target.value })} placeholder="Cidade" />
+          <Input value={value.city} onChange={e => update({ city: e.target.value })} placeholder="Cidade" aria-invalid={!!errors?.city} />
+          <FieldError message={errors?.city} />
         </div>
       </div>
 
       <div className="space-y-1">
         <Label className={labelClass}>Estado</Label>
-        <Input value={value.state} onChange={e => update({ state: e.target.value.toUpperCase().slice(0, 2) })} placeholder="UF" maxLength={2} />
+        <Input value={value.state} onChange={e => update({ state: e.target.value.toUpperCase().slice(0, 2) })} placeholder="UF" maxLength={2} aria-invalid={!!errors?.state} />
+        <FieldError message={errors?.state} />
       </div>
     </div>
   );

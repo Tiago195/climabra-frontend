@@ -1,5 +1,4 @@
-import axios from "axios"
-import { DEFAULT_URL } from "."
+import { createApi } from "."
 import type { NextActionType, NextActionUrgency } from "./enums"
 
 /**
@@ -7,7 +6,7 @@ import type { NextActionType, NextActionUrgency } from "./enums"
  * on-demand — solicitações sem laudo, laudos aguardando o cliente, lembretes
  * de nota vencidos e visitas de hoje. Somente leitura.
  */
-const nextActionsApi = axios.create({ baseURL: `${DEFAULT_URL}/providers/me` })
+const nextActionsApi = createApi("/providers/me")
 
 const authHeader = (token: string) => ({ headers: { Authorization: `Bearer ${token}` } })
 

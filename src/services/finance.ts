@@ -1,5 +1,4 @@
-import axios from "axios"
-import { DEFAULT_URL } from "."
+import { createApi } from "."
 import type { PaymentMethod } from "./enums"
 
 /**
@@ -7,7 +6,7 @@ import type { PaymentMethod } from "./enums"
  * chama o gateway. Só `paid` conta como faturamento; `pending` é o "A receber".
  * Valores sempre em centavos (formatação em R$ fica no componente).
  */
-const financeApi = axios.create({ baseURL: `${DEFAULT_URL}/providers/me` })
+const financeApi = createApi("/providers/me")
 
 const authHeader = (token: string) => ({ headers: { Authorization: `Bearer ${token}` } })
 

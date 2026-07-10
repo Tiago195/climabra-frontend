@@ -24,6 +24,7 @@ import {
   type IEquipmentResponse,
 } from "@/services/client"
 import { reportService, type IOpenReport } from "@/services/report"
+import { getApiErrorMessage } from "@/services/apiError"
 import {
   SHIFT_LABELS, SHIFT_COLORS, SHIFT_ICONS,
   DAY_NAMES_SHORT, MONTH_NAMES_SHORT, trimTime,
@@ -173,8 +174,8 @@ export function NewAppointmentDialog({
       onCreated(created)
       onClose()
       toast.success("Solicitação criada!")
-    } catch {
-      toast.error("Erro ao criar solicitação")
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao criar solicitação"))
     } finally {
       setSubmitting(false)
     }

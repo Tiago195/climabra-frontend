@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/authContext";
 import { providerService } from "@/services/provider";
 import type { ITravelConfig } from "@/services/auth";
+import { getApiErrorMessage, getFieldErrors } from "@/services/apiError";
+import { FieldError } from "@/components/ui/field-error";
 
 const reaisToCents = (v: string) => Math.round((parseFloat(v.replace(",", ".")) || 0) * 100);
 const centsToReais = (c: number | null | undefined) => ((c ?? 0) / 100).toFixed(2);
@@ -32,9 +34,9 @@ export function ChargesCard() {
     try {
       const updated = await providerService.updateConfig(token, next);
       updateProvider({ chargesLabor: updated.chargesLabor, chargesTravel: updated.chargesTravel });
-    } catch {
+    } catch (e) {
       updateProvider(prev); // rollback
-      toast.error("Não foi possível salvar. Tente novamente.");
+      toast.error(getApiErrorMessage(e, "Não foi possível salvar"));
     } finally {
       setSaving(null);
     }
@@ -85,6 +87,7 @@ function TravelConfigForm({ travel }: { travel: ITravelConfig | null }) {
   const [cap, setCap] = useState(travel?.capCents != null ? centsToReais(travel.capCents) : "");
   const [roundTrip, setRoundTrip] = useState(travel?.roundTrip ?? true);
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string> | null>(null);
 
   const geocoded = !!travel?.originGeocoded;
 
@@ -94,6 +97,7 @@ function TravelConfigForm({ travel }: { travel: ITravelConfig | null }) {
       toast.error("Informe um CEP de origem válido (8 dígitos).");
       return;
     }
+    setFieldErrors(null);
     setSaving(true);
     try {
       const updated = await providerService.updateTravelConfig(token, {
@@ -107,8 +111,12 @@ function TravelConfigForm({ travel }: { travel: ITravelConfig | null }) {
       updateProvider({ travel: updated.travel });
       toast.success("Tarifa de deslocamento salva!");
     } catch (err) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg ?? "Não foi possível salvar a tarifa.");
+      const fields = getFieldErrors(err);
+      if (fields) {
+        setFieldErrors(fields);
+      } else {
+        toast.error(getApiErrorMessage(err, "Não foi possível salvar a tarifa"));
+      }
     } finally {
       setSaving(false);
     }
@@ -128,7 +136,9 @@ function TravelConfigForm({ travel }: { travel: ITravelConfig | null }) {
           placeholder="00000-000"
           value={cep}
           onChange={e => setCep(onlyDigits(e.target.value).slice(0, 8))}
+          aria-invalid={!!fieldErrors?.travelOriginCep}
         />
+        <FieldError message={fieldErrors?.travelOriginCep} />
         {cep && onlyDigits(cep).length === 8 && !geocoded && (
           <p className="text-[11px] text-amber-700 flex items-center gap-1">
             <AlertCircle className="w-3 h-3 shrink-0" />

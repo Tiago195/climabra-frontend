@@ -1,5 +1,4 @@
-import axios from "axios"
-import { DEFAULT_URL } from "."
+import { createApi } from "."
 import type { NoteKind } from "./enums"
 
 /**
@@ -7,7 +6,7 @@ import type { NoteKind } from "./enums"
  * Frente 1). CRUD simples sob `/clients/{clientId}/notes`, sempre autenticado
  * como provider — o backend valida que o cliente pertence a quem chama.
  */
-const api = axios.create({ baseURL: `${DEFAULT_URL}/clients` })
+const api = createApi("/clients")
 
 const authHeader = (token: string) => ({ headers: { Authorization: `Bearer ${token}` } })
 

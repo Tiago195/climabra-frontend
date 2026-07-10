@@ -1,8 +1,7 @@
-import axios from "axios"
-import { DEFAULT_URL } from "."
+import { createApi } from "."
 import type { GatewayAccountStatus, PaymentMethod } from "./enums"
 
-const paymentApi = axios.create({ baseURL: `${DEFAULT_URL}/providers` })
+const paymentApi = createApi("/providers")
 
 const authHeader = (token: string) => ({ headers: { Authorization: `Bearer ${token}` } })
 

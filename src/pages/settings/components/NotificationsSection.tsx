@@ -13,6 +13,7 @@ import {
   type INotificationPref,
 } from "@/services/notification";
 import { NOTIFICATION_TYPE_META, type NotificationType } from "@/services/enums";
+import { getApiErrorMessage } from "@/services/apiError";
 
 const VARIABLES_HINT = "Variáveis: {nome}, {prestador}, {valor}, {data}, {link}";
 
@@ -33,7 +34,7 @@ export function NotificationsSection() {
         setPrefs(p);
         setTemplates(t);
       })
-      .catch(() => toast.error("Erro ao carregar notificações"));
+      .catch(e => toast.error(getApiErrorMessage(e, "Erro ao carregar notificações")));
   }, [token]);
 
   const togglePref = async (type: NotificationType, enabled: boolean) => {
@@ -43,9 +44,9 @@ export function NotificationsSection() {
     setSavingPref(type);
     try {
       await notificationService.setPref(token, type, enabled);
-    } catch {
+    } catch (e) {
       setPrefs(prev);
-      toast.error("Não foi possível salvar. Tente novamente.");
+      toast.error(getApiErrorMessage(e, "Não foi possível salvar"));
     } finally {
       setSavingPref(null);
     }
@@ -140,8 +141,8 @@ function TemplateEditor({
       const saved = await notificationService.saveTemplate(token, template.type, body.trim());
       onSaved(saved);
       toast.success("Texto salvo!");
-    } catch {
-      toast.error("Erro ao salvar o texto");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao salvar o texto"));
     } finally {
       setBusy(false);
     }
@@ -155,8 +156,8 @@ function TemplateEditor({
       onSaved(reset);
       setBody(reset.body);
       toast.success("Texto padrão restaurado");
-    } catch {
-      toast.error("Erro ao restaurar");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao restaurar"));
     } finally {
       setBusy(false);
     }

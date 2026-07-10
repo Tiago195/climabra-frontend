@@ -5,9 +5,7 @@ import { Input } from "@/components/ui/input";
 import { MessageCircle, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { clientService } from "@/services/client";
-
-const errMsg = (err: unknown, fallback: string) =>
-  (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
+import { getApiErrorMessage } from "@/services/apiError";
 
 interface Props {
   publicToken: string;
@@ -42,7 +40,7 @@ export function PortalOtpGate({ publicToken, clientId, onVerified }: Props) {
       setCooldown(res.resendInSeconds);
       setSent(true);
     } catch (err) {
-      toast.error(errMsg(err, "Não foi possível enviar o código. Tente novamente."));
+      toast.error(getApiErrorMessage(err));
     } finally {
       setSending(false);
     }
@@ -58,7 +56,7 @@ export function PortalOtpGate({ publicToken, clientId, onVerified }: Props) {
       const token = await clientService.verifyOtp(publicToken, clientId, code.trim());
       onVerified(token);
     } catch (err) {
-      toast.error(errMsg(err, "Código inválido ou expirado."));
+      toast.error(getApiErrorMessage(err));
     } finally {
       setVerifying(false);
     }

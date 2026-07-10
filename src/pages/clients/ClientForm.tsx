@@ -14,6 +14,8 @@ import { SignUpCalendarCard } from "./components/SignUpCalendarCard";
 import { SignUpTimeSlotsCard } from "./components/SignUpTimeSlotsCard";
 import { EquipmentSelectorCard, type NewEquipmentData } from "./components/EquipmentSelectorCard";
 import { PhotoUploadGrid } from "./components/PhotoUploadGrid";
+import { getApiErrorMessage, getFieldErrors } from "@/services/apiError";
+import { FieldError } from "@/components/ui/field-error";
 
 const PROBLEM_TYPES = [
   { value: "nao_gela", label: "Não está gelando" },
@@ -62,6 +64,7 @@ export default function ClientForm() {
   const [discouragedDates, setDiscouragedDates] = useState<Set<string>>(new Set());
   const [dayStatus, setDayStatus] = useState<Map<string, { capacity: number; available: number }>>(new Map());
   const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string> | null>(null);
 
   // Recomendação (Fase 6) + vagas por dia do mês visível — destaca o calendário antes do clique.
   useEffect(() => {
@@ -123,8 +126,8 @@ export default function ClientForm() {
     try {
       const res = await availabilityService.getSignUpSlots(publicToken!, dateStr);
       setShifts(res.shifts ?? []);
-    } catch {
-      toast.error("Erro ao carregar turnos");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao carregar turnos"));
     } finally {
       setLoadingSlots(false);
     }
@@ -145,8 +148,8 @@ export default function ClientForm() {
     try {
       const uploaded = await Promise.all(files.map(f => uploadService.uploadPublic(f)));
       setPhotoUrls(prev => [...prev, ...uploaded]);
-    } catch {
-      toast.error("Erro ao enviar foto. Tente novamente.");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao enviar foto"));
     } finally {
       setUploadingPhotos(false);
     }
@@ -163,6 +166,7 @@ export default function ClientForm() {
 
   const handleConfirm = async () => {
     if (!selectedShift || !selectedDate || !publicToken || !id) return;
+    setFieldErrors(null);
     setSubmitting(true);
     try {
       await clientService.requestAppointment(publicToken, id, {
@@ -179,8 +183,14 @@ export default function ClientForm() {
       });
       toast.success("Agendamento solicitado com sucesso!");
       navigate(`/providers/${publicToken}/clients/${id}`);
-    } catch {
-      toast.error("Erro ao enviar solicitação");
+    } catch (e) {
+      const fields = getFieldErrors(e);
+      if (fields) {
+        setFieldErrors(fields);
+        setStep(1);
+      } else {
+        toast.error(getApiErrorMessage(e, "Erro ao enviar solicitação"));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -281,7 +291,9 @@ export default function ClientForm() {
                   onChange={e => setDescription(e.target.value)}
                   rows={4}
                   className="resize-none"
+                  aria-invalid={!!fieldErrors?.description}
                 />
+                <FieldError message={fieldErrors?.description} />
               </CardContent>
             </Card>
 

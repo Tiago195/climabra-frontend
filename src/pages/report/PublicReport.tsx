@@ -20,6 +20,7 @@ import {
   Download, RotateCw, Timer, User, Building2, Loader2, RefreshCw,
 } from "lucide-react";
 import { PaymentStep } from "./components/PaymentStep";
+import { getApiErrorMessage } from "@/services/apiError";
 
 // ============================================================================
 // Helpers
@@ -161,7 +162,7 @@ export function PublicReport() {
           setSelectedIds(new Set(d.items.map(i => i.id)));
         }
       })
-      .catch(() => toast.error("Laudo não encontrado"))
+      .catch(e => toast.error(getApiErrorMessage(e, "Não foi possível abrir o laudo")))
       .finally(() => setLoading(false));
   }, [providerToken, clientId, equipmentId, reportToken]);
 
@@ -170,8 +171,8 @@ export function PublicReport() {
     setRefreshing(true);
     try {
       setData(await reportService.getPublic(providerToken, clientId, equipmentId, reportToken));
-    } catch {
-      toast.error("Erro ao atualizar. Tente novamente.");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao atualizar"));
     } finally {
       setRefreshing(false);
     }
@@ -184,8 +185,8 @@ export function PublicReport() {
       setData(await reportService.approve(providerToken, clientId, equipmentId, reportToken, Array.from(selectedIds)));
       toast.success("Serviço autorizado!");
       setConfirmOpen(false);
-    } catch {
-      toast.error("Erro ao autorizar. Tente novamente.");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao autorizar"));
     } finally {
       setApproving(false);
     }
@@ -205,8 +206,8 @@ export function PublicReport() {
       });
       toast.success("Avaliação enviada. Obrigado!");
       setData(await reportService.getPublic(providerToken, clientId, equipmentId, reportToken));
-    } catch {
-      toast.error("Erro ao enviar avaliação");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao enviar avaliação"));
     } finally {
       setSubmittingRating(false);
     }

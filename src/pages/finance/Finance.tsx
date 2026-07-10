@@ -18,6 +18,7 @@ import { MonthlyRevenueChart } from "./components/MonthlyRevenueChart";
 import { TopClientsCard } from "./components/TopClientsCard";
 import { PaymentsList } from "./components/PaymentsList";
 import { ConversionCard } from "./components/ConversionCard";
+import { getApiErrorMessage } from "@/services/apiError";
 import { PaymentDetailModal } from "./components/PaymentDetailModal";
 import { METHOD_LABEL } from "./labels";
 
@@ -124,9 +125,9 @@ export function Finance() {
         setPaidMonth({ totalCents: paid.totalCents, count: paid.totalElements });
         setReceivable({ totalCents: pend.totalCents, count: pend.totalElements });
       })
-      .catch(() => {
+      .catch(e => {
         setSummaryError(true);
-        toast.error("Não foi possível carregar o resumo financeiro");
+        toast.error(getApiErrorMessage(e, "Não foi possível carregar o resumo financeiro"));
       })
       .finally(() => setSummaryLoading(false));
   }, [token]);
@@ -153,10 +154,10 @@ export function Finance() {
       size: PAGE_SIZE,
     })
       .then(setPayments)
-      .catch(() => {
+      .catch(e => {
         setPayments(null);
         setListError(true);
-        toast.error("Não foi possível carregar os pagamentos");
+        toast.error(getApiErrorMessage(e, "Não foi possível carregar os pagamentos"));
       })
       .finally(() => setListLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -193,7 +194,7 @@ export function Finance() {
       end: activeRange?.end,
     })
       .then(blob => downloadBlob(blob, "pagamentos.csv"))
-      .catch(() => toast.error("Não foi possível exportar os pagamentos"))
+      .catch(e => toast.error(getApiErrorMessage(e, "Não foi possível exportar os pagamentos")))
       .finally(() => setExporting(false));
   }, [token, tab, activeRange, method, customIncomplete]);
 

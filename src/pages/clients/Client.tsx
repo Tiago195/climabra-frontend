@@ -17,6 +17,7 @@ import { ClientListItem } from "./components/ClientListItem";
 import { CreateClientDialog } from "./components/CreateClientDialog";
 import { PublicLinkDialog } from "./components/PublicLinkDialog";
 import { ClientMapPanel } from "./components/ClientMapPanel";
+import { getApiErrorMessage } from "@/services/apiError";
 
 const ALL = "__all__";
 
@@ -49,7 +50,7 @@ export function Client() {
     if (!token) return;
     clientService.list(token)
       .then(setClients)
-      .catch(() => toast.error("Erro ao carregar clientes"))
+      .catch(e => toast.error(getApiErrorMessage(e, "Erro ao carregar clientes")))
       .finally(() => setLoading(false));
   }, [token]);
 

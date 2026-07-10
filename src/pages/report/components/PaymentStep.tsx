@@ -18,12 +18,10 @@ import { SavedCardsList } from "./SavedCardsList";
 import { CheckoutCardForm, type NewCardPayload } from "./CheckoutCardForm";
 import { PixPaymentPanel } from "./PixPaymentPanel";
 import { AwaitingPaymentPanel } from "./AwaitingPaymentPanel";
+import { getApiErrorMessage } from "@/services/apiError";
 
 const fmtMoney = (cents: number) =>
   (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-const errMsg = (err: unknown, fallback: string) =>
-  (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback;
 
 const PAYMENT_LABEL: Record<PaymentMethod, string> = {
   pix: "PIX", credit: "cartão", debit: "cartão", cash: "dinheiro", boleto: "boleto",
@@ -83,7 +81,7 @@ export function PaymentStep({
       setPix(res.pix ?? null);
       setMode("pix");
     } catch (err) {
-      const msg = errMsg(err, "Erro ao gerar o PIX");
+      const msg = getApiErrorMessage(err, "Erro ao gerar o PIX");
       // Backend pede CPF quando o cliente ainda não tem cadastro de pagamento.
       if (/cpf/i.test(msg) && !cpf) { setMode("pixCpf"); }
       else { toast.error(msg); }
@@ -102,7 +100,7 @@ export function PaymentStep({
       if (res.status === "paid") onPaidNow("credit");
       else onPaid();
     } catch (err) {
-      setErrorText(errMsg(err, "Não foi possível concluir o pagamento"));
+      setErrorText(getApiErrorMessage(err, "Não foi possível concluir o pagamento"));
       setMode("error");
     } finally {
       setBusyCardId(null);
@@ -119,7 +117,7 @@ export function PaymentStep({
       if (res.status === "paid") onPaidNow("credit");
       else onPaid();
     } catch (err) {
-      setErrorText(errMsg(err, "Cartão recusado"));
+      setErrorText(getApiErrorMessage(err, "Cartão recusado"));
       setMode("error");
     } finally {
       setProcessing(false);
@@ -132,7 +130,7 @@ export function PaymentStep({
       await checkoutService.checkout(tokens.pt, tokens.cid, tokens.eid, tokens.rt, { method: "cash" });
       setMode("cash");
     } catch (err) {
-      toast.error(errMsg(err, "Erro ao registrar o pagamento"));
+      toast.error(getApiErrorMessage(err, "Erro ao registrar o pagamento"));
     } finally {
       setProcessing(false);
     }

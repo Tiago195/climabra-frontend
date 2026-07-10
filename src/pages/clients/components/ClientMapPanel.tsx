@@ -102,7 +102,13 @@ export function ClientMapPanel({ clients, selectedId, onSelect, heightClassName 
   }
 
   return (
-    <div className={`relative rounded-lg overflow-hidden border border-gray-200 ${heightClassName}`}>
+    // isolation: isolate cria um novo stacking context aqui, contendo os z-index altos dos
+    // panes/controles do Leaflet (200-1000) dentro deste wrapper — sem isso, esses valores
+    // "vazam" para o stacking context do documento e vencem o z-50 do overlay do Dialog/Sheet
+    // (shadcn), fazendo o mapa cobrir modais abertos por cima dele.
+    <div
+      className={`relative isolate z-0 rounded-lg overflow-hidden border border-gray-200 ${heightClassName}`}
+    >
       <MapContainer
         bounds={initialBounds.current.length > 1 ? (initialBounds.current as L.LatLngBoundsExpression) : undefined}
         center={initialBounds.current.length === 1 ? initialCenter.current : undefined}
@@ -110,6 +116,7 @@ export function ClientMapPanel({ clients, selectedId, onSelect, heightClassName 
         boundsOptions={{ padding: [30, 30] }}
         scrollWheelZoom
         zoomControl={false}
+        className="z-0"
         style={{ height: "100%", width: "100%" }}
       >
         <TileLayer

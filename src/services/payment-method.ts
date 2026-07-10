@@ -1,10 +1,9 @@
-import axios from "axios"
-import { DEFAULT_URL } from "."
+import { createApi } from "."
 import { clientSession } from "./clientSession"
 
 // Cartões do cliente: exigem a sessão do cliente (OTP/Q5). O header Authorization é
 // injetado a partir do clientSession (token emitido após validar o WhatsApp).
-const api = axios.create({ baseURL: `${DEFAULT_URL}/clients` })
+const api = createApi("/clients")
 
 export interface IPaymentMethod {
   id: string

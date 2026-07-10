@@ -16,6 +16,7 @@ import { SignUpDataForm, type SignUpFormData } from "./components/SignUpDataForm
 import { SignUpCalendarCard } from "./components/SignUpCalendarCard";
 import { SignUpTimeSlotsCard } from "./components/SignUpTimeSlotsCard";
 import { SignUpSuccessScreen } from "./components/SignUpSuccessScreen";
+import { getApiErrorMessage } from "@/services/apiError";
 
 const fmtDateLocal = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -95,8 +96,8 @@ export function ClientSignUp() {
     try {
       const res = await availabilityService.getSignUpSlots(token!, dateStr);
       setShifts(res.shifts ?? []);
-    } catch {
-      toast.error("Erro ao carregar turnos");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao carregar turnos"));
     } finally {
       setLoadingSlots(false);
     }
@@ -141,8 +142,7 @@ export function ClientSignUp() {
       setSubmitted(true);
     } catch (err) {
       // surfacia a mensagem do backend (ex.: 422 "número não tem WhatsApp"); fallback genérico
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg ?? "Erro ao agendar. Tente novamente.");
+      toast.error(getApiErrorMessage(err, "Erro ao agendar"));
     } finally {
       setSubmitting(false);
     }

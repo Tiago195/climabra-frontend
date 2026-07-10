@@ -14,6 +14,8 @@ import {
 } from "@/services/availability"
 import type { Shift } from "@/services/enums"
 import { SHIFT_LABELS, SHIFT_ORDER, DEFAULT_SHIFT_HOURS } from "@/lib/shifts"
+import { getApiErrorMessage, getFieldErrors } from "@/services/apiError"
+import { FieldError } from "@/components/ui/field-error"
 
 interface AddExceptionDialogProps {
   open: boolean
@@ -36,6 +38,7 @@ export function AddExceptionDialog({ open, onOpenChange, initialDate, onCreated 
   const [selectedShifts, setSelectedShifts] = useState<Set<Shift>>(new Set())
   const [reason, setReason] = useState("")
   const [saving, setSaving] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string> | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -83,14 +86,20 @@ export function AddExceptionDialog({ open, onOpenChange, initialDate, onCreated 
       payload.shifts = SHIFT_ORDER.filter(s => selectedShifts.has(s))
     }
 
+    setFieldErrors(null)
     setSaving(true)
     try {
       const created = await availabilityService.createException(token, payload)
       onCreated(created)
       toast.success("Bloqueio salvo!")
       onOpenChange(false)
-    } catch {
-      toast.error("Erro ao salvar bloqueio")
+    } catch (e) {
+      const fields = getFieldErrors(e)
+      if (fields) {
+        setFieldErrors(fields)
+      } else {
+        toast.error(getApiErrorMessage(e, "Erro ao salvar bloqueio"))
+      }
     } finally {
       setSaving(false)
     }
@@ -125,7 +134,9 @@ export function AddExceptionDialog({ open, onOpenChange, initialDate, onCreated 
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
                 className="h-9 text-sm"
+                aria-invalid={!!fieldErrors?.startDate}
               />
+              <FieldError message={fieldErrors?.startDate} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="exc-end-date" className="text-xs font-medium text-gray-700">
@@ -137,7 +148,9 @@ export function AddExceptionDialog({ open, onOpenChange, initialDate, onCreated 
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
                 className="h-9 text-sm"
+                aria-invalid={!!fieldErrors?.endDate}
               />
+              <FieldError message={fieldErrors?.endDate} />
             </div>
           </div>
 

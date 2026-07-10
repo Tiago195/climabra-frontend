@@ -19,6 +19,7 @@ import { FloatingSaveButton } from "./components/FloatingSaveButton"
 import { ExceptionsCalendarCard } from "./components/ExceptionsCalendarCard"
 import { ExceptionsList } from "./components/ExceptionsList"
 import { AddExceptionDialog } from "./components/AddExceptionDialog"
+import { getApiErrorMessage } from "@/services/apiError"
 
 /** Chave única por turno-dia. */
 const keyOf = (dayOfWeek: number, shift: Shift) => `${dayOfWeek}-${shift}`
@@ -45,12 +46,12 @@ export function Availability() {
     if (!token) return
     availabilityService.list(token)
       .then(setAvailability)
-      .catch(() => toast.error("Erro ao carregar disponibilidade"))
+      .catch(e => toast.error(getApiErrorMessage(e, "Erro ao carregar disponibilidade")))
       .finally(() => setLoading(false))
 
     availabilityService.listExceptions(token)
       .then(setExceptions)
-      .catch(() => toast.error("Erro ao carregar exceções"))
+      .catch(e => toast.error(getApiErrorMessage(e, "Erro ao carregar exceções")))
       .finally(() => setLoadingExceptions(false))
   }, [token])
 
@@ -139,8 +140,8 @@ export function Availability() {
       })
       setLocalConfig({})
       toast.success("Disponibilidade salva!")
-    } catch {
-      toast.error("Erro ao salvar")
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao salvar"))
     } finally {
       setSaving(false)
     }
@@ -166,8 +167,8 @@ export function Availability() {
       await availabilityService.deleteException(token, id)
       setExceptions(prev => prev.filter(e => e.id !== id))
       toast.success("Exceção removida")
-    } catch {
-      toast.error("Erro ao remover exceção")
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao remover exceção"))
     } finally {
       setDeletingExceptionId(null)
     }

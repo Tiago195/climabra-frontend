@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,12 +8,15 @@ import { Link, useNavigate } from "react-router-dom";
 import { Loader2, Wind, ShieldCheck } from "lucide-react";
 import { authService } from "@/services/auth";
 import { toast } from "sonner";
+import { getApiErrorMessage, getFieldErrors } from "@/services/apiError";
+import { FieldError } from "@/components/ui/field-error";
 
 export default function Register() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string> | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -30,6 +32,7 @@ export default function Register() {
       toast.error("Senha deve ter pelo menos 6 caracteres");
       return;
     }
+    setFieldErrors(null);
     setLoading(true);
     try {
       const provider = await authService.save(form);
@@ -37,8 +40,13 @@ export default function Register() {
       login(provider, token);
       toast.success("Conta criada! Bem-vindo.");
       navigate("/dashboard");
-    } catch (err: any) {
-      toast.error(err.message ?? "Erro ao criar conta");
+    } catch (err) {
+      const fields = getFieldErrors(err);
+      if (fields) {
+        setFieldErrors(fields);
+      } else {
+        toast.error(getApiErrorMessage(err, "Erro ao criar conta"));
+      }
     } finally {
       setLoading(false);
     }
@@ -63,11 +71,13 @@ export default function Register() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label>Email</Label>
-                <Input name="email" type="email" placeholder="seu@email.com" value={form.email} onChange={handleChange} autoFocus />
+                <Input name="email" type="email" placeholder="seu@email.com" value={form.email} onChange={handleChange} autoFocus aria-invalid={!!fieldErrors?.email} />
+                <FieldError message={fieldErrors?.email} />
               </div>
               <div className="space-y-2">
                 <Label>Senha</Label>
-                <Input name="password" type="password" placeholder="Mínimo 6 caracteres" value={form.password} onChange={handleChange} />
+                <Input name="password" type="password" placeholder="Mínimo 6 caracteres" value={form.password} onChange={handleChange} aria-invalid={!!fieldErrors?.password} />
+                <FieldError message={fieldErrors?.password} />
               </div>
               <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" size="lg" disabled={loading}>
                 {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}

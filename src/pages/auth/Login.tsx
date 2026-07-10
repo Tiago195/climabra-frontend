@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,8 @@ import { Loader2, Server, Wind } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
 import { DEFAULT_URL } from "@/services";
+import { getApiErrorMessage, getFieldErrors } from "@/services/apiError";
+import { FieldError } from "@/components/ui/field-error";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [upping, setUpping] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string> | null>(null);
   // const [resetting, setResetting] = useState(false);
 
   // const handleReset = async () => {
@@ -41,8 +43,8 @@ export default function Login() {
     try {
       await axios.get(`${DEFAULT_URL}/actuator/health/liveness`)
       toast.success('Servidor acordado')
-    } catch {
-      toast.error('Erro ao acordar o servidor.')
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Erro ao acordar o servidor'))
     } finally {
       setUpping(false)
     }
@@ -54,14 +56,20 @@ export default function Login() {
       toast.error("Preencha todos os campos")
       return;
     }
+    setFieldErrors(null);
     setLoading(true);
     try {
       const data = await authService.login({ email, password });
       login(data.provider, data.token);
       toast.success(`Bem-vindo, ${data.provider.name ?? data.provider.email}!`);
       navigate("/dashboard");
-    } catch (err: any) {
-      toast.error(err.message ?? "Email ou senha incorretos");
+    } catch (err) {
+      const fields = getFieldErrors(err);
+      if (fields) {
+        setFieldErrors(fields);
+      } else {
+        toast.error(getApiErrorMessage(err));
+      }
     } finally {
       setLoading(false);
     }
@@ -93,7 +101,9 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
+                  aria-invalid={!!fieldErrors?.email}
                 />
+                <FieldError message={fieldErrors?.email} />
               </div>
               <div className="space-y-2">
                 <Label>Senha</Label>
@@ -103,7 +113,9 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
+                  aria-invalid={!!fieldErrors?.password}
                 />
+                <FieldError message={fieldErrors?.password} />
               </div>
               <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" size="lg" disabled={loading}>
                 {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}

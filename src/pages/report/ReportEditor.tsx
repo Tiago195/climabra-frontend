@@ -14,6 +14,7 @@ import {
   Eye, User, Wind, ShieldCheck, Banknote, CalendarClock, CalendarPlus, Zap, XCircle,
 } from "lucide-react";
 import { DECLINED_REASON_LABEL } from "@/services/enums";
+import { getApiErrorMessage } from "@/services/apiError";
 
 // Data local (YYYY-MM-DD) — usada p/ detectar visita de execução já marcada hoje.
 const todayISO = () => {
@@ -202,7 +203,7 @@ export function ReportEditor() {
     if (!token || !id) return;
     reportService.getDetail(token, id)
       .then(setDetail)
-      .catch(() => toast.error("Erro ao carregar laudo"))
+      .catch(e => toast.error(getApiErrorMessage(e, "Erro ao carregar laudo")))
       .finally(() => setLoading(false));
   }, [token, id]);
 
@@ -212,8 +213,7 @@ export function ReportEditor() {
       const updated = await reportService.updateItem(token, id, itemId, patch);
       setDetail(updated);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao salvar item";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, "Erro ao salvar item"));
     }
   };
 
@@ -223,8 +223,8 @@ export function ReportEditor() {
     try {
       const updated = await reportService.addItem(token, id, { description: "Novo item" });
       setDetail(updated);
-    } catch {
-      toast.error("Erro ao adicionar item");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao adicionar item"));
     } finally {
       setAddingItem(false);
     }
@@ -235,8 +235,7 @@ export function ReportEditor() {
     try {
       setDetail(await reportService.deleteItem(token, id, itemId));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao remover item";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, "Erro ao remover item"));
     }
   };
 
@@ -247,8 +246,7 @@ export function ReportEditor() {
       setDetail(await reportService.send(token, id));
       toast.success("Pré-laudo enviado ao cliente!");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao enviar laudo";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, "Erro ao enviar laudo"));
     } finally {
       setSending(false);
     }
@@ -267,8 +265,7 @@ export function ReportEditor() {
       setDetail(updated);
       toast.success("Título salvo");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao salvar título";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, "Erro ao salvar título"));
       setTitleDraft(current);
     }
   };
@@ -283,8 +280,7 @@ export function ReportEditor() {
       setDetail(updated);
       toast.success("Diagnóstico salvo");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao salvar diagnóstico";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, "Erro ao salvar diagnóstico"));
       setDiagnosisDraft(current);
     }
   };
@@ -299,8 +295,7 @@ export function ReportEditor() {
       setDetail(updated);
       toast.success("Observações salvas");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao salvar observações";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, "Erro ao salvar observações"));
       setFinalNotesDraft(current);
     }
   };
@@ -312,8 +307,7 @@ export function ReportEditor() {
       const updated = await reportService.updateReport(token, id, { laborCents: cents });
       setDetail(updated);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao salvar mão de obra";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, "Erro ao salvar mão de obra"));
     }
   };
 
@@ -324,8 +318,7 @@ export function ReportEditor() {
       const updated = await reportService.updateReport(token, id, { travelCents: cents });
       setDetail(updated);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao salvar deslocamento";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, "Erro ao salvar deslocamento"));
     }
   };
 
@@ -342,8 +335,8 @@ export function ReportEditor() {
       await handleCommitTravel(est.suggestedCents);
       const km = est.distanceKm != null ? `${est.distanceKm.toLocaleString("pt-BR")} km` : "";
       toast.success(`Deslocamento sugerido${km ? ` (${km})` : ""} aplicado.`);
-    } catch {
-      toast.error("Erro ao estimar o deslocamento.");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao estimar o deslocamento"));
     } finally {
       setSuggestingTravel(false);
     }
@@ -356,8 +349,7 @@ export function ReportEditor() {
       setDetail(await reportService.complete(token, id));
       toast.success("Laudo finalizado!");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao finalizar laudo";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, "Erro ao finalizar laudo"));
     } finally {
       setCompleting(false);
     }
@@ -370,9 +362,7 @@ export function ReportEditor() {
       setDetail(await reportService.confirmCash(token, id));
       toast.success("Pagamento confirmado! Laudo liberado.");
     } catch (err) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-        ?? (err instanceof Error ? err.message : "Erro ao confirmar pagamento");
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, "Erro ao confirmar pagamento"));
     } finally {
       setConfirmingCash(false);
     }
@@ -383,8 +373,8 @@ export function ReportEditor() {
     if (!token || !id) return;
     try {
       setDetail(await reportService.getDetail(token, id));
-    } catch {
-      toast.error("Erro ao recarregar o laudo");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao recarregar o laudo"));
     }
   };
 
@@ -397,8 +387,7 @@ export function ReportEditor() {
       setDetail(await reportService.executeToday(token, id));
       toast.success("Execução de hoje iniciada! Suba as fotos antes/depois e finalize o laudo.");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao iniciar a execução de hoje";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, "Erro ao iniciar a execução de hoje"));
     } finally {
       setExecutingToday(false);
     }
@@ -1118,8 +1107,8 @@ function ItemCard({
         kind === "before" ? { photoBefore: url } : { photoAfter: url }
       );
       onItemUpdated(updated);
-    } catch {
-      toast.error("Erro ao fazer upload da foto");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao fazer upload da foto"));
     } finally {
       setUploading(null);
     }

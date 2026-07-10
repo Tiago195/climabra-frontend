@@ -1,11 +1,10 @@
-import axios from "axios"
-import { DEFAULT_URL } from "."
+import { createApi } from "."
 import { clientSession } from "./clientSession"
 import type { PaymentMethod } from "./report"
 
 // Checkout do laudo: exige a sessão do cliente (OTP/Q5). O header Authorization é
 // injetado a partir do clientSession (token vinculado a clientId+providerToken).
-const api = axios.create({ baseURL: `${DEFAULT_URL}/reports/public` })
+const api = createApi("/reports/public")
 
 export type CheckoutMethod = "pix" | "credit" | "debit" | "cash"
 

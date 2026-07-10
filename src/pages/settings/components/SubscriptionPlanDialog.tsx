@@ -16,6 +16,7 @@ import {
 } from "@/services/subscription"
 import { formatCents } from "./format"
 import { PLAN_META, PLAN_ORDER, planPriceCents, yearlyDiscountPercent } from "./subscription-plans"
+import { getApiErrorMessage } from "@/services/apiError"
 
 interface Props {
   open: boolean
@@ -90,9 +91,7 @@ export function SubscriptionPlanDialog({ open, plans, currentPlan, initialStep, 
       resetCard()
       onDone(sub)
     } catch (err) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        ?? "Não foi possível concluir. Tente novamente."
-      toast.error(msg)
+      toast.error(getApiErrorMessage(err, "Não foi possível concluir"))
     } finally {
       setSaving(false)
     }

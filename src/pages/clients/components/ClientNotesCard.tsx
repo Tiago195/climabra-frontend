@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { clientNoteService, type IClientNote } from "@/services/clientNote";
 import type { NoteKind } from "@/services/enums";
 import { formatRelative } from "@/lib/utils";
+import { getApiErrorMessage } from "@/services/apiError";
 
 const KIND_META: Record<NoteKind, { label: string; icon: typeof StickyNote; color: string }> = {
   note:            { label: "Anotação",         icon: StickyNote,     color: "text-gray-500" },
@@ -66,7 +67,7 @@ export function ClientNotesCard({ token, clientId }: Props) {
     setLoading(true);
     clientNoteService.list(token, clientId)
       .then(page => setNotes(page.items))
-      .catch(() => toast.error("Erro ao carregar anotações"))
+      .catch(e => toast.error(getApiErrorMessage(e, "Erro ao carregar anotações")))
       .finally(() => setLoading(false));
   };
 
@@ -92,8 +93,7 @@ export function ClientNotesCard({ token, clientId }: Props) {
       setKind("note");
       setRemindAt("");
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Erro ao salvar anotação";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(e, "Erro ao salvar anotação"));
     } finally {
       setSaving(false);
     }
@@ -120,8 +120,7 @@ export function ClientNotesCard({ token, clientId }: Props) {
       setNotes(prev => prev.map(n => (n.id === updated.id ? updated : n)));
       setEditing(null);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Erro ao atualizar anotação";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(e, "Erro ao atualizar anotação"));
     } finally {
       setEditSaving(false);
     }
@@ -131,8 +130,8 @@ export function ClientNotesCard({ token, clientId }: Props) {
     try {
       await clientNoteService.remove(token, clientId, noteId);
       setNotes(prev => prev.filter(n => n.id !== noteId));
-    } catch {
-      toast.error("Erro ao excluir anotação");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao excluir anotação"));
     }
   };
 

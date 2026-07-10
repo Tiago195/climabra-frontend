@@ -1,10 +1,7 @@
-import axios from 'axios'
-import { DEFAULT_URL } from '.'
+import { createApi } from '.'
 import type { GatewayAccountStatus, PaymentMethod, ProviderStatus } from './enums'
 
-const auth = axios.create({
-  baseURL: `${DEFAULT_URL}/providers`
-}) 
+const auth = createApi("/providers")
 
 export const authService = {
   async save(request: IAuthRequest) {

@@ -11,6 +11,7 @@ import type { EquipmentType } from "@/services/enums";
 import { formatPhone } from "@/lib/utils";
 import { uploadService } from "@/services/upload";
 import { Loader2 } from "lucide-react";
+import { getApiErrorMessage } from "@/services/apiError";
 
 const EQUIPMENT_TYPES = [
   { value: "split", label: "Split" },
@@ -74,8 +75,8 @@ export function SignUpDataForm({ onSubmit }: Props) {
     try {
       const uploaded = await Promise.all(files.map(f => uploadService.uploadPublic(f)));
       setPhotoUrls(prev => [...prev, ...uploaded]);
-    } catch {
-      toast.error("Erro ao enviar foto. Tente novamente.");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao enviar foto"));
     } finally {
       setUploadingPhotos(false);
     }

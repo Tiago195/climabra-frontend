@@ -12,6 +12,7 @@ import {
   DAY_NAMES_SHORT, MONTH_NAMES_SHORT, trimTime,
 } from "@/lib/shifts"
 import { nextBusinessDays, isSlotInPast } from "@/lib/slotSuggestions"
+import { getApiErrorMessage } from "@/services/apiError"
 
 interface Props {
   open: boolean
@@ -85,8 +86,8 @@ export function ScheduleExecutionDialog({
       toast.success("Visita de execução agendada!")
       onScheduled()
       onClose()
-    } catch {
-      toast.error("Erro ao agendar a visita de execução")
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao agendar a visita de execução"))
     } finally {
       setSubmitting(false)
     }

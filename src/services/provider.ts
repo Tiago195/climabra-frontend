@@ -1,10 +1,7 @@
-import axios from 'axios'
-import { DEFAULT_URL } from '.'
+import { createApi } from '.'
 import type { IProviderResponse } from './auth'
 
-const providerApi = axios.create({
-  baseURL: `${DEFAULT_URL}/providers`
-})
+const providerApi = createApi("/providers")
 
 export interface IProviderUpdateRequest {
   name: string

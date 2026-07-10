@@ -10,6 +10,7 @@ import { AsaasDisclosure } from "@/components/AsaasDisclosure";
 import { paymentMethodService, type IPaymentMethod } from "@/services/payment-method";
 import { AddCardDialog } from "./AddCardDialog";
 import { CardBrandIcon } from "./CardBrandIcon";
+import { getApiErrorMessage } from "@/services/apiError";
 
 interface Props {
   publicToken: string;
@@ -26,7 +27,7 @@ export function PortalPaymentMethodsCard({ publicToken, clientId }: Props) {
   useEffect(() => {
     paymentMethodService.list(publicToken, clientId)
       .then(setMethods)
-      .catch(() => toast.error("Não foi possível carregar suas formas de pagamento"))
+      .catch(e => toast.error(getApiErrorMessage(e, "Não foi possível carregar suas formas de pagamento")))
       .finally(() => setLoading(false));
   }, [publicToken, clientId]);
 
@@ -37,7 +38,7 @@ export function PortalPaymentMethodsCard({ publicToken, clientId }: Props) {
       setMethods(prev =>
         prev.map(x => ({ ...x, isDefault: x.id === m.id })));
     } catch (err) {
-      toast.error(apiError(err, "Erro ao definir o cartão padrão"));
+      toast.error(getApiErrorMessage(err, "Erro ao definir o cartão padrão"));
     } finally {
       setBusyId(null);
     }
@@ -53,7 +54,7 @@ export function PortalPaymentMethodsCard({ publicToken, clientId }: Props) {
       setMethods(fresh);
       toast.success("Cartão removido");
     } catch (err) {
-      toast.error(apiError(err, "Erro ao remover o cartão"));
+      toast.error(getApiErrorMessage(err, "Erro ao remover o cartão"));
     } finally {
       setBusyId(null);
       setRemoving(null);
@@ -207,11 +208,5 @@ export function PortalPaymentMethodsCard({ publicToken, clientId }: Props) {
           </div>
       </ResponsiveModal>
     </>
-  );
-}
-
-function apiError(err: unknown, fallback: string): string {
-  return (
-    (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
   );
 }

@@ -28,6 +28,7 @@ import {
 } from "@/services/pipeline";
 import { reportService } from "@/services/report";
 import { DECLINED_REASON_LABEL, type DeclinedReason } from "@/services/enums";
+import { getApiErrorMessage } from "@/services/apiError";
 
 // ── Rótulos ────────────────────────────────────────────────────────────────
 
@@ -414,8 +415,8 @@ export function Pipeline() {
       toast.success("Laudo marcado como perdido");
       setDeclineCard(null);
       await load();
-    } catch {
-      toast.error("Não foi possível marcar como perdido");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Não foi possível marcar como perdido"));
     } finally {
       setSubmitting(false);
     }

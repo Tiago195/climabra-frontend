@@ -64,13 +64,17 @@ export function RouteMap({ plan }: { plan: IRoutePlanResponse }) {
   if (bounds.length === 0) return null
 
   return (
-    <div className="rounded-lg overflow-hidden border border-gray-200">
+    // isolation: isolate contém os z-index altos dos panes/controles do Leaflet dentro deste
+    // wrapper, para não "vazarem" para o stacking context do documento e cobrirem dialogs
+    // (Requests.tsx renderiza este mapa na mesma tela que NewAppointmentDialog/AppointmentActions).
+    <div className="relative isolate z-0 rounded-lg overflow-hidden border border-gray-200">
       <MapContainer
         bounds={bounds.length > 1 ? (bounds as L.LatLngBoundsExpression) : undefined}
         center={bounds.length === 1 ? bounds[0] : undefined}
         zoom={bounds.length === 1 ? 14 : undefined}
         boundsOptions={{ padding: [30, 30] }}
         scrollWheelZoom={false}
+        className="z-0"
         style={{ height: 280, width: "100%" }}
       >
         <TileLayer

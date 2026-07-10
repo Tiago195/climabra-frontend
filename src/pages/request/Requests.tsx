@@ -22,6 +22,7 @@ import { NewAppointmentDialog } from "./components/NewAppointmentDialog";
 import { AppointmentTimelineView } from "./components/AppointmentTimelineView";
 import { AppointmentMapView } from "./components/AppointmentMapView";
 import { AppointmentHistoryView } from "./components/AppointmentHistoryView";
+import { getApiErrorMessage } from "@/services/apiError";
 
 type Tab = "future" | "past";
 type ViewMode = "timeline" | "map";
@@ -46,7 +47,7 @@ export function Requests() {
     if (!token) return;
     Promise.all([appointmentService.list(token), clientService.list(token)])
       .then(([appts, cls]) => { setAppointments(appts); setClients(cls); })
-      .catch(() => toast.error("Erro ao carregar dados"))
+      .catch(e => toast.error(getApiErrorMessage(e, "Erro ao carregar dados")))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -97,8 +98,8 @@ export function Requests() {
           : row
       ));
       toast.success("Visita marcada como concluída!");
-    } catch {
-      toast.error("Não foi possível concluir");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Não foi possível concluir"));
     }
   };
 
@@ -112,8 +113,8 @@ export function Requests() {
           : row
       ));
       toast.success("Agendamento cancelado.");
-    } catch {
-      toast.error("Erro ao cancelar agendamento");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao cancelar agendamento"));
     }
   };
 
@@ -127,8 +128,8 @@ export function Requests() {
         items: [{ description: "Inspeção geral" }],
       });
       navigate(`/dashboard/reports/${report.id}`);
-    } catch {
-      toast.error("Erro ao criar laudo");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao criar laudo"));
     } finally {
       setCreatingReportFor(null);
     }

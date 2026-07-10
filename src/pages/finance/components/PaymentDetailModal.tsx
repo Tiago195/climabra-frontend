@@ -10,6 +10,7 @@ import { financeService, type IPaymentDetail } from "@/services/finance";
 import { formatCents } from "@/lib/utils";
 import { formatShortDate } from "@/pages/settings/components/format";
 import { METHOD_LABEL, STATUS_LABEL, STATUS_BADGE_CLASS } from "../labels";
+import { getApiErrorMessage } from "@/services/apiError";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -41,9 +42,9 @@ export function PaymentDetailModal({
     setDetail(null);
     financeService.paymentDetail(token, paymentId)
       .then(setDetail)
-      .catch(() => {
+      .catch(e => {
         setError(true);
-        toast.error("Não foi possível carregar o detalhe do pagamento");
+        toast.error(getApiErrorMessage(e, "Não foi possível carregar o detalhe do pagamento"));
       })
       .finally(() => setLoading(false));
   }, [open, paymentId, token]);

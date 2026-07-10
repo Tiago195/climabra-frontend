@@ -8,6 +8,7 @@ import { MessageCircle, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { notificationService, type IMessageTemplate } from "@/services/notification";
 import { NOTIFICATION_TYPE_META } from "@/services/enums";
+import { getApiErrorMessage } from "@/services/apiError";
 
 interface Props {
   token: string;
@@ -46,8 +47,8 @@ export function ClientWhatsappCard({ token, clientId, clientName, optedOut }: Pr
       } else {
         toast.error("Falha ao enviar. Tente novamente.");
       }
-    } catch {
-      toast.error("Erro ao enviar a mensagem");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao enviar a mensagem"));
     } finally {
       setSending(false);
     }

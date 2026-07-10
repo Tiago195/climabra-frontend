@@ -13,6 +13,7 @@ import { ClientFinancialsCard } from "./components/ClientFinancialsCard";
 import { ClientNotesCard } from "./components/ClientNotesCard";
 import { ClientHistoryCard } from "./components/ClientHistoryCard";
 import { ClientWhatsappCard } from "./components/ClientWhatsappCard";
+import { getApiErrorMessage } from "@/services/apiError";
 
 export function ClientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -26,7 +27,7 @@ export function ClientDetail() {
     if (!token || !id) return;
     clientService.findById(token, id)
       .then(setData)
-      .catch(() => toast.error("Erro ao carregar cliente"))
+      .catch(e => toast.error(getApiErrorMessage(e, "Erro ao carregar cliente")))
       .finally(() => setLoading(false));
   }, [token, id]);
 

@@ -14,6 +14,7 @@ import { type ReportStatus } from "@/services/enums";
 import { toast } from "sonner";
 import { FileText, Plus, Trash2, Loader2, CalendarClock } from "lucide-react";
 import { compareScheduledShift, formatScheduledShift } from "@/lib/shifts";
+import { getApiErrorMessage } from "@/services/apiError";
 
 const STATUS_LABEL: Record<ReportStatus, { label: string; color: string }> = {
   draft:     { label: "Rascunho", color: "bg-gray-200 text-gray-700" },
@@ -42,7 +43,7 @@ export default function EquipmentReports({ equipment }: { equipment: IEquipmentR
     if (!token) return;
     reportService.listByEquipment(token, equipment.id)
       .then(setReports)
-      .catch(() => toast.error("Erro ao carregar laudos"))
+      .catch(e => toast.error(getApiErrorMessage(e, "Erro ao carregar laudos")))
       .finally(() => setLoading(false));
   }, [token, equipment.id]);
 
@@ -93,8 +94,7 @@ export default function EquipmentReports({ equipment }: { equipment: IEquipmentR
       resetForm();
       navigate(`/dashboard/reports/${created.id}`);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Erro ao criar laudo";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(e, "Erro ao criar laudo"));
     } finally {
       setSaving(false);
     }

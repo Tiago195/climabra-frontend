@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { AsaasDisclosure } from "@/components/AsaasDisclosure";
 import { paymentMethodService, type IPaymentMethod } from "@/services/payment-method";
 import { maskCardNumber, maskExpiry, maskCpf, onlyDigits, validateCard, parseCard } from "@/lib/card";
+import { getApiErrorMessage, getFieldErrors } from "@/services/apiError";
+import { FieldError } from "@/components/ui/field-error";
 
 interface Props {
   open: boolean;
@@ -24,6 +26,7 @@ export function AddCardDialog({ open, onClose, publicToken, clientId, onAdded }:
   const [ccv, setCcv] = useState("");
   const [cpf, setCpf] = useState("");
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string> | null>(null);
 
   const reset = () => {
     // Segurança: nunca persistir o cartão — limpar o state ao fechar.
@@ -38,6 +41,7 @@ export function AddCardDialog({ open, onClose, publicToken, clientId, onAdded }:
     if (error) { toast.error(error); return; }
     const parsed = parseCard({ number, holderName, expiry, ccv, cpf });
 
+    setFieldErrors(null);
     setSaving(true);
     try {
       const card = await paymentMethodService.save(publicToken, clientId, {
@@ -52,10 +56,12 @@ export function AddCardDialog({ open, onClose, publicToken, clientId, onAdded }:
       onAdded(card);
       handleClose();
     } catch (err) {
-      const msg =
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-        "Erro ao salvar o cartão";
-      toast.error(msg);
+      const fields = getFieldErrors(err);
+      if (fields) {
+        setFieldErrors(fields);
+      } else {
+        toast.error(getApiErrorMessage(err, "Erro ao salvar o cartão"));
+      }
     } finally {
       setSaving(false);
     }
@@ -82,9 +88,11 @@ export function AddCardDialog({ open, onClose, publicToken, clientId, onAdded }:
                 value={number}
                 onChange={e => setNumber(maskCardNumber(e.target.value))}
                 className="pr-10"
+                aria-invalid={!!fieldErrors?.number}
               />
               <CreditCard className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
+            <FieldError message={fieldErrors?.number} />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Nome do titular</Label>
@@ -93,7 +101,9 @@ export function AddCardDialog({ open, onClose, publicToken, clientId, onAdded }:
               placeholder="Como está no cartão"
               value={holderName}
               onChange={e => setHolderName(e.target.value)}
+              aria-invalid={!!fieldErrors?.holderName}
             />
+            <FieldError message={fieldErrors?.holderName} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">

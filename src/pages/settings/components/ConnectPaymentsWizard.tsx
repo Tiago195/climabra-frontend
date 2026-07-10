@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +9,7 @@ import { useAuth } from "@/contexts/authContext";
 import { paymentService, type CompanyType, type IPaymentSettings } from "@/services/payment";
 import { Loader2, ArrowLeft, ArrowRight, Building2, User } from "lucide-react";
 import { toast } from "sonner";
+import { getApiErrorMessage } from "@/services/apiError";
 
 type PersonType = "PF" | "PJ";
 
@@ -128,8 +128,8 @@ export function ConnectPaymentsWizard({ onConnected, onCancel }: Props) {
       updateProvider({ cpfCnpj: docDigits });
       toast.success("Conta de recebimento criada! Estamos verificando seus dados.");
       onConnected(settings);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.error ?? "Não foi possível criar sua conta de recebimento");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Não foi possível criar sua conta de recebimento"));
     } finally {
       setSaving(false);
     }

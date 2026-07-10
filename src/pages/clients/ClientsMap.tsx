@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/authContext";
 import { clientService, type IClientResponse } from "@/services/client";
 import { toast } from "sonner";
 import { ClientMapPanel } from "./components/ClientMapPanel";
+import { getApiErrorMessage } from "@/services/apiError";
 
 /**
  * Mapa de clientes em página cheia (CRM F5, redesenhado a partir do Stitch). No desktop a
@@ -25,7 +26,7 @@ export function ClientsMap() {
     if (!token) return;
     clientService.list(token)
       .then(setClients)
-      .catch(() => toast.error("Erro ao carregar clientes"))
+      .catch(e => toast.error(getApiErrorMessage(e, "Erro ao carregar clientes")))
       .finally(() => setLoading(false));
   }, [token]);
 

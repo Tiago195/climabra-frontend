@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { clientService, type IPortalEquipment } from "@/services/client";
 import type { EquipmentType } from "@/services/enums";
+import { getApiErrorMessage } from "@/services/apiError";
 
 const EQUIPMENT_TYPES = [
   { value: "split", label: "Split" },
@@ -50,8 +51,8 @@ export function AddEquipmentDialog({ open, onClose, publicToken, clientId, onAdd
       toast.success("Equipamento adicionado!");
       onAdded(equipment);
       handleClose();
-    } catch {
-      toast.error("Erro ao adicionar equipamento");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Erro ao adicionar equipamento"));
     } finally {
       setSaving(false);
     }
