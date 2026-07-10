@@ -13,6 +13,7 @@ const REPORT_STATUS_LABELS: Record<ReportStatus, string> = {
   approved: "Aprovado",
   awaiting_execution: "Aguardando execução",
   completed: "Concluído",
+  declined: "Perdido",
 }
 
 const REPORT_STATUS_COLORS: Record<ReportStatus, string> = {
@@ -22,6 +23,7 @@ const REPORT_STATUS_COLORS: Record<ReportStatus, string> = {
   approved: "bg-violet-100 text-violet-700",
   awaiting_execution: "bg-amber-100 text-amber-700",
   completed: "bg-green-100 text-green-700",
+  declined: "bg-red-100 text-red-700",
 }
 
 interface Props {

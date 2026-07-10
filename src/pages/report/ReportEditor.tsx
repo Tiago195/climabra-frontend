@@ -11,8 +11,9 @@ import { providerService } from "@/services/provider";
 import { uploadService } from "@/services/upload";
 import {
   ArrowLeft, Plus, Trash2, Camera, Send, CheckCircle2, Copy, Loader2,
-  Eye, User, Wind, ShieldCheck, Banknote, CalendarClock, CalendarPlus, Zap,
+  Eye, User, Wind, ShieldCheck, Banknote, CalendarClock, CalendarPlus, Zap, XCircle,
 } from "lucide-react";
+import { DECLINED_REASON_LABEL } from "@/services/enums";
 
 // Data local (YYYY-MM-DD) — usada p/ detectar visita de execução já marcada hoje.
 const todayISO = () => {
@@ -36,6 +37,7 @@ const STATUS_META: Record<string, { label: string; pillClass: string; dotClass: 
   approved:  { label: "Aprovado pelo cliente",   pillClass: "bg-teal-50 text-teal-700 border-teal-200",     dotClass: "bg-teal-500" },
   awaiting_execution: { label: "Aguardando execução", pillClass: "bg-amber-50 text-amber-700 border-amber-200", dotClass: "bg-amber-500" },
   completed: { label: "Concluído",               pillClass: "bg-emerald-50 text-emerald-700 border-emerald-200", dotClass: "bg-emerald-500" },
+  declined:  { label: "Perdido",                 pillClass: "bg-rose-50 text-rose-700 border-rose-200",       dotClass: "bg-rose-500" },
 };
 
 const centsToBRL = (cents: number | null | undefined) =>
@@ -461,6 +463,8 @@ export function ReportEditor() {
   const canExecute = report.status === "approved" || isAwaitingExecution;
   const isCompleted = report.status === "completed";
   const isAwaitingPayment = report.status === "awaiting_payment";
+  // Terminal: perda comercial (CRM F2). Não deve oferecer envio/finalização/pagamento.
+  const isDeclined = report.status === "declined";
   const isCashPending = isAwaitingPayment && detail.financial?.payment?.method === "cash";
   const activeItems = items.filter(i => !i.rejected);
   const itemsCompleted = activeItems.filter(i => i.photoBefore && i.photoAfter).length;
@@ -480,7 +484,7 @@ export function ReportEditor() {
 
   return (
     <div className="min-h-[100dvh] bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 pt-6 pb-28 md:pb-6">
+      <div className="max-w-4xl mx-auto px-4 pt-6 pb-44 md:pb-6">
         {/* Breadcrumb */}
         <div className="flex items-center justify-between mb-4">
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="-ml-2 text-gray-600">
@@ -530,6 +534,25 @@ export function ReportEditor() {
               </span>
             </div>
           </div>
+
+          {/* Laudo perdido (CRM F2): motivo + data — terminal, sem ações de negócio abaixo */}
+          {isDeclined && (
+            <div className="px-6 py-3 bg-rose-50/60 border-b border-rose-100">
+              <div className="flex items-start gap-2 text-sm">
+                <XCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="font-medium text-rose-800">
+                    Laudo perdido
+                    {report.declinedReason && ` · ${DECLINED_REASON_LABEL[report.declinedReason]}`}
+                    {report.declinedAt && ` · ${new Date(report.declinedAt).toLocaleString("pt-BR")}`}
+                  </p>
+                  {report.declinedReasonText && (
+                    <p className="text-rose-700/90 mt-0.5">{report.declinedReasonText}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Context row */}
           <div className="px-6 py-4 grid grid-cols-1 sm:grid-cols-2 gap-3 border-b border-gray-100">
@@ -594,14 +617,14 @@ export function ReportEditor() {
                     onClick={copyLink}
                     className="h-11 inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white text-sm font-medium text-blue-700 active:bg-blue-100 transition"
                   >
-                    {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    {copied ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" /> : <Copy className="w-4 h-4 shrink-0" />}
                     {copied ? "Copiado!" : "Copiar link"}
                   </button>
                   <a
                     href={publicLink} target="_blank" rel="noreferrer"
                     className="h-11 inline-flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white text-sm font-medium text-blue-700 active:bg-blue-100 transition"
                   >
-                    <Eye className="w-4 h-4" />
+                    <Eye className="w-4 h-4 shrink-0" />
                     Ver como cliente
                   </a>
                 </div>
@@ -926,14 +949,22 @@ export function ReportEditor() {
                 Concluído em {new Date(report.completedAt!).toLocaleString("pt-BR")}
               </span>
             )}
+
+            {isDeclined && (
+              <span className="text-xs text-rose-700 font-medium inline-flex items-center gap-1.5">
+                <XCircle className="w-4 h-4" />
+                Laudo perdido — sem novas ações.
+              </span>
+            )}
           </div>
         </div>
       </div>
 
       {/* Action bar (mobile, fixa no rodapé): total + ação contextual sempre à mão */}
-      <div className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+      {/* Fica acima do bottom nav fixo (Layout.tsx), que reserva 4rem + safe-area no rodapé mobile */}
+      <div className="md:hidden fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-gray-200 bg-white px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
         <div className="max-w-4xl mx-auto flex items-center gap-3">
-          {!isCompleted && (
+          {!isCompleted && !isDeclined && (
             <div className="shrink-0">
               <div className="text-[11px] leading-none text-gray-500">Total</div>
               <div className="text-lg font-bold text-gray-900 tabular-nums leading-tight">{centsToBRL(total)}</div>
@@ -997,6 +1028,12 @@ export function ReportEditor() {
             {isCompleted && (
               <p className="w-full text-xs text-emerald-700 font-medium inline-flex items-center justify-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4" /> Concluído em {new Date(report.completedAt!).toLocaleString("pt-BR")}
+              </p>
+            )}
+
+            {isDeclined && (
+              <p className="w-full text-xs text-rose-700 font-medium inline-flex items-center justify-center gap-1.5">
+                <XCircle className="w-4 h-4" /> Laudo perdido — sem novas ações.
               </p>
             )}
           </div>

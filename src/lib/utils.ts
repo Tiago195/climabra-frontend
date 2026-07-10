@@ -30,6 +30,33 @@ export function monthRange(period: "current" | "previous"): { start: string; end
   return { start: toLocalIso(start), end: toLocalIso(end) }
 }
 
+/**
+ * Intervalo [start, end) em ISO date-time local a partir de duas datas
+ * `"YYYY-MM-DD"` (inputs nativos de data). `end` é exclusivo — soma 1 dia à
+ * data final para incluir o dia inteiro selecionado.
+ */
+export function customDateRange(startDate: string, endDate: string): { start: string; end: string } {
+  const [sy, sm, sd] = startDate.split("-").map(Number)
+  const [ey, em, ed] = endDate.split("-").map(Number)
+  const start = new Date(sy, sm - 1, sd, 0, 0, 0)
+  const end = new Date(ey, em - 1, ed + 1, 0, 0, 0) // +1 dia — fim exclusivo
+  const toLocalIso = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T00:00:00`
+  return { start: toLocalIso(start), end: toLocalIso(end) }
+}
+
+/** Dispara o download de um Blob no browser com o nome de arquivo dado. */
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
 export function formatPhone(value: string) {
   const d = value.replace(/\D/g, "").slice(0, 11)
   if (d.length === 0) return ""
@@ -37,6 +64,22 @@ export function formatPhone(value: string) {
   if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
   if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+}
+
+/** Data relativa curta em pt-BR: "agora", "há 5 min", "há 3 h", "há 2 d", ou dd/mm/aaaa se > 30 dias. */
+export function formatRelative(iso?: string | null): string {
+  if (!iso) return ""
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ""
+  const diffMs = Date.now() - d.getTime()
+  const diffMin = Math.round(diffMs / 60_000)
+  if (diffMin < 1) return "agora"
+  if (diffMin < 60) return `há ${diffMin} min`
+  const diffH = Math.round(diffMin / 60)
+  if (diffH < 24) return `há ${diffH} h`
+  const diffD = Math.round(diffH / 24)
+  if (diffD < 30) return `há ${diffD} d`
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
 export async function fileToCompressedDataUrl(file: File, maxSize = 1280, quality = 0.75): Promise<string> {

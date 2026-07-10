@@ -1,7 +1,7 @@
 import axios from "axios"
 import { DEFAULT_URL } from "."
 import { attachPaywall } from "./paywall"
-import type { AppointmentStatus, EquipmentType, ReportStatus, Shift, VisitType } from "./enums"
+import type { AppointmentStatus, DeclinedReason, EquipmentType, ReportStatus, Shift, VisitType } from "./enums"
 
 const api = axios.create({ baseURL: `${DEFAULT_URL}/reports` })
 attachPaywall(api)
@@ -98,6 +98,10 @@ export interface IReportDetailResponse {
     photoBeforeAt: string | null
     photoAfterAt: string | null
     completedAt: string | null
+    /** Perda comercial (CRM F2): preenchidos quando status = "declined". */
+    declinedReason: DeclinedReason | null
+    declinedReasonText: string | null
+    declinedAt: string | null
   }
   items: IReportItemResponse[]
   equipment: { id: string; type: EquipmentType; brand: string; model: string; label: string }
@@ -278,6 +282,17 @@ export const reportService = {
   /** Provider confirma o recebimento em dinheiro (Fase 3) → laudo vira approved. */
   async confirmCash(token: string, reportId: string): Promise<IReportDetailResponse> {
     const { data } = await api.post(`/${reportId}/confirm-cash`, {}, authHeader(token))
+    return data
+  },
+
+  /**
+   * Marca o laudo como perda comercial (CRM F2): `sent`/`awaiting_payment` →
+   * `declined`, guardando o motivo. Só o provider marca a recusa.
+   */
+  async decline(
+    token: string, reportId: string, reason: DeclinedReason, reasonText?: string
+  ): Promise<IReportDetailResponse> {
+    const { data } = await api.post(`/${reportId}/decline`, { reason, reasonText }, authHeader(token))
     return data
   },
 

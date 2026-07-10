@@ -10,6 +10,9 @@ import { ClientInfoCard } from "./components/ClientInfoCard";
 import { ClientEquipmentsCard } from "./components/ClientEquipmentsCard";
 import { ClientPortalCard } from "./components/ClientPortalCard";
 import { ClientFinancialsCard } from "./components/ClientFinancialsCard";
+import { ClientNotesCard } from "./components/ClientNotesCard";
+import { ClientHistoryCard } from "./components/ClientHistoryCard";
+import { ClientWhatsappCard } from "./components/ClientWhatsappCard";
 
 export function ClientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -47,7 +50,22 @@ export function ClientDetail() {
         </Button>
       </div>
 
-      <ClientInfoCard client={data.client} />
+      {token && (
+        <ClientInfoCard
+          client={data.client}
+          token={token}
+          onUpdated={updatedClient => setData(prev => prev ? { ...prev, client: updatedClient } : prev)}
+        />
+      )}
+
+      {token && (
+        <ClientWhatsappCard
+          token={token}
+          clientId={data.client.id.toString()}
+          clientName={data.client.name}
+          optedOut={data.client.notificationsOptOut}
+        />
+      )}
 
       {token && <ClientFinancialsCard token={token} clientId={data.client.id.toString()} />}
 
@@ -59,6 +77,16 @@ export function ClientDetail() {
       )}
 
       <ClientEquipmentsCard equipments={data.equipments} />
+
+      {token && <ClientNotesCard token={token} clientId={data.client.id.toString()} />}
+
+      {token && (
+        <ClientHistoryCard
+          token={token}
+          clientId={data.client.id.toString()}
+          equipments={data.equipments}
+        />
+      )}
     </div>
   );
 }

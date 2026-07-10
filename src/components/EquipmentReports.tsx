@@ -22,6 +22,7 @@ const STATUS_LABEL: Record<ReportStatus, { label: string; color: string }> = {
   approved:  { label: "Aprovado", color: "bg-blue-100 text-blue-800" },
   awaiting_execution: { label: "Aguardando execução", color: "bg-amber-100 text-amber-800" },
   completed: { label: "Concluído", color: "bg-green-100 text-green-800" },
+  declined:  { label: "Perdido", color: "bg-red-100 text-red-800" },
 };
 
 export default function EquipmentReports({ equipment }: { equipment: IEquipmentResponse }) {

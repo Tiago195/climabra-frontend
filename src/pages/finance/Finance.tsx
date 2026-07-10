@@ -1,25 +1,28 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
-  Wallet, Clock, Receipt, CheckCircle2, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, AlertCircle,
+  Wallet, Clock, Receipt, CheckCircle2, TrendingUp, TrendingDown, ChevronLeft, ChevronRight, AlertCircle, Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/authContext";
 import {
   financeService,
   type IRevenue, type IMonthlyRevenuePoint, type ITopClient, type IPaymentsPage,
+  type IConversion, type IPaymentListItem,
 } from "@/services/finance";
 import type { PaymentMethod } from "@/services/enums";
-import { formatCents, deltaPercent, monthRange } from "@/lib/utils";
+import { formatCents, deltaPercent, monthRange, customDateRange, downloadBlob } from "@/lib/utils";
 import { MonthlyRevenueChart } from "./components/MonthlyRevenueChart";
 import { TopClientsCard } from "./components/TopClientsCard";
 import { PaymentsList } from "./components/PaymentsList";
+import { ConversionCard } from "./components/ConversionCard";
+import { PaymentDetailModal } from "./components/PaymentDetailModal";
 import { METHOD_LABEL } from "./labels";
 
 type Tab = "recebidos" | "areceber";
-type Period = "current" | "previous";
+type Period = "current" | "previous" | "custom";
 
 const PAGE_SIZE = 20;
 const METHOD_CHIPS: PaymentMethod[] = ["pix", "credit", "debit", "cash", "boleto"];
@@ -75,12 +78,31 @@ export function Finance() {
 
   const [tab, setTab] = useState<Tab>("recebidos");
   const [period, setPeriod] = useState<Period>("current");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
   const [method, setMethod] = useState<PaymentMethod | undefined>(undefined);
   const [page, setPage] = useState(0);
 
   const [payments, setPayments] = useState<IPaymentsPage | null>(null);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState(false);
+
+  const [conversion, setConversion] = useState<IConversion | null>(null);
+  const [conversionLoading, setConversionLoading] = useState(true);
+
+  const [selectedPayment, setSelectedPayment] = useState<IPaymentListItem | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  const [exporting, setExporting] = useState(false);
+
+  // Intervalo do período selecionado — `null` quando "Personalizado" ainda não
+  // tem as duas datas preenchidas (evita disparar fetch com filtro incompleto).
+  const range = useMemo(() => {
+    if (period === "custom") {
+      return customStart && customEnd ? customDateRange(customStart, customEnd) : null;
+    }
+    return monthRange(period);
+  }, [period, customStart, customEnd]);
 
   // ── KPIs + chart + top clients ───────────────────────────────────────────────
   const loadSummary = useCallback(() => {
@@ -113,17 +135,20 @@ export function Finance() {
 
   // ── Lista de pagamentos (reage a tab/período/método/página) ──────────────────
   // Tab "A receber" é o pipeline COMPLETO de pendências (mesma soma do KPI):
-  // não aplica período. O filtro de mês só vale para "Recebidos".
+  // não aplica período. O filtro de mês (incl. "Personalizado", F6.4) só vale
+  // para "Recebidos". "Personalizado" sem as duas datas ainda: não busca.
+  const activeRange = tab === "recebidos" ? range : null;
+  const customIncomplete = tab === "recebidos" && period === "custom" && !range;
+
   const loadList = useCallback(() => {
-    if (!token) return;
+    if (!token || customIncomplete) return;
     setListLoading(true);
     setListError(false);
-    const range = tab === "recebidos" ? monthRange(period) : null;
     financeService.payments(token, {
       status: tab === "recebidos" ? "paid" : "pending",
       method,
-      start: range?.start,
-      end: range?.end,
+      start: activeRange?.start,
+      end: activeRange?.end,
       page,
       size: PAGE_SIZE,
     })
@@ -134,12 +159,43 @@ export function Finance() {
         toast.error("Não foi possível carregar os pagamentos");
       })
       .finally(() => setListLoading(false));
-  }, [token, tab, period, method, page]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, tab, activeRange?.start, activeRange?.end, method, page, customIncomplete]);
 
   useEffect(() => { loadList(); }, [loadList]);
 
   // Reseta a página ao trocar filtros.
-  useEffect(() => { setPage(0); }, [tab, period, method]);
+  useEffect(() => { setPage(0); }, [tab, period, customStart, customEnd, method]);
+
+  // ── Conversão do período (CRM F6.1) — só no tab "Recebidos", mesmo período. ──
+  const loadConversion = useCallback(() => {
+    if (!token || customIncomplete || tab !== "recebidos") return;
+    setConversionLoading(true);
+    financeService.conversion(token, { start: activeRange?.start, end: activeRange?.end })
+      .then(setConversion)
+      .catch(() => setConversion(null))
+      .finally(() => setConversionLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, tab, activeRange?.start, activeRange?.end, customIncomplete]);
+
+  useEffect(() => { loadConversion(); }, [loadConversion]);
+
+  // ── Export CSV (F6.3) — endpoint dedicado com os mesmos filtros da lista,
+  // sem paginação (a lista da tela é paginada; exportar só a página visível
+  // seria enganoso).
+  const handleExport = useCallback(() => {
+    if (!token || customIncomplete) return;
+    setExporting(true);
+    financeService.exportPaymentsCsv(token, {
+      status: tab === "recebidos" ? "paid" : "pending",
+      method,
+      start: activeRange?.start,
+      end: activeRange?.end,
+    })
+      .then(blob => downloadBlob(blob, "pagamentos.csv"))
+      .catch(() => toast.error("Não foi possível exportar os pagamentos"))
+      .finally(() => setExporting(false));
+  }, [token, tab, activeRange, method, customIncomplete]);
 
   const current = revenue?.currentMonthCents ?? 0;
   const previous = revenue?.previousMonthCents ?? 0;
@@ -237,7 +293,7 @@ export function Finance() {
           <div className="flex flex-wrap gap-2 items-center">
             {tab === "recebidos" ? (
               <>
-                {([["current", "Este mês"], ["previous", "Mês passado"]] as const).map(([key, label]) => (
+                {([["current", "Este mês"], ["previous", "Mês passado"], ["custom", "Personalizado"]] as const).map(([key, label]) => (
                   <button
                     key={key}
                     onClick={() => setPeriod(key)}
@@ -248,6 +304,27 @@ export function Finance() {
                     {label}
                   </button>
                 ))}
+                {period === "custom" && (
+                  <span className="flex items-center gap-1.5 flex-wrap">
+                    <input
+                      type="date"
+                      value={customStart}
+                      onChange={e => setCustomStart(e.target.value)}
+                      max={customEnd || undefined}
+                      className="text-xs border rounded-md px-2 py-1 h-7 text-gray-700"
+                      aria-label="Data inicial"
+                    />
+                    <span className="text-xs text-gray-400">até</span>
+                    <input
+                      type="date"
+                      value={customEnd}
+                      onChange={e => setCustomEnd(e.target.value)}
+                      min={customStart || undefined}
+                      className="text-xs border rounded-md px-2 py-1 h-7 text-gray-700"
+                      aria-label="Data final"
+                    />
+                  </span>
+                )}
                 <span className="w-px self-stretch bg-gray-200 mx-1" aria-hidden />
               </>
             ) : (
@@ -274,27 +351,52 @@ export function Finance() {
             ))}
           </div>
 
-          {/* Total do período filtrado */}
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-gray-500">
-              {payments ? `${payments.totalElements} ${payments.totalElements === 1 ? "pagamento" : "pagamentos"}` : ""}
-            </p>
-            <p className="text-sm">
-              <span className="text-gray-500">{tab === "recebidos" ? "Total do período: " : "Total a receber: "}</span>
-              <span className="font-bold text-gray-900">
-                {listError ? "—" : formatCents(payments?.totalCents ?? 0)}
-              </span>
-            </p>
-          </div>
-
-          {listError ? (
+          {customIncomplete ? (
             <div className="text-center py-10 text-gray-400">
-              <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm mb-3">Não foi possível carregar os pagamentos.</p>
-              <Button variant="outline" size="sm" onClick={loadList}>Tentar novamente</Button>
+              <p className="text-sm">Selecione a data inicial e final do período personalizado.</p>
             </div>
           ) : (
-            <PaymentsList items={payments?.items ?? []} loading={listLoading} />
+            <>
+              {/* Conversão do período (CRM F6.1) — só no tab "Recebidos". */}
+              {tab === "recebidos" && <ConversionCard data={conversion} loading={conversionLoading} />}
+
+              {/* Total do período filtrado + export CSV */}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-xs text-gray-500">
+                  {payments ? `${payments.totalElements} ${payments.totalElements === 1 ? "pagamento" : "pagamentos"}` : ""}
+                </p>
+                <div className="flex items-center gap-3">
+                  <p className="text-sm">
+                    <span className="text-gray-500">{tab === "recebidos" ? "Total do período: " : "Total a receber: "}</span>
+                    <span className="font-bold text-gray-900">
+                      {listError ? "—" : formatCents(payments?.totalCents ?? 0)}
+                    </span>
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExport}
+                    disabled={exporting || !payments || payments.totalElements === 0}
+                  >
+                    <Download className="w-3.5 h-3.5" /> {exporting ? "Exportando..." : "Exportar CSV"}
+                  </Button>
+                </div>
+              </div>
+
+              {listError ? (
+                <div className="text-center py-10 text-gray-400">
+                  <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm mb-3">Não foi possível carregar os pagamentos.</p>
+                  <Button variant="outline" size="sm" onClick={loadList}>Tentar novamente</Button>
+                </div>
+              ) : (
+                <PaymentsList
+                  items={payments?.items ?? []}
+                  loading={listLoading}
+                  onSelect={p => { setSelectedPayment(p); setDetailOpen(true); }}
+                />
+              )}
+            </>
           )}
 
           {/* Paginação */}
@@ -323,6 +425,12 @@ export function Finance() {
           )}
         </CardContent>
       </Card>
+
+      <PaymentDetailModal
+        paymentId={selectedPayment?.paymentId ?? null}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
     </div>
   );
 }

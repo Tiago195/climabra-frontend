@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Building2, CreditCard, Receipt, Bell, Users } from "lucide-react";
 import { PaymentsSection } from "./components/PaymentsSection";
 import { SubscriptionSection } from "./components/SubscriptionSection";
+import { NotificationsSection } from "./components/NotificationsSection";
 import {
   Select,
   SelectContent,
@@ -14,7 +15,7 @@ const sections = [
   { key: "company", label: "Perfil da empresa", icon: Building2, soon: true },
   { key: "payments", label: "Pagamentos", icon: CreditCard, soon: false },
   { key: "subscription", label: "Assinatura", icon: Receipt, soon: false },
-  { key: "notifications", label: "Notificações", icon: Bell, soon: true },
+  { key: "notifications", label: "Notificações", icon: Bell, soon: false },
   { key: "team", label: "Equipe", icon: Users, soon: true },
 ];
 
@@ -83,6 +84,7 @@ export function Settings() {
         <div className="min-w-0">
           {active === "payments" && <PaymentsSection />}
           {active === "subscription" && <SubscriptionSection />}
+          {active === "notifications" && <NotificationsSection />}
         </div>
       </div>
     </div>

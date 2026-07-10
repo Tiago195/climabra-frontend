@@ -3,9 +3,13 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import AddressFieldsForm, { emptyAddress, type AddressData } from "@/components/AddressFieldsForm";
-import { clientService, type IClientResponse } from "@/services/client";
+import { TagsEditor } from "@/components/TagsEditor";
+import { clientService, type ClientType, type IClientResponse } from "@/services/client";
 import { toast } from "sonner";
 import { formatPhone } from "@/lib/utils";
 
@@ -20,6 +24,8 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
   const [address, setAddress] = useState<AddressData>(emptyAddress);
+  const [clientType, setClientType] = useState<ClientType | "">("");
+  const [tags, setTags] = useState<string[]>([]);
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -45,11 +51,15 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
         neighborhood: address.neighborhood,
         city: address.city,
         state: address.state,
+        clientType: clientType || undefined,
+        tags: tags.length > 0 ? tags : undefined,
       });
       onCreated(created);
       onOpenChange(false);
       setForm({ name: "", phone: "", email: "" });
       setAddress(emptyAddress);
+      setClientType("");
+      setTags([]);
       toast.success("Cliente cadastrado!");
     } catch (err) {
       // surfacia a mensagem do backend (ex.: 422 "número não tem WhatsApp"); fallback genérico
@@ -89,6 +99,22 @@ export function CreateClientDialog({ open, onOpenChange, token, onCreated }: Pro
               value={form.email}
               onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
             />
+          </div>
+          <div className="space-y-2">
+            <Label>Tipo de cliente</Label>
+            <Select value={clientType || undefined} onValueChange={v => setClientType(v as ClientType)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Não classificado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="residential">Residencial</SelectItem>
+                <SelectItem value="commercial">Comercial</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Tags</Label>
+            <TagsEditor tags={tags} onChange={setTags} />
           </div>
           <div className="pt-2 border-t">
             <p className="text-sm font-medium text-gray-700 mb-3">Endereço</p>

@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Receipt } from "lucide-react";
 import type { IPaymentListItem } from "@/services/finance";
@@ -20,12 +19,12 @@ function refDate(p: IPaymentListItem): string {
 
 /**
  * Lista de pagamentos — mobile-first: cards empilhados no mobile, tabela no
- * desktop (`hidden md:*`). Clique abre o laudo. Sem scroll horizontal no mobile.
+ * desktop (`hidden md:*`). Clique abre o detalhe do pagamento (CRM F6.2), que
+ * traz um atalho para o laudo. Sem scroll horizontal no mobile.
  */
-export function PaymentsList({ items, loading }: { items: IPaymentListItem[]; loading: boolean }) {
-  const navigate = useNavigate();
-  const open = (p: IPaymentListItem) => navigate(`/dashboard/reports/${p.reportId}`);
-
+export function PaymentsList({
+  items, loading, onSelect,
+}: { items: IPaymentListItem[]; loading: boolean; onSelect: (p: IPaymentListItem) => void }) {
   if (loading) {
     return (
       <div className="space-y-2">
@@ -50,7 +49,7 @@ export function PaymentsList({ items, loading }: { items: IPaymentListItem[]; lo
         {items.map(p => (
           <button
             key={p.paymentId}
-            onClick={() => open(p)}
+            onClick={() => onSelect(p)}
             className="w-full text-left bg-white border rounded-lg p-3 hover:bg-gray-50 transition-colors"
           >
             <div className="flex items-start justify-between gap-2">
@@ -89,7 +88,7 @@ export function PaymentsList({ items, loading }: { items: IPaymentListItem[]; lo
             {items.map(p => (
               <tr
                 key={p.paymentId}
-                onClick={() => open(p)}
+                onClick={() => onSelect(p)}
                 className="border-b last:border-0 hover:bg-gray-50 cursor-pointer"
               >
                 <td className="py-3 pr-4 text-gray-500 whitespace-nowrap">{refDate(p)}</td>

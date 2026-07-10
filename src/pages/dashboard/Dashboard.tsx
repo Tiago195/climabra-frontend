@@ -9,6 +9,7 @@ import { useRequireAccess } from "@/components/SubscriptionGate";
 import { clientService, type IClientResponse } from "@/services/client";
 import { appointmentService, type IAppointmentDetailResponse } from "@/services/appointment";
 import { PaymentsBanner } from "./components/PaymentsBanner";
+import { NextActionsCard } from "./components/NextActionsCard";
 import { TodayAgendaCard } from "./components/TodayAgendaCard";
 import { WeekVisitsChart } from "./components/WeekVisitsChart";
 import { RevenueCard } from "./components/RevenueCard";
@@ -57,6 +58,8 @@ export function Dashboard() {
           Novo cliente
         </Button>
       </div>
+
+      {isProfileComplete && <NextActionsCard />}
 
       {!isProfileComplete && (
         <Card className="border-amber-200 bg-amber-50">

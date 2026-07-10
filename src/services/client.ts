@@ -9,6 +9,8 @@ attachPaywall(api)
 
 const authHeader = (token: string) => ({ headers: { Authorization: `Bearer ${token}` } })
 
+export type ClientType = "residential" | "commercial"
+
 export interface IClientResponse {
   id: string
   name: string
@@ -23,6 +25,9 @@ export interface IClientResponse {
   state: string
   lat?: number | null
   lng?: number | null
+  clientType?: ClientType | null
+  tags: string[]
+  notificationsOptOut: boolean
   createdAt: string
   updatedAt: string
 }
@@ -38,6 +43,16 @@ export interface IClientCreateRequest {
   neighborhood: string
   city: string
   state: string
+  clientType?: ClientType
+  tags?: string[]
+}
+
+export interface IClientUpdateSegmentRequest {
+  clientType?: ClientType
+  clearClientType?: boolean
+  tags?: string[]
+  /** Opt-out de mensagens automáticas (CRM F3 / LGPD). undefined = não alterar. */
+  notificationsOptOut?: boolean
 }
 
 export interface IEquipmentResponse {
@@ -154,6 +169,12 @@ export const clientService = {
 
   async create(token: string, payload: IClientCreateRequest): Promise<IClientResponse> {
     const { data } = await api.post("", payload, authHeader(token))
+    return data
+  },
+
+  /** Atualiza tipo e/ou tags do cliente (CRM F5 — segmentação). */
+  async updateSegment(token: string, id: string, payload: IClientUpdateSegmentRequest): Promise<IClientResponse> {
+    const { data } = await api.patch(`/${id}`, payload, authHeader(token))
     return data
   },
 
