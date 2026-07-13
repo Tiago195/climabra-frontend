@@ -4,14 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportVisitsTimeline } from "@/components/ReportVisitsTimeline";
 import { ScheduleExecutionDialog } from "./components/ScheduleExecutionDialog";
+import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/authContext";
-import { reportService, type IReportDetailResponse, type IReportItemResponse } from "@/services/report";
+import { reportService, type IReportDetailResponse, type IReportItemResponse, type PaymentMethod } from "@/services/report";
 import { providerService } from "@/services/provider";
 import { uploadService } from "@/services/upload";
 import {
   ArrowLeft, Plus, Trash2, Camera, Send, CheckCircle2, Copy, Loader2,
   Eye, User, Wind, ShieldCheck, Banknote, CalendarClock, CalendarPlus, Zap, XCircle,
+  RefreshCw, Undo2,
 } from "lucide-react";
 import { DECLINED_REASON_LABEL } from "@/services/enums";
 import { getApiErrorMessage } from "@/services/apiError";
@@ -39,6 +41,14 @@ const STATUS_META: Record<string, { label: string; pillClass: string; dotClass: 
   awaiting_execution: { label: "Aguardando execução", pillClass: "bg-amber-50 text-amber-700 border-amber-200", dotClass: "bg-amber-500" },
   completed: { label: "Concluído",               pillClass: "bg-emerald-50 text-emerald-700 border-emerald-200", dotClass: "bg-emerald-500" },
   declined:  { label: "Perdido",                 pillClass: "bg-rose-50 text-rose-700 border-rose-200",       dotClass: "bg-rose-500" },
+};
+
+const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+  pix: "Pix",
+  credit: "Cartão de crédito",
+  debit: "Cartão de débito",
+  cash: "Dinheiro",
+  boleto: "Boleto",
 };
 
 const centsToBRL = (cents: number | null | undefined) =>
@@ -188,6 +198,11 @@ export function ReportEditor() {
   const [confirmingCash, setConfirmingCash] = useState(false);
   const [confirmSend, setConfirmSend] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Estorno (Fase 4 — REP-11): confirmação via ResponsiveModal antes de chamar o backend.
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [refunding, setRefunding] = useState(false);
+  // Lightbox de foto: clicar numa foto já preenchida amplia em vez de reabrir o file picker.
+  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
   // Agendamento da visita de execução (laudo "aguardando execução").
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [executingToday, setExecutingToday] = useState(false);
@@ -368,6 +383,20 @@ export function ReportEditor() {
     }
   };
 
+  const handleRefund = async () => {
+    if (!token || !id) return;
+    setRefunding(true);
+    try {
+      setDetail(await reportService.refund(token, id));
+      toast.success("Pagamento estornado. Laudo voltou a aguardar pagamento.");
+      setRefundModalOpen(false);
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Erro ao estornar pagamento"));
+    } finally {
+      setRefunding(false);
+    }
+  };
+
   // Recarrega o detalhe (ex.: após agendar/criar uma visita de execução, p/ a timeline).
   const reloadDetail = async () => {
     if (!token || !id) return;
@@ -455,6 +484,14 @@ export function ReportEditor() {
   // Terminal: perda comercial (CRM F2). Não deve oferecer envio/finalização/pagamento.
   const isDeclined = report.status === "declined";
   const isCashPending = isAwaitingPayment && detail.financial?.payment?.method === "cash";
+  // Regra do backend (ReportItemService): fotos só são aceitas com status "approved" ou
+  // "completed" — awaiting_execution (execução ainda não iniciada) NÃO libera, embora
+  // canExecute já seja true nesse status para outras ações (finalizar, observações finais).
+  // Slots ficam desabilitados até "Executar hoje"/visita de execução levar o laudo a "approved".
+  const canUploadPhotos = report.status === "approved";
+  // Estorno (Fase 4 — CheckoutFacade.refund): só um laudo "approved" (não awaiting_execution,
+  // não completed) com pagamento pago pode ser estornado.
+  const canRefund = report.status === "approved" && !!detail.financial?.payment?.paidAt;
   const activeItems = items.filter(i => !i.rejected);
   const itemsCompleted = activeItems.filter(i => i.photoBefore && i.photoAfter).length;
   const subtotal = items.filter(i => !i.rejected).reduce((s, it) => s + lineSubtotal(it), 0);
@@ -711,12 +748,15 @@ export function ReportEditor() {
                   index={idx + 1}
                   isDraft={isDraft}
                   canExecute={canExecute}
+                  canUploadPhotos={canUploadPhotos}
+                  isAwaitingExecution={isAwaitingExecution}
                   isCompleted={isCompleted}
                   token={token!}
                   reportId={id!}
                   onUpdate={(patch) => handleUpdateItem(item.id, patch)}
                   onDelete={() => handleDeleteItem(item.id)}
                   onItemUpdated={setDetail}
+                  onViewPhoto={setLightboxPhoto}
                 />
               ))}
 
@@ -833,9 +873,66 @@ export function ReportEditor() {
                 </div>
                 <div className="text-2xl font-bold text-emerald-700 tabular-nums">{centsToBRL(total)}</div>
               </div>
+
+              {canRefund && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="text-xs font-medium text-gray-700">
+                      Pago em {new Date(detail.financial!.payment!.paidAt!).toLocaleString("pt-BR")}
+                      {detail.financial?.payment?.method && (
+                        <> · {PAYMENT_METHOD_LABEL[detail.financial.payment.method]}</>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-gray-500">Estornar devolve o laudo a "Aguardando pagamento".</div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full sm:w-auto shrink-0 text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                    onClick={() => setRefundModalOpen(true)}
+                  >
+                    <Undo2 className="w-3.5 h-3.5 mr-1.5" />
+                    Estornar pagamento
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
+
+        <ResponsiveModal
+          open={refundModalOpen}
+          onOpenChange={o => !refunding && setRefundModalOpen(o)}
+          title="Estornar pagamento?"
+          description={'O laudo volta a "Aguardando pagamento" e o pagamento é devolvido (gateway, quando cartão/PIX; devolução manual no dinheiro). Essa ação não pode ser desfeita.'}
+        >
+          <div className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setRefundModalOpen(false)} disabled={refunding} className="w-full sm:w-auto">
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleRefund}
+              disabled={refunding}
+              className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {refunding ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Undo2 className="w-4 h-4 mr-2" />}
+              Confirmar estorno
+            </Button>
+          </div>
+        </ResponsiveModal>
+
+        {/* Lightbox de foto: ampliar uma foto já preenchida (REP-02) */}
+        <ResponsiveModal
+          open={!!lightboxPhoto}
+          onOpenChange={o => !o && setLightboxPhoto(null)}
+          size="2xl"
+          title="Foto"
+        >
+          {lightboxPhoto && (
+            <img src={lightboxPhoto} alt="Foto ampliada" className="w-full h-auto rounded max-h-[80vh] object-contain" />
+          )}
+        </ResponsiveModal>
 
         {/* Action bar (desktop) */}
         <div className="mt-4 hidden md:flex flex-wrap items-center justify-between gap-3 px-2">
@@ -1054,17 +1151,21 @@ interface ItemCardProps {
   index: number;
   isDraft: boolean;
   canExecute: boolean;
+  /** Regra do backend (ReportItemService): fotos só entram com status "approved". */
+  canUploadPhotos: boolean;
+  isAwaitingExecution: boolean;
   isCompleted: boolean;
   token: string;
   reportId: string;
   onUpdate: (patch: Parameters<typeof reportService.updateItem>[3]) => Promise<void>;
   onDelete: () => void;
   onItemUpdated: (d: IReportDetailResponse) => void;
+  onViewPhoto: (url: string) => void;
 }
 
 function ItemCard({
-  item, index, isDraft, canExecute, isCompleted,
-  token, reportId, onUpdate, onDelete, onItemUpdated,
+  item, index, isDraft, canExecute, canUploadPhotos, isAwaitingExecution, isCompleted,
+  token, reportId, onUpdate, onDelete, onItemUpdated, onViewPhoto,
 }: ItemCardProps) {
   const [desc, setDesc] = useState(item.description);
   const [prevDesc, setPrevDesc] = useState(item.description);
@@ -1204,24 +1305,34 @@ function ItemCard({
             <PhotoSlot
               label="Antes"
               photo={item.photoBefore}
-              disabled={!canExecute || isCompleted}
+              disabled={!canUploadPhotos || isCompleted}
               uploading={uploading === "before"}
               onClick={() => beforeRef.current?.click()}
               onDropFile={f => handleFile(f, "before")}
+              onView={onViewPhoto}
             />
             <PhotoSlot
               label="Depois"
               photo={item.photoAfter}
-              disabled={!canExecute || !item.photoBefore || isCompleted}
+              disabled={!canUploadPhotos || !item.photoBefore || isCompleted}
               uploading={uploading === "after"}
               onClick={() => afterRef.current?.click()}
               onDropFile={f => handleFile(f, "after")}
+              onView={onViewPhoto}
             />
             <input ref={beforeRef} type="file" accept="image/*" capture="environment" hidden
               onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f, "before"); e.target.value = ""; }} />
             <input ref={afterRef} type="file" accept="image/*" capture="environment" hidden
               onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f, "after"); e.target.value = ""; }} />
           </div>
+          {!canUploadPhotos && !isCompleted && (
+            <p className="text-[11px] text-gray-500 flex items-center gap-1">
+              <CalendarClock className="w-3 h-3 shrink-0" />
+              {isAwaitingExecution
+                ? "Fotos liberam ao iniciar a execução (“Executar hoje” ou visita agendada)."
+                : "Fotos liberam depois que o laudo for aprovado pelo cliente."}
+            </p>
+          )}
           {canExecute ? (
             <textarea
               className="w-full text-sm rounded-md border border-gray-200 bg-white p-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 disabled:opacity-50"
@@ -1247,13 +1358,16 @@ function ItemCard({
 interface PhotoSlotProps {
   label: string;
   photo: string | null;
+  /** Bloqueia upload/troca (status do laudo não permite ainda). Não afeta o lightbox. */
   disabled: boolean;
   uploading: boolean;
   onClick: () => void;
   onDropFile?: (file: File) => void;
+  /** Foto já preenchida: clicar amplia (lightbox) em vez de reabrir o file picker (REP-02). */
+  onView?: (url: string) => void;
 }
 
-function PhotoSlot({ label, photo, disabled, uploading, onClick, onDropFile }: PhotoSlotProps) {
+function PhotoSlot({ label, photo, disabled, uploading, onClick, onDropFile, onView }: PhotoSlotProps) {
   const [dragOver, setDragOver] = useState(false);
 
   const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
@@ -1264,11 +1378,44 @@ function PhotoSlot({ label, photo, disabled, uploading, onClick, onDropFile }: P
     if (file && onDropFile) onDropFile(file);
   };
 
+  // Slot preenchido: a imagem inteira abre o lightbox; trocar é uma ação explícita
+  // (botão dedicado), só disponível quando o status permite upload.
+  if (photo) {
+    return (
+      <div className="relative aspect-video rounded-md overflow-hidden border border-gray-200 bg-gray-50">
+        <button
+          type="button"
+          onClick={() => onView?.(photo)}
+          className="absolute inset-0 w-full h-full"
+          aria-label={`Ampliar foto: ${label}`}
+        >
+          <img src={photo} alt={label} className="absolute inset-0 w-full h-full object-cover" />
+        </button>
+        <span className="absolute bottom-1 left-1 bg-black/60 text-white px-1.5 py-0.5 rounded text-xs pointer-events-none">
+          {label}
+        </span>
+        {!disabled && (
+          <button
+            type="button"
+            onClick={onClick}
+            disabled={uploading}
+            title={`Trocar foto: ${label}`}
+            aria-label={`Trocar foto: ${label}`}
+            className="absolute top-1 right-1 h-8 w-8 flex items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 disabled:opacity-50"
+          >
+            {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled || uploading}
+      title={disabled ? "Fotos ainda não liberadas para este laudo" : undefined}
       onDragOver={e => { e.preventDefault(); if (!disabled && !uploading) setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={handleDrop}
@@ -1276,12 +1423,7 @@ function PhotoSlot({ label, photo, disabled, uploading, onClick, onDropFile }: P
         dragOver ? "border-blue-500 bg-blue-50 text-blue-600" : "border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-500"
       }`}
     >
-      {photo ? (
-        <>
-          <img src={photo} alt={label} className="absolute inset-0 w-full h-full object-cover" />
-          <span className="absolute bottom-1 left-1 bg-black/60 text-white px-1.5 py-0.5 rounded text-xs">{label}</span>
-        </>
-      ) : uploading ? (
+      {uploading ? (
         <Loader2 className="w-5 h-5 animate-spin" />
       ) : (
         <>

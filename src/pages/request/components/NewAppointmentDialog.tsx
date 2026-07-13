@@ -383,6 +383,7 @@ export function NewAppointmentDialog({
                       <button
                         key={`${s.date}-${s.shift}`}
                         type="button"
+                        data-testid="slot-suggestion"
                         onClick={() => setPicked({ date: s.date, shift: s.shift })}
                         className={`w-full text-left rounded-xl border-2 p-3 transition-all ${
                           isPicked ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white hover:border-blue-300"

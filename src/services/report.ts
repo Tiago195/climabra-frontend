@@ -283,6 +283,15 @@ export const reportService = {
   },
 
   /**
+   * Estorna o pagamento de um laudo `approved` com pagamento `paid` (Fase 4): devolve na
+   * gateway (cartão/PIX) ou marca devolução manual (dinheiro); laudo volta a `awaiting_payment`.
+   */
+  async refund(token: string, reportId: string): Promise<IReportDetailResponse> {
+    const { data } = await api.post(`/${reportId}/refund`, {}, authHeader(token))
+    return data
+  },
+
+  /**
    * Marca o laudo como perda comercial (CRM F2): `sent`/`awaiting_payment` →
    * `declined`, guardando o motivo. Só o provider marca a recusa.
    */

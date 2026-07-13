@@ -155,6 +155,7 @@ export function AppointmentTimelineView({
               return (
                 <Card
                   key={appt.id}
+                  data-testid={`appt-card-${appt.id}`}
                   className={isPending ? "border-amber-300 bg-amber-50/30" : undefined}
                 >
                   <CardContent className="py-3 space-y-2.5">
