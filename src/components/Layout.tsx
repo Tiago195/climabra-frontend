@@ -77,7 +77,11 @@ export function Layout() {
           />
 
           <div className="flex-1 min-w-0 flex flex-col">
-            <header className="bg-white border-b sticky top-0 z-30 shadow-sm">
+            {/* pt-[env(safe-area-inset-top)]: no app Android o Android 15+ pode desenhar a WebView
+                por baixo da status bar (edge-to-edge de targetSdk 35+) e o header ficava cortado
+                atrás do relógio. O shell nativo já pede overlay:false (useNativeShell), então o
+                inset costuma ser 0 aqui — este padding é a rede de segurança p/ quem ignorar. */}
+            <header className="bg-white border-b sticky top-0 z-30 shadow-sm pt-[env(safe-area-inset-top)]">
               <div className="px-4 h-14 flex items-center justify-between gap-2">
                 {/* Marca (só aparece no mobile — no desktop ela já vive no topo da sidebar) */}
                 <div className="md:hidden font-bold text-lg text-blue-600 flex items-center gap-2">

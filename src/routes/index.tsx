@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router-dom"
 import { Layout } from "@/components/Layout"
+import { RequireAuth } from "@/components/RequireAuth"
 
 export const router = createBrowserRouter([
   {
@@ -15,7 +16,9 @@ export const router = createBrowserRouter([
     lazy: () => import("@/pages/auth/Register").then((m) => ({ Component: m.default })),
   },
   {
-    Component: Layout,
+    // Todas as rotas do provider vivem sob o guard: sem token, redireciona ao login em vez de
+    // pintar o shell autenticado vazio.
+    element: <RequireAuth><Layout /></RequireAuth>,
     children: [
       {
         path: "/dashboard",

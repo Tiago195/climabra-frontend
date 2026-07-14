@@ -20,6 +20,8 @@ import {
   Download, RotateCw, Timer, User, Building2, Loader2, RefreshCw,
 } from "lucide-react";
 import { PaymentStep } from "./components/PaymentStep";
+import { PortalOtpGate } from "@/components/PortalOtpGate";
+import { clientSession } from "@/services/clientSession";
 import { getApiErrorMessage } from "@/services/apiError";
 
 // ============================================================================
@@ -145,6 +147,9 @@ export function PublicReport() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [approving, setApproving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Autorizar exige a sessão do cliente (OTP por WhatsApp) — ver PublicReportController#approve.
+  // Ler o laudo continua aberto por link; só o ATO de autorizar passa por aqui.
+  const [otpOpen, setOtpOpen] = useState(false);
 
   // Rating (status=completed)
   const [ratingStars, setRatingStars] = useState(0);
@@ -180,12 +185,24 @@ export function PublicReport() {
 
   const handleApprove = async () => {
     if (!providerToken || !clientId || !equipmentId || !reportToken) return;
+    // Sem sessão do cliente não há o que tentar: pede o código antes de chamar a API.
+    if (!clientSession.getToken(clientId)) {
+      setOtpOpen(true);
+      return;
+    }
     setApproving(true);
     try {
       setData(await reportService.approve(providerToken, clientId, equipmentId, reportToken, Array.from(selectedIds)));
       toast.success("Serviço autorizado!");
       setConfirmOpen(false);
+      setOtpOpen(false);
     } catch (e) {
+      // Sessão expirada/inválida (o JWT do cliente vive ~30d): volta pro OTP em vez de erro seco.
+      if (clientSession.isUnauthorized(e)) {
+        clientSession.clear(clientId);
+        setOtpOpen(true);
+        return;
+      }
       toast.error(getApiErrorMessage(e, "Erro ao autorizar"));
     } finally {
       setApproving(false);
@@ -282,6 +299,17 @@ export function PublicReport() {
             setConfirmOpen={setConfirmOpen}
             approving={approving}
             onApprove={handleApprove}
+            otpGate={otpOpen && providerToken && clientId ? (
+              <PortalOtpGate
+                publicToken={providerToken}
+                clientId={clientId}
+                onVerified={token => {
+                  clientSession.setToken(clientId, token);
+                  setOtpOpen(false);
+                  handleApprove(); // já autoriza: o cliente pediu isso antes do código
+                }}
+              />
+            ) : null}
           />
         )}
 
@@ -761,6 +789,7 @@ function RatingForm({
 
 function ApprovalSection({
   items, laborCents, travelCents, selectedIds, setSelectedIds, confirmOpen, setConfirmOpen, approving, onApprove,
+  otpGate,
 }: {
   items: IPublicReportItemResponse[];
   laborCents: number;
@@ -768,6 +797,8 @@ function ApprovalSection({
   selectedIds: Set<string>; setSelectedIds: (s: Set<string>) => void;
   confirmOpen: boolean; setConfirmOpen: (b: boolean) => void;
   approving: boolean; onApprove: () => void;
+  /** Tela de OTP (WhatsApp); quando presente, substitui os botões — sem código não se autoriza. */
+  otpGate: React.ReactNode;
 }) {
   // Subtotal dos serviços SELECIONADOS (atualiza ao marcar/desmarcar) + mão de obra + deslocamento = total.
   const selectedSubtotal = items
@@ -875,7 +906,14 @@ function ApprovalSection({
               Ao autorizar, você concorda que o prestador realize os serviços selecionados.
             </p>
           </div>
-          {!confirmOpen ? (
+          {otpGate ? (
+            <div className="space-y-2">
+              <p className="text-[12px] text-blue-900 text-center">
+                Para autorizar, confirme que é você: enviamos um código no seu WhatsApp.
+              </p>
+              {otpGate}
+            </div>
+          ) : !confirmOpen ? (
             <Button
               className="w-full bg-blue-600 hover:bg-blue-700"
               size="sm"

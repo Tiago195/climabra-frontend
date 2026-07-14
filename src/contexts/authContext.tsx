@@ -37,7 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       provider,
       token,
-      isAuthenticated: !!provider,
+      // pelo TOKEN, não pelo provider: é o token que a API exige (o RequireAuth consome isto).
+      isAuthenticated: !!token,
       login,
       logout,
       updateProvider,

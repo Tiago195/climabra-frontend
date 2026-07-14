@@ -1,4 +1,5 @@
 import { createApi, DEFAULT_URL } from "."
+import { clientSession } from "./clientSession"
 import type { AppointmentStatus, DeclinedReason, EquipmentType, ReportStatus, Shift, VisitType } from "./enums"
 
 const api = createApi("/reports", { withPaywall: true })
@@ -309,8 +310,17 @@ export const reportService = {
     return data
   },
 
+  /**
+   * Autoriza o serviço. Exige a SESSÃO DO CLIENTE (OTP por WhatsApp) — o mesmo header do checkout:
+   * possuir o link não basta mais, senão o próprio prestador aprovaria pelo "Ver como cliente".
+   * Sem sessão a API responde 401 e a tela cai no PortalOtpGate.
+   */
   async approve(providerToken: string, clientId: string, equipmentId: string, reportToken: string, approvedItemIds: string[]): Promise<IPublicReportResponse> {
-    const { data } = await api.put(`/public/${providerToken}/${clientId}/${equipmentId}/${reportToken}/approve`, { approvedItemIds })
+    const { data } = await api.put(
+      `/public/${providerToken}/${clientId}/${equipmentId}/${reportToken}/approve`,
+      { approvedItemIds },
+      clientSession.authHeader(clientId),
+    )
     return data
   },
 
