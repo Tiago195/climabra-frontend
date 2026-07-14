@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, FileText } from "lucide-react";
+import { AlertCircle, FileText, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/authContext";
 import { financeService, type IPaymentDetail } from "@/services/finance";
@@ -27,13 +27,28 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
  * silenciosamente quando indisponível, o resto do detalhe funciona igual).
  */
 export function PaymentDetailModal({
-  paymentId, open, onOpenChange,
-}: { paymentId: string | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+  paymentId, open, onOpenChange, anticipationEnabled, anticipatedPaymentIds, onAnticipate,
+}: {
+  paymentId: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Conta aprovada para antecipar. Sem isso o botão nem aparece (não adianta oferecer erro). */
+  anticipationEnabled: boolean;
+  /** Cobranças que já têm antecipação viva — não dá para antecipar a mesma coisa duas vezes. */
+  anticipatedPaymentIds: string[];
+  onAnticipate: (paymentId: string, amountCents: number) => void;
+}) {
   const navigate = useNavigate();
   const { token } = useAuth();
   const [detail, setDetail] = useState<IPaymentDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+
+  const canAnticipate =
+    anticipationEnabled
+    && detail?.method === "credit"
+    && detail?.status === "paid"
+    && !anticipatedPaymentIds.includes(detail.paymentId);
 
   useEffect(() => {
     if (!open || !paymentId || !token) return;
@@ -85,9 +100,24 @@ export function PaymentDetailModal({
             </p>
           )}
 
+          {/*
+            Ponto de entrada da antecipação (PLANO_ANTECIPACAO · F2). Só aparece onde faz sentido:
+            cartão, já pago e ainda não antecipado. O backend revalida tudo isso — este `if` é UX,
+            não segurança.
+          */}
+          {canAnticipate && (
+            <Button
+              className="w-full mt-4"
+              onClick={() => onAnticipate(detail.paymentId, detail.amountCents)}
+              data-testid="payment-anticipate"
+            >
+              <Zap className="w-4 h-4" /> Antecipar recebimento
+            </Button>
+          )}
+
           <Button
             variant="outline"
-            className="w-full mt-4"
+            className="w-full mt-2"
             onClick={() => navigate(`/dashboard/reports/${detail.reportId}`)}
           >
             <FileText className="w-4 h-4" /> Ver laudo

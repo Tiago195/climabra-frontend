@@ -8,6 +8,7 @@ import { ConnectPaymentsWizard } from "./ConnectPaymentsWizard";
 import { AcceptedMethodsCard } from "./AcceptedMethodsCard";
 import { ChargesCard } from "./ChargesCard";
 import { PayoutAccountCard } from "./PayoutAccountCard";
+import { AutoAnticipationCard } from "./AutoAnticipationCard";
 import { AsaasDisclosure } from "@/components/AsaasDisclosure";
 
 export function PaymentsSection() {
@@ -101,6 +102,11 @@ export function PaymentsSection() {
           )}
           {/* Destino do saque (F2): só faz sentido depois que existe conta de recebimento. */}
           {hasAccount && status !== "rejected" && <PayoutAccountCard />}
+          {/*
+            Antecipação automática (PLANO_ANTECIPACAO F4). O próprio card se esconde quando a conta
+            não está aprovada — o gate é do backend, que é quem sabe se o gateway aceitaria.
+          */}
+          {hasAccount && status !== "rejected" && <AutoAnticipationCard />}
           {status !== "approved" && <AsaasDisclosure className="px-1" />}
         </div>
       )}

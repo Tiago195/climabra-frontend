@@ -4,13 +4,13 @@
 # Por que é obrigatório: na WebView a origem é http://localhost, e a derivação por hostname
 # apontaria a API para o localhost do CELULAR. Ver services/index.ts#resolveApiUrl.
 #
-# Endpoint de DEV/beta (opção (b) da Fase 0 do PLANO_APP_CAPACITOR.md): DuckDNS, IPv6-only + HTTP
-# puro → o app SÓ alcança a API em redes com IPv6 (4G/5G) e depende de `cleartext: true`.
-# Quando o domínio + Cloudflare Tunnel entrarem (Fase 0(a)), trocar por https://api.<dominio>
-# e remover o cleartext do capacitor.config.ts + do AndroidManifest.
-VITE_API_URL=http://dev-climabra.duckdns.org:8091
+# Domínio próprio + Cloudflare Tunnel (Fase 0(a) do PLANO_APP_CAPACITOR.md — feito).
+# Saiu do DuckDNS (IPv6-only + HTTP puro, que só funcionava em rede com IPv6): agora é https
+# e a mesma origem do site. O túnel expõe SÓ a porta do front, então a API vem pelo /api do
+# nginx — não existe mais porta 8091 pública.
+# Com https, o `cleartext: true` do capacitor.config.ts + AndroidManifest pode sair.
+VITE_API_URL=https://climabra.com.br/api
 
 # Base do FRONT (nginx) — serve /app/version.json e /app/latest.apk do canal de atualização
-# (scripts/publish-apk.sh). É outra porta que a API: 8090, não 8091. Sem esta env o banner de
-# "nova versão" simplesmente não liga (o app continua funcionando).
-VITE_APP_UPDATE_URL=http://dev-climabra.duckdns.org:8090
+# (scripts/publish-apk.sh). Mesma origem, sem porta.
+VITE_APP_UPDATE_URL=https://climabra.com.br

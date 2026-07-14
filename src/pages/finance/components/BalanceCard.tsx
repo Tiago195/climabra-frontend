@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Landmark, Clock3, AlertCircle, ShieldAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { IBalance } from "@/services/finance";
+import type { IAnticipationLimits } from "@/services/anticipation";
 import { MIN_PAYOUT_CENTS } from "@/services/payout";
 import { formatCents } from "@/lib/utils";
 import { AsaasDisclosure } from "@/components/AsaasDisclosure";
@@ -18,7 +19,7 @@ import { AsaasDisclosure } from "@/components/AsaasDisclosure";
  * Nunca renderiza R$ 0,00 quando a consulta falha — erro vira card de retry (regra do Financeiro).
  */
 export function BalanceCard({
-  balance, loading, error, onRetry, canPayout, onPayout,
+  balance, loading, error, onRetry, canPayout, onPayout, limits,
 }: {
   balance: IBalance | null;
   loading: boolean;
@@ -27,6 +28,12 @@ export function BalanceCard({
   /** Tem destino cadastrado, fora do cooldown de 24h? Sem isso o saque nem começa. */
   canPayout: boolean;
   onPayout: () => void;
+  /**
+   * Limite de antecipação (PLANO_ANTECIPACAO · F1). `null` = ainda carregando, falhou, ou conta em
+   * análise. O card NÃO trata isso como erro: antecipação é um extra em cima do saldo, e derrubar
+   * o card inteiro porque o limite não veio seria trocar uma informação essencial por uma opcional.
+   */
+  limits: IAnticipationLimits | null;
 }) {
   if (loading) return <Skeleton className="h-32" />;
 
@@ -103,9 +110,26 @@ export function BalanceCard({
             <p data-testid="balance-pending" className="text-2xl font-bold text-gray-500 mt-1">
               {formatCents(balance.pendingCents)}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Pagamentos no cartão liberam em até 30 dias.
-            </p>
+            {/*
+              Antes aqui havia só "Pagamentos no cartão liberam em até 30 dias." — um beco sem saída:
+              informava o problema e não oferecia nada. Agora diz quanto dá para antecipar.
+
+              Silencioso de propósito quando o limite não veio (loading/erro/conta em análise): o
+              provider continua vendo o "a liberar" e o prazo, sem um erro que ele não pode resolver.
+            */}
+            {limits?.anticipationEnabled && limits.availableCents > 0 ? (
+              <p data-testid="anticipation-available" className="text-xs text-gray-500 mt-0.5">
+                Cartão libera em até 30 dias —{" "}
+                <span className="font-medium text-gray-700">
+                  até {formatCents(limits.availableCents)}
+                </span>{" "}
+                pode ser antecipado.
+              </p>
+            ) : (
+              <p className="text-xs text-gray-400 mt-0.5">
+                Pagamentos no cartão liberam em até 30 dias.
+              </p>
+            )}
           </div>
         </div>
 

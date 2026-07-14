@@ -13,12 +13,17 @@ import {
   type IConversion, type IPaymentListItem, type IBalance,
 } from "@/services/finance";
 import { payoutService, type IPayoutAccount, type IPayout } from "@/services/payout";
+import {
+  anticipationService, type IAnticipationLimits, type IAnticipation,
+} from "@/services/anticipation";
 import type { PaymentMethod } from "@/services/enums";
 import { formatCents, deltaPercent, monthRange, customDateRange, downloadBlob } from "@/lib/utils";
 import { MonthlyRevenueChart } from "./components/MonthlyRevenueChart";
 import { BalanceCard } from "./components/BalanceCard";
 import { PayoutDialog } from "./components/PayoutDialog";
 import { PayoutsList } from "./components/PayoutsList";
+import { AnticipationsList } from "./components/AnticipationsList";
+import { AnticipationDialog } from "./components/AnticipationDialog";
 import { StatementCard } from "./components/StatementCard";
 import { TopClientsCard } from "./components/TopClientsCard";
 import { PaymentsList } from "./components/PaymentsList";
@@ -87,6 +92,11 @@ export function Finance() {
   const [balance, setBalance] = useState<IBalance | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [balanceError, setBalanceError] = useState(false);
+  const [anticipationLimits, setAnticipationLimits] = useState<IAnticipationLimits | null>(null);
+  const [anticipations, setAnticipations] = useState<IAnticipation[]>([]);
+  const [anticipationsLoading, setAnticipationsLoading] = useState(true);
+  const [anticipationTarget, setAnticipationTarget] =
+    useState<{ paymentId: string; amountCents: number } | null>(null);
 
   // Saque (F3): destino cadastrado + histórico.
   const [payoutAccount, setPayoutAccount] = useState<IPayoutAccount | null>(null);
@@ -165,6 +175,29 @@ export function Finance() {
   }, [token]);
 
   useEffect(() => { loadBalance(); }, [loadBalance]);
+
+  // ── Antecipação (PLANO_ANTECIPACAO · F1): quanto dá para antecipar ───────────
+  // Carregado à parte do saldo, de propósito: se o limite falhar, o card de saldo continua de pé
+  // (a antecipação é um extra; o saldo é o essencial). Erro vira `null` silencioso, não um card
+  // de erro — não há retry a oferecer para uma informação opcional.
+  const loadAnticipationLimits = useCallback(() => {
+    if (!token) return;
+    anticipationService.limits(token)
+      .then(setAnticipationLimits)
+      .catch(() => setAnticipationLimits(null));
+  }, [token]);
+
+  const loadAnticipations = useCallback(() => {
+    if (!token) return;
+    setAnticipationsLoading(true);
+    anticipationService.list(token, 0, 10)
+      .then(page => setAnticipations(page.content))
+      .catch(() => { /* o card de antecipações some; o resto do Financeiro segue de pé */ })
+      .finally(() => setAnticipationsLoading(false));
+  }, [token]);
+
+  useEffect(() => { loadAnticipationLimits(); }, [loadAnticipationLimits]);
+  useEffect(() => { loadAnticipations(); }, [loadAnticipations]);
 
   // ── Saque (F3): destino + histórico ──────────────────────────────────────────
   const loadPayouts = useCallback(() => {
@@ -270,6 +303,7 @@ export function Finance() {
         onRetry={loadBalance}
         canPayout={canPayout}
         onPayout={() => setPayoutOpen(true)}
+        limits={anticipationLimits}
       />
 
       <PayoutDialog
@@ -343,6 +377,15 @@ export function Finance() {
             </div>
           </div>
         </>
+      )}
+
+      {/*
+        Antecipações: aparece assim que existir alguma, independente de haver conta de SAQUE — são
+        coisas diferentes (antecipar traz para o saldo; sacar tira do saldo). Amarrar esta lista ao
+        cadastro da chave PIX esconderia do provider antecipações que ele já pediu.
+      */}
+      {anticipations.length > 0 && (
+        <AnticipationsList anticipations={anticipations} loading={anticipationsLoading} />
       )}
 
       {/* Saques + extrato — só aparecem depois que existe conta de saque */}
@@ -517,6 +560,25 @@ export function Finance() {
         paymentId={selectedPayment?.paymentId ?? null}
         open={detailOpen}
         onOpenChange={setDetailOpen}
+        anticipationEnabled={anticipationLimits?.anticipationEnabled ?? false}
+        anticipatedPaymentIds={anticipations.map(a => a.paymentId)}
+        onAnticipate={(paymentId, amountCents) => {
+          setDetailOpen(false);
+          setAnticipationTarget({ paymentId, amountCents });
+        }}
+      />
+
+      <AnticipationDialog
+        open={anticipationTarget !== null}
+        paymentId={anticipationTarget?.paymentId ?? null}
+        paymentAmountCents={anticipationTarget?.amountCents ?? 0}
+        onClose={() => setAnticipationTarget(null)}
+        onDone={() => {
+          // Recarrega a lista E o limite: a antecipação consome limite mesmo enquanto está em
+          // análise — mostrar o limite antigo faria o provider pedir algo que vai ser recusado.
+          loadAnticipations();
+          loadAnticipationLimits();
+        }}
       />
     </div>
   );
