@@ -27,7 +27,9 @@ import type { Shift } from "@/services/enums"
 import { SHIFT_LABELS, SHIFT_ICONS, SHIFT_ORDER } from "@/lib/shifts"
 import { formatFullAddress, googleMapsRouteUrl, wazeUrl } from "@/lib/maps"
 import { getApiErrorMessage } from "@/services/apiError"
+import { useLocationBeacon } from "@/hooks/useLocationBeacon"
 import { AppointmentActions } from "./AppointmentActions"
+import { LocationBeaconCard } from "./LocationBeaconCard"
 import { RouteMap } from "./RouteMap"
 
 interface Props {
@@ -132,6 +134,14 @@ export function RouteDayView({
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
     useSensor(KeyboardSensor),
   )
+
+  // Beacon (Fase 2): liga sozinho quando ALGUM turno de hoje está "em rota" — é o estado `started`
+  // que define o contexto (task 2.2). Sem rota iniciada, o hook fica inerte (status "idle").
+  const anyStarted = useMemo(
+    () => (plan?.sections ?? []).some(s => s.status === "started"),
+    [plan],
+  )
+  const beacon = useLocationBeacon({ token, active: anyStarted })
 
   const totalStops = plan?.orderedStops.length ?? 0
   const anyToday = SHIFT_ORDER.some(s => (sectionByShift.get(s)?.appointmentIds.length ?? 0) > 0
@@ -259,6 +269,9 @@ export function RouteDayView({
           )}
         </CardContent>
       </Card>
+
+      {/* Beacon: só aparece com rota iniciada (o hook devolve "idle" fora disso). */}
+      <LocationBeaconCard beacon={beacon} />
 
       {/* Mobile: mapa no topo, depois o plano. Desktop: plano à esquerda, mapa maior à direita
           (via order-*, sem mudar a ordem do DOM que o mobile usa). */}
