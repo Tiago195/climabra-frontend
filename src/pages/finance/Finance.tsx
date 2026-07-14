@@ -10,11 +10,16 @@ import { useAuth } from "@/contexts/authContext";
 import {
   financeService,
   type IRevenue, type IMonthlyRevenuePoint, type ITopClient, type IPaymentsPage,
-  type IConversion, type IPaymentListItem,
+  type IConversion, type IPaymentListItem, type IBalance,
 } from "@/services/finance";
+import { payoutService, type IPayoutAccount, type IPayout } from "@/services/payout";
 import type { PaymentMethod } from "@/services/enums";
 import { formatCents, deltaPercent, monthRange, customDateRange, downloadBlob } from "@/lib/utils";
 import { MonthlyRevenueChart } from "./components/MonthlyRevenueChart";
+import { BalanceCard } from "./components/BalanceCard";
+import { PayoutDialog } from "./components/PayoutDialog";
+import { PayoutsList } from "./components/PayoutsList";
+import { StatementCard } from "./components/StatementCard";
 import { TopClientsCard } from "./components/TopClientsCard";
 import { PaymentsList } from "./components/PaymentsList";
 import { ConversionCard } from "./components/ConversionCard";
@@ -77,6 +82,18 @@ export function Finance() {
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [summaryError, setSummaryError] = useState(false);
 
+  // Saldo (Saque · F1) — carregado à parte do resumo de propósito: ele bate na Asaas, e uma
+  // indisponibilidade do gateway não pode derrubar os KPIs (que são 100% locais).
+  const [balance, setBalance] = useState<IBalance | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(true);
+  const [balanceError, setBalanceError] = useState(false);
+
+  // Saque (F3): destino cadastrado + histórico.
+  const [payoutAccount, setPayoutAccount] = useState<IPayoutAccount | null>(null);
+  const [payouts, setPayouts] = useState<IPayout[]>([]);
+  const [payoutsLoading, setPayoutsLoading] = useState(true);
+  const [payoutOpen, setPayoutOpen] = useState(false);
+
   const [tab, setTab] = useState<Tab>("recebidos");
   const [period, setPeriod] = useState<Period>("current");
   const [customStart, setCustomStart] = useState("");
@@ -133,6 +150,40 @@ export function Finance() {
   }, [token]);
 
   useEffect(() => { loadSummary(); }, [loadSummary]);
+
+  // ── Saldo da conta de recebimento (Saque · F1) ───────────────────────────────
+  const loadBalance = useCallback(() => {
+    if (!token) return;
+    setBalanceLoading(true);
+    setBalanceError(false);
+    financeService.balance(token)
+      .then(setBalance)
+      // Sem toast: o próprio card mostra o erro com retry. Um toast aqui viraria ruído toda vez
+      // que a Asaas oscilasse, numa tela que continua utilizável (os KPIs são locais).
+      .catch(() => setBalanceError(true))
+      .finally(() => setBalanceLoading(false));
+  }, [token]);
+
+  useEffect(() => { loadBalance(); }, [loadBalance]);
+
+  // ── Saque (F3): destino + histórico ──────────────────────────────────────────
+  const loadPayouts = useCallback(() => {
+    if (!token) return;
+    setPayoutsLoading(true);
+    Promise.all([payoutService.getAccount(token), payoutService.list(token, 0, 10)])
+      .then(([account, page]) => { setPayoutAccount(account); setPayouts(page.content); })
+      .catch(() => { /* card de saldo já cobre o erro do subsistema de saque */ })
+      .finally(() => setPayoutsLoading(false));
+  }, [token]);
+
+  useEffect(() => { loadPayouts(); }, [loadPayouts]);
+
+  /** Só dá para sacar com destino cadastrado E fora do bloqueio de 24h da última troca. */
+  const canPayout = useMemo(() => {
+    if (!payoutAccount?.hasAccount) return false;
+    if (!payoutAccount.payoutBlockedUntil) return true;
+    return new Date(payoutAccount.payoutBlockedUntil) <= new Date();
+  }, [payoutAccount]);
 
   // ── Lista de pagamentos (reage a tab/período/método/página) ──────────────────
   // Tab "A receber" é o pipeline COMPLETO de pendências (mesma soma do KPI):
@@ -211,6 +262,29 @@ export function Finance() {
         <p className="text-gray-500 text-sm">Visão do desempenho financeiro do seu negócio</p>
       </div>
 
+      {/* Saldo da conta de recebimento — o que dá pra sacar hoje (≠ "Recebido" dos KPIs) */}
+      <BalanceCard
+        balance={balance}
+        loading={balanceLoading}
+        error={balanceError}
+        onRetry={loadBalance}
+        canPayout={canPayout}
+        onPayout={() => setPayoutOpen(true)}
+      />
+
+      <PayoutDialog
+        open={payoutOpen}
+        availableCents={balance?.availableCents ?? 0}
+        destination={payoutAccount?.maskedKey ?? null}
+        onClose={() => setPayoutOpen(false)}
+        onDone={() => {
+          setPayoutOpen(false);
+          // Saque saiu: saldo e histórico mudaram — relê os dois em vez de "adivinhar" o novo saldo.
+          loadBalance();
+          loadPayouts();
+        }}
+      />
+
       {/* KPIs + chart + top clientes */}
       {summaryLoading ? (
         <>
@@ -269,6 +343,18 @@ export function Finance() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Saques + extrato — só aparecem depois que existe conta de saque */}
+      {payoutAccount?.hasAccount && (
+        <div className="grid lg:grid-cols-2 gap-6">
+          <PayoutsList payouts={payouts} loading={payoutsLoading} />
+          {/* Extrato do período selecionado nos chips; sem período completo, usa o mês corrente. */}
+          <StatementCard
+            start={(range ?? monthRange("current")).start.slice(0, 10)}
+            end={(range ?? monthRange("current")).end.slice(0, 10)}
+          />
+        </div>
       )}
 
       {/* Lista de pagamentos */}

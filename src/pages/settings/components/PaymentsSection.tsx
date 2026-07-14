@@ -7,6 +7,7 @@ import { PaymentsDocumentsCard } from "./PaymentsDocumentsCard";
 import { ConnectPaymentsWizard } from "./ConnectPaymentsWizard";
 import { AcceptedMethodsCard } from "./AcceptedMethodsCard";
 import { ChargesCard } from "./ChargesCard";
+import { PayoutAccountCard } from "./PayoutAccountCard";
 import { AsaasDisclosure } from "@/components/AsaasDisclosure";
 
 export function PaymentsSection() {
@@ -98,6 +99,8 @@ export function PaymentsSection() {
           {status === "approved" && (
             <AcceptedMethodsCard status={status} accepted={accepted} pixEnabled={pixEnabled} />
           )}
+          {/* Destino do saque (F2): só faz sentido depois que existe conta de recebimento. */}
+          {hasAccount && status !== "rejected" && <PayoutAccountCard />}
           {status !== "approved" && <AsaasDisclosure className="px-1" />}
         </div>
       )}

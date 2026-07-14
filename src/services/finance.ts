@@ -107,6 +107,29 @@ export interface IConversionQuery {
   end?: string
 }
 
+/** Uma linha do extrato da conta de recebimento (Saque · F5). */
+export interface IStatementEntry {
+  date: string
+  type: "payment" | "payout" | "fee" | "refund" | "other"
+  description: string | null
+  /** Positivo = entrou; negativo = saiu. */
+  amountCents: number
+  /** Saldo após o lançamento. */
+  balanceCents: number
+}
+
+/** Saldo da conta de recebimento (Saque · F1). */
+export interface IBalance {
+  /** Provider ainda não conectou pagamentos — não é erro, só não há conta. */
+  hasGatewayAccount: boolean
+  /** Conta 100% aprovada? Sem isso o saldo existe mas não pode ser sacado. */
+  payoutEnabled: boolean
+  /** Liberado: dá para sacar agora. */
+  availableCents: number
+  /** Pago pelo cliente, ainda não liberado (cartão libera em D+30). */
+  pendingCents: number
+}
+
 export const financeService = {
   /** Faturamento do mês corrente + anterior (KPI do dashboard). */
   async revenue(token: string): Promise<IRevenue> {
@@ -114,10 +137,31 @@ export const financeService = {
     return data
   },
 
+  /**
+   * Saldo da conta de recebimento (Saque · F1). Diferente de `revenue`, que soma a tabela local:
+   * aqui é o dinheiro que existe de fato na conta, e só `availableCents` pode virar saque hoje.
+   * Erro NÃO vira zero — a tela mostra retry (o card nunca inventa "R$ 0,00").
+   */
+  async balance(token: string): Promise<IBalance> {
+    const { data } = await financeApi.get<IBalance>("/balance", authHeader(token))
+    return data
+  },
+
   /** Série mensal de faturamento (default 6 meses), do mais antigo ao mais recente. */
   async monthly(token: string, months = 6): Promise<IMonthlyRevenuePoint[]> {
     const { data } = await financeApi.get<IMonthlyRevenuePoint[]>(
       "/revenue/monthly", { ...authHeader(token), params: { months } }
+    )
+    return data
+  },
+
+  /**
+   * Extrato da conta de recebimento (Saque · F5): entradas, taxas e saques na linha do tempo.
+   * É o que explica a diferença entre "Recebido" (local) e "Saldo" (conta real).
+   */
+  async statement(token: string, start: string, end: string): Promise<IStatementEntry[]> {
+    const { data } = await financeApi.get<IStatementEntry[]>(
+      "/statement", { ...authHeader(token), params: { start, end } }
     )
     return data
   },
