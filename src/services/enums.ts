@@ -36,8 +36,13 @@ export type NextActionType =
 /** Urgência ordenável de um item das Próximas Ações — mais urgente primeiro. */
 export type NextActionUrgency = "overdue" | "today" | "waiting"
 
-/** Tipo de notificação configurável do provider (CRM F3). O `manual` não é configurável. */
-export type NotificationType = "payment_received" | "payment_receipt" | "report_sent" | "visit_reminder"
+/**
+ * Tipos de notificação com rótulo no Settings. `payment_received`…`visit_reminder` têm switch de
+ * pref + template editável; `on_my_way` (a caminho) é SÓ template editável — seu controle é o
+ * disparo manual/automático, não um switch (PLANO_ROTAS_TEMPO_REAL, Fase 3.4). O `manual` não entra.
+ */
+export type NotificationType =
+  | "payment_received" | "payment_receipt" | "report_sent" | "visit_reminder" | "on_my_way"
 
 /** Rótulos/descrições em pt-BR dos tipos de notificação (Settings + templates). */
 export const NOTIFICATION_TYPE_META: Record<NotificationType, { label: string; desc: string }> = {
@@ -45,4 +50,5 @@ export const NOTIFICATION_TYPE_META: Record<NotificationType, { label: string; d
   payment_receipt: { label: "Recibo de pagamento (para o cliente)", desc: "Confirma ao cliente que o pagamento foi recebido." },
   report_sent: { label: "Laudo enviado (para o cliente)", desc: "Envia ao cliente o link do laudo quando você o publica." },
   visit_reminder: { label: "Lembrete de visita (para o cliente)", desc: "Lembra o cliente, na véspera, da visita agendada." },
+  on_my_way: { label: "Estou a caminho (para o cliente)", desc: "Avisa o cliente que você saiu, com ETA e link do mapa ao vivo." },
 }

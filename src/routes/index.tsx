@@ -67,6 +67,12 @@ export const router = createBrowserRouter([
     lazy: () => import("@/pages/report/PublicReport").then(({ PublicReport }) => ({ Component: PublicReport })),
   },
   {
+    // Página pública de acompanhamento "a caminho" (PLANO_ROTAS_TEMPO_REAL, Fase 3). Sem guard —
+    // o gate é o token de vida curta na URL (como o laudo público acima).
+    path: "/acompanhar/:token",
+    lazy: () => import("@/pages/tracking/TrackClient").then(({ TrackClient }) => ({ Component: TrackClient })),
+  },
+  {
     path: "/providers/:publicToken/client",
     lazy: () => import("@/pages/clients/ClientSignUp").then(({ClientSignUp}) => ({ Component: ClientSignUp })),
   },
