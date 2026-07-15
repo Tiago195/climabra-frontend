@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import type { EquipmentType } from "@/services/enums";
 import { formatPhone } from "@/lib/utils";
 import { uploadService } from "@/services/upload";
+import { compressImage } from "@/lib/camera";
 import { Loader2 } from "lucide-react";
 import { getApiErrorMessage } from "@/services/apiError";
 
@@ -73,7 +74,8 @@ export function SignUpDataForm({ onSubmit }: Props) {
     }
     setUploadingPhotos(true);
     try {
-      const uploaded = await Promise.all(files.map(f => uploadService.uploadPublic(f)));
+      const compressed = await Promise.all(files.map(compressImage));
+      const uploaded = await Promise.all(compressed.map(f => uploadService.uploadPublic(f)));
       setPhotoUrls(prev => [...prev, ...uploaded]);
     } catch (e) {
       toast.error(getApiErrorMessage(e, "Erro ao enviar foto"));

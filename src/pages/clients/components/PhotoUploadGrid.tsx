@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Upload, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { compressImage } from "@/lib/camera";
 
 interface Props {
   photos: string[];
@@ -13,14 +14,14 @@ interface Props {
 export function PhotoUploadGrid({ photos, onFilesSelected, onRemove, max = 5, uploading = false }: Props) {
   const [dragOver, setDragOver] = useState(false);
 
-  const acceptFiles = (incoming: File[]) => {
+  const acceptFiles = async (incoming: File[]) => {
     const images = incoming.filter(f => f.type.startsWith("image/"));
     if (images.length === 0) return;
     if (photos.length + images.length > max) {
       toast.error(`Máximo de ${max} fotos`);
       return;
     }
-    onFilesSelected(images);
+    onFilesSelected(await Promise.all(images.map(compressImage)));
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -10,6 +10,8 @@ import { useAuth } from "@/contexts/authContext";
 import { reportService, type IReportDetailResponse, type IReportItemResponse, type PaymentMethod } from "@/services/report";
 import { providerService } from "@/services/provider";
 import { uploadService } from "@/services/upload";
+import { captureFromCamera, compressImage } from "@/lib/camera";
+import { isNativeApp } from "@/lib/native";
 import {
   ArrowLeft, Plus, Trash2, Camera, Send, CheckCircle2, Copy, Loader2,
   Eye, User, Wind, ShieldCheck, Banknote, CalendarClock, CalendarPlus, Zap, XCircle,
@@ -1200,10 +1202,23 @@ function ItemCard({
     onUpdate({ notes: trimmed });
   };
 
+  // No app abre a câmera nativa (preview + compressão do plugin). No navegador cai no <input
+  // capture> de sempre. Cancelar a câmera no app NÃO abre o seletor da WebView — por isso o
+  // return no ramo nativo em vez de deixar cair no click() do input.
+  const capturePhoto = async (kind: "before" | "after") => {
+    if (isNativeApp()) {
+      const file = await captureFromCamera();
+      if (file) handleFile(file, kind);
+      return;
+    }
+    (kind === "before" ? beforeRef : afterRef).current?.click();
+  };
+
   const handleFile = async (file: File, kind: "before" | "after") => {
     setUploading(kind);
     try {
-      const url = await uploadService.upload(token, file);
+      const compressed = await compressImage(file);
+      const url = await uploadService.upload(token, compressed);
       const updated = await reportService.updateItem(token, reportId, item.id,
         kind === "before" ? { photoBefore: url } : { photoAfter: url }
       );
@@ -1307,7 +1322,7 @@ function ItemCard({
               photo={item.photoBefore}
               disabled={!canUploadPhotos || isCompleted}
               uploading={uploading === "before"}
-              onClick={() => beforeRef.current?.click()}
+              onClick={() => capturePhoto("before")}
               onDropFile={f => handleFile(f, "before")}
               onView={onViewPhoto}
             />
@@ -1316,7 +1331,7 @@ function ItemCard({
               photo={item.photoAfter}
               disabled={!canUploadPhotos || !item.photoBefore || isCompleted}
               uploading={uploading === "after"}
-              onClick={() => afterRef.current?.click()}
+              onClick={() => capturePhoto("after")}
               onDropFile={f => handleFile(f, "after")}
               onView={onViewPhoto}
             />
