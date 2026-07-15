@@ -1,4 +1,8 @@
-import { Geolocation } from "@capacitor/geolocation"
+import { registerPlugin } from "@capacitor/core"
+import type {
+  BackgroundGeolocationPlugin,
+  CallbackError,
+} from "@capacitor-community/background-geolocation"
 import { isNativeApp } from "./native"
 
 /**
@@ -7,27 +11,21 @@ import { isNativeApp } from "./native"
  * O beacon (`useLocationBeacon`, PLANO_ROTAS_TEMPO_REAL Fase 2) e qualquer outra tela que precise
  * de geolocalização passam por aqui. São DUAS implementações atrás do mesmo contrato:
  *
- * - **navegador:** `navigator.geolocation` (o web de sempre);
- * - **app nativo:** plugin `@capacitor/geolocation` (Fase 2.1 do PLANO_APP_CAPACITOR) — permissão
- *   pedida em runtime, GPS do aparelho via Google Play Services.
+ * - **navegador:** `navigator.geolocation` (o web de sempre) — FOREGROUND: aba oculta/tela
+ *   bloqueada MATAM o watch, e não há workaround honesto no web;
+ * - **app nativo:** plugin community `@capacitor-community/background-geolocation` (task 2.2 do
+ *   PLANO_APP_CAPACITOR) — permissão pedida em runtime e rastreio que **sobrevive à tela apagada**
+ *   via foreground service (ver `watchNative` abaixo). Substituiu o `@capacitor/geolocation` da
+ *   Fase 2.1, que só rastreava em foreground.
  *
- * A troca é **só de fonte**: o chamador (`useLocationBeacon`) não mudou uma linha, e não pode
- * mudar. Por isso a posição NÃO pode ser lida direto do `navigator` em componente nenhum — é esta
- * indireção que faz o wrapper nativo caber sem refactor.
+ * A troca é **só de fonte**: o chamador (`useLocationBeacon`) não muda o contrato. Por isso a
+ * posição NÃO pode ser lida direto do `navigator` em componente nenhum — é esta indireção que faz
+ * o wrapper nativo caber sem refactor.
  *
- * ⚠️ **Isto é geolocalização de FOREGROUND, nas duas plataformas.** Com o app em background ou a
- * tela apagada, o beacon PARA — mesmo sintoma do web. Medido no emulador (14/07): backgroundou o
- * app, mexi a posição, e nenhum POST saiu por 100s. São DUAS causas somadas, e é importante não
- * confundi-las:
- *   1. a permissão concedida é "só ao usar o app" → sem **foreground service** o Android corta as
- *      atualizações de localização em background;
- *   2. o `useLocationBeacon` só posta com a aba visível (`if (document.hidden) return` no `flush`).
- *
- * Background tracking de verdade (task 2.2) foi **VALIDADO tecnicamente e NÃO adotado nesta onda**
- * — o plugin community funciona (posições e POSTs com a tela apagada, provado no emulador), mas
- * ligá-lo exige mexer no hook e uma decisão de produto (notificação persistente, bateria). Ver a
- * **decisão 6** do PLANO_APP_CAPACITOR.md antes de encostar nisto: um plugin ligado aqui sem a
- * mudança no hook NÃO posta nada em background — ele só gasta bateria em silêncio.
+ * ⚠️ **O background do app depende de DUAS peças casadas** — uma sem a outra não entrega nada:
+ *   1. AQUI: o plugin com `backgroundMessage` (liga o foreground service + a notificação persistente);
+ *   2. no `useLocationBeacon`: postar no callback da posição e NÃO abortar com `document.hidden`
+ *      (o bail é só do web — no app é justamente com a tela apagada que precisamos postar).
  */
 
 export interface GeoPosition {
@@ -109,116 +107,90 @@ function toKind(err: GeolocationPositionError): GeoErrorKind {
 // ─── Implementação nativa (app Capacitor) ────────────────────────────────────────────────────
 
 /**
- * Códigos de erro do plugin (`GeolocationErrors.kt` — o plugin rejeita com `message` + `code`).
- * Mapeados para o nosso `GeoErrorKind`; o que não estiver aqui vira `unavailable`.
+ * Plugin community `@capacitor-community/background-geolocation` (gratuito). Ele **não envia JS** —
+ * só o código nativo e os tipos —, então registramos o proxy aqui; o nome bate com o
+ * `@CapacitorPlugin(name = "BackgroundGeolocation")` do lado Android.
+ *
+ * É ele que dá o rastreio com a TELA APAGADA (task 2.2), o que o `@capacitor/geolocation`
+ * (foreground) não fazia. O truque NÃO é uma permissão especial (`ACCESS_BACKGROUND_LOCATION`
+ * continua sem ser pedida): é um **foreground service** do tipo `location`, e o preço dele é a
+ * **notificação persistente** ("Rota em andamento") ligada por `backgroundMessage` abaixo. Sem
+ * `backgroundMessage`, o plugin só rastrearia em foreground (um `@capacitor/geolocation` mais caro).
  */
-const NATIVE_ERROR_KINDS: Record<string, GeoErrorKind> = {
-  "OS-PLUG-GLOC-0003": "denied", // permissão negada pelo usuário
-  "OS-PLUG-GLOC-0010": "timeout", // não conseguiu fixar a posição a tempo
-  "OS-PLUG-GLOC-0007": "unavailable", // serviços de localização desligados no aparelho
-  "OS-PLUG-GLOC-0009": "unavailable", // usuário recusou LIGAR a localização (≠ negar permissão)
-  "OS-PLUG-GLOC-0017": "unavailable", // GPS e rede desligados
-}
+const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>("BackgroundGeolocation")
 
-/** Backoff do re-armar (ver `watchNative`): não martela o GPS quando o aparelho não colabora. */
-const NATIVE_RETRY_MS = [10_000, 30_000, 60_000]
+/**
+ * Metros que o aparelho precisa andar para o plugin emitir uma posição nova. Filtra o tremido do
+ * GPS parado e economiza bateria; o `useLocationBeacon` ainda limita o POST a ~25s por cima. Parado
+ * de verdade (chegou no cliente) não gera callback e a posição fica "stale" — comportamento
+ * esperado (decisão 3 do PLANO_ROTAS_TEMPO_REAL: nada disso bloqueia o fluxo).
+ */
+const NATIVE_DISTANCE_FILTER_M = 25
 
-function nativeKind(err: unknown): GeoErrorKind {
-  const code = (err as { code?: string } | null)?.code
-  return (code && NATIVE_ERROR_KINDS[code]) || "unavailable"
+/** Único erro "duro" do plugin: permissão negada / serviços de localização desligados. */
+function nativeKind(err: CallbackError | unknown): GeoErrorKind {
+  const code = (err as CallbackError | null)?.code
+  return code === "NOT_AUTHORIZED" ? "denied" : "unavailable"
 }
 
 /**
- * O watch nativo, com uma diferença de comportamento que precisou ser compensada AQUI:
- *
- * 🪤 **o watch do plugin MORRE no primeiro erro.** Ele é um `PluginCall` com keep-alive; o caminho
- * de erro chama `reject()`, e a partir daí nenhuma posição nova chega naquele watchId. O
- * `navigator.geolocation.watchPosition` do browser faz o oposto (chama o errorCallback e continua
- * vivo — pode se recuperar sozinho quando o GPS esfria/esquenta), e é ISSO que o `useLocationBeacon`
- * assume ("timeout/unavailable são transitórios: o watch continua tentando").
- *
- * Sem compensar, o app ficaria eternamente em "Obtendo sua localização..." com um watch morto por
- * baixo — a pior falha possível: o indicador MENTE. Então, em erro transitório, re-armamos o watch
- * com backoff (10s → 30s → 60s). `denied` é terminal (não re-arma): é o único que o hook trata como
- * "não insista".
+ * Watch nativo via background-geolocation. Diferente do `@capacitor/geolocation` (cujo watch MORRIA
+ * no primeiro erro e exigia re-armar com backoff), este é um **watcher persistente**: entrega
+ * posições enquanto viver e reporta o erro pelo 2º argumento do callback SEM se encerrar — então
+ * não há re-arme a fazer aqui. Só `denied` (permissão negada) é terminal, e é o único que o hook
+ * trata como "não insista" (decisão 3: a UI avisa e a rota SEGUE, sem bloquear o provider).
  */
 function watchNative(
   onPosition: (position: GeoPosition) => void,
   onError: (kind: GeoErrorKind) => void,
 ): GeoWatch {
   let cleared = false
-  let watchId: string | null = null
-  let retries = 0
-  let retryTimer: ReturnType<typeof setTimeout> | null = null
+  let watcherId: string | null = null
 
-  const dropWatch = () => {
-    const id = watchId
-    watchId = null
-    if (id) void Geolocation.clearWatch({ id }).catch(() => {})
-  }
-
-  const fail = (err: unknown) => {
-    if (cleared) return
-    const kind = nativeKind(err)
-    onError(kind)
-    if (kind === "denied") return // terminal: o hook para de insistir
-
-    // Transitório: mata o watch morto e re-arma com backoff (ver o comentário do bloco).
-    dropWatch()
-    const delay = NATIVE_RETRY_MS[Math.min(retries, NATIVE_RETRY_MS.length - 1)]
-    retries += 1
-    retryTimer = setTimeout(() => { void start() }, delay)
-  }
-
-  const start = async () => {
-    if (cleared) return
-    try {
-      // Permissão em runtime (Android 6+): `checkPermissions` lança se os SERVIÇOS de localização
-      // do aparelho estiverem desligados — daí o try/catch em volta de tudo.
-      let status = await Geolocation.checkPermissions()
-      if (status.location !== "granted" && status.coarseLocation !== "granted") {
-        status = await Geolocation.requestPermissions({ permissions: ["location"] })
-      }
+  void BackgroundGeolocation.addWatcher(
+    {
+      // Liga o rastreio de BACKGROUND (tela apagada) — e o texto da notificação persistente que o
+      // Android exige p/ manter o foreground service vivo. Copy da decisão 6 do plano.
+      backgroundTitle: "Rota em andamento",
+      backgroundMessage: "Compartilhando sua localização durante a rota.",
+      // O plugin pede a permissão de localização em runtime; a recusa vira "denied" no callback.
+      requestPermissions: true,
+      // Nada de posição velha em cache ao ligar: o cliente quer o pino de agora.
+      stale: false,
+      distanceFilter: NATIVE_DISTANCE_FILTER_M,
+    },
+    (position, error) => {
       if (cleared) return
-      if (status.location !== "granted" && status.coarseLocation !== "granted") {
-        // Recusa do usuário → `denied` (decisão 3 do PLANO_ROTAS_TEMPO_REAL: a UI avisa e a rota
-        // SEGUE; nada de bloquear o provider por causa do pino).
-        onError("denied")
+      if (error) {
+        onError(nativeKind(error))
         return
       }
-
-      const id = await Geolocation.watchPosition(WATCH_OPTIONS, (position, err) => {
-        if (cleared) return
-        if (err) { fail(err); return }
-        if (!position) return
-        retries = 0 // voltou a funcionar: o próximo tropeço recomeça o backoff do zero
-        const { latitude, longitude, accuracy } = position.coords
-        onPosition({
-          lat: latitude,
-          lng: longitude,
-          accuracyM: Number.isFinite(accuracy) ? accuracy : undefined,
-        })
+      if (!position) return
+      const { latitude, longitude, accuracy } = position
+      onPosition({
+        lat: latitude,
+        lng: longitude,
+        accuracyM: Number.isFinite(accuracy) ? accuracy : undefined,
       })
-
-      // Corrida real: `clear()` pode ter sido chamado enquanto o await acima resolvia.
-      if (cleared) {
-        void Geolocation.clearWatch({ id }).catch(() => {})
-        return
-      }
-      watchId = id
-    } catch (err) {
-      fail(err)
-    }
-  }
-
-  void start()
+    },
+  )
+    .then(id => {
+      // Corrida real: `clear()` pode ter sido chamado enquanto o addWatcher resolvia.
+      if (cleared) { void BackgroundGeolocation.removeWatcher({ id }).catch(() => {}); return }
+      watcherId = id
+    })
+    .catch(err => {
+      // Falhou ao sequer registrar o watcher (permissão negada síncrona, serviço fora do ar).
+      if (!cleared) onError(nativeKind(err))
+    })
 
   return {
     clear: () => {
       if (cleared) return
       cleared = true
-      if (retryTimer) clearTimeout(retryTimer)
-      dropWatch()
+      const id = watcherId
+      watcherId = null
+      if (id) void BackgroundGeolocation.removeWatcher({ id }).catch(() => {})
     },
   }
 }

@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react"
 import axios from "axios"
 import { isGeolocationSupported, watchPosition, type GeoPosition } from "@/lib/geolocation"
+import { isNativeApp } from "@/lib/native"
 import { locationService } from "@/services/location"
 
 /**
- * Beacon: manda a posição do provider ao backend enquanto houver **rota iniciada** e a aba viva
- * (PLANO_ROTAS_TEMPO_REAL, task 2.3). `watchPosition` alimenta a última posição conhecida; um
- * timer a envia a cada ~25s (o backend limita a 1 a cada 10s).
+ * Beacon: manda a posição do provider ao backend enquanto houver **rota iniciada**
+ * (PLANO_ROTAS_TEMPO_REAL, task 2.3). `watchPosition` alimenta a última posição conhecida e cada
+ * posição nova dispara um `flush`, auto-limitado a ~25s (o backend recusa mais de 1 a cada 10s).
+ * Um `setInterval` de reforço cobre o WEB parado com a aba visível.
  *
- * **Limitação assumida (web/PWA):** tela bloqueada ou aba descartada MATAM o beacon — o browser
- * suspende timers e o `watchPosition` em background. Não há workaround honesto no web; é
- * exatamente isto que o app nativo resolve (Fase 2.2 do PLANO_APP_CAPACITOR, com background
- * geolocation). Enquanto isso a posição simplesmente fica "stale" (>5 min) e a Fase 3 mostra o
- * status sem pino ao vivo — decisão 3 do plano: **nada disso bloqueia o fluxo**.
+ * **Web vs. app:** postar no callback da posição (e não só no timer) é o que faz o beacon
+ * sobreviver à **tela apagada NO APP** (task 2.2 do PLANO_APP_CAPACITOR): lá o `setInterval` é
+ * congelado pelo SO em background, mas o callback nativo continua vindo (foreground service). No
+ * **web/PWA**, ao contrário, tela bloqueada ou aba descartada MATAM o beacon — o browser suspende
+ * timers E o `watchPosition`; não há workaround honesto, então o `flush` aborta com `document.hidden`
+ * (só no web) e a posição fica "stale" (>5 min) até voltar — decisão 3 do plano: **não bloqueia o fluxo**.
  *
  * Estados chatos, todos tratados sem toast em loop:
  * - **permissão negada** (ou revogada no meio): para de tentar, informa no indicador, segue a vida;
@@ -81,14 +84,15 @@ export function useLocationBeacon({ token, active }: { token: string; active: bo
     let nextAttemptAt = 0
     let stopped = false // permissão negada/402: para de postar sem derrubar o resto da tela
     let lastPosition: GeoPosition | null = null
-    let firstSendDone = false
 
     setStatus("locating")
 
     const flush = async () => {
       if (!alive || stopped || sending || !lastPosition) return
-      // Aba oculta: o browser já estrangula o timer; não insistimos (e não gastamos bateria).
-      if (typeof document !== "undefined" && document.hidden) return
+      // Aba oculta: no WEB o browser estrangula o timer e não adianta insistir (bateria). No APP é o
+      // OPOSTO — é com a tela apagada que o beacon PRECISA postar (foreground service, task 2.2) —,
+      // então o bail vale só p/ web.
+      if (!isNativeApp() && typeof document !== "undefined" && document.hidden) return
       if (Date.now() < nextAttemptAt) return
 
       sending = true
@@ -97,8 +101,9 @@ export function useLocationBeacon({ token, active }: { token: string; active: bo
         await locationService.send(token, position)
         if (!alive) return
         failures = 0
-        nextAttemptAt = 0
-        firstSendDone = true
+        // Cadência: o watch nativo chama `flush` a cada posição (a cada poucos metros); sem este
+        // gate o beacon postaria a cada callback e levaria 429. Trava o próximo envio em ~25s.
+        nextAttemptAt = Date.now() + POST_INTERVAL_MS
         setLastSentAt(new Date())
         setAccuracyM(position.accuracyM ?? null)
         setStatus("sharing")
@@ -106,8 +111,9 @@ export function useLocationBeacon({ token, active }: { token: string; active: bo
         if (!alive) return
         const httpStatus = axios.isAxiosError(err) ? err.response?.status : undefined
 
-        // 429 = rate-limit do backend (postamos cedo demais). Não é falha: nem conta pro backoff.
-        if (httpStatus === 429) return
+        // 429 = rate-limit do backend (postamos cedo demais). Não é falha (nem conta pro backoff);
+        // só recua a cadência p/ não martelar.
+        if (httpStatus === 429) { nextAttemptAt = Date.now() + POST_INTERVAL_MS; return }
 
         // 402/401: insistir é inútil (assinatura vencida / sessão morta) e viraria loop.
         if (httpStatus === 402 || httpStatus === 401) {
@@ -129,8 +135,10 @@ export function useLocationBeacon({ token, active }: { token: string; active: bo
       position => {
         if (!alive) return
         lastPosition = position
-        // 1º fix: envia na hora (não espera o 1º tick do timer — o cliente quer o pino JÁ).
-        if (!firstSendDone) void flush()
+        // Posta a cada posição (o `flush` se auto-limita por `nextAttemptAt`): é ISSO que carrega o
+        // beacon em background no APP — lá o `setInterval` congela, mas o callback nativo continua
+        // vindo. O 1º fix sai na hora (nextAttemptAt começa em 0): o cliente quer o pino JÁ.
+        void flush()
       },
       kind => {
         if (!alive) return

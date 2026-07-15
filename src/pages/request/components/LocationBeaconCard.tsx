@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Loader2, MapPin, MapPinOff, Radio, WifiOff } from "lucide-react"
 import type { LocationBeacon } from "@/hooks/useLocationBeacon"
+import { isNativeApp } from "@/lib/native"
 
 /**
  * Indicador do beacon (PLANO_ROTAS_TEMPO_REAL, task 2.3): aparece na rota do dia quando algum turno
@@ -15,6 +16,9 @@ export function LocationBeaconCard({ beacon }: { beacon: LocationBeacon }) {
   const { status } = beacon
   if (status === "idle") return null
 
+  // No APP o rastreio sobrevive à tela apagada (task 2.2: foreground service); o copy que fala em
+  // "aba"/"navegador" seria mentira. No web a limitação continua real.
+  const native = isNativeApp()
   const sharing = status === "sharing" || status === "locating" || status === "error"
 
   const hhmm = beacon.lastSentAt
@@ -32,7 +36,7 @@ export function LocationBeaconCard({ beacon }: { beacon: LocationBeacon }) {
       tone: "bg-blue-50 border-blue-200 text-blue-800",
       icon: <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />,
       title: "Obtendo sua localização...",
-      hint: "Confirme a permissão de localização se o navegador pedir.",
+      hint: "Confirme a permissão de localização se for solicitada.",
     },
     error: {
       tone: "bg-amber-50 border-amber-200 text-amber-800",
@@ -46,7 +50,7 @@ export function LocationBeaconCard({ beacon }: { beacon: LocationBeacon }) {
       tone: "bg-gray-50 border-gray-200 text-gray-700",
       icon: <MapPinOff className="w-4 h-4 text-gray-500" />,
       title: "Localização bloqueada",
-      hint: "A rota segue normal — só não dá para mostrar sua posição ao vivo. Libere a localização nas permissões do navegador se quiser ativar.",
+      hint: `A rota segue normal — só não dá para mostrar sua posição ao vivo. Libere a localização nas permissões do ${native ? "app" : "navegador"} se quiser ativar.`,
     },
     unsupported: {
       tone: "bg-gray-50 border-gray-200 text-gray-700",
@@ -75,7 +79,9 @@ export function LocationBeaconCard({ beacon }: { beacon: LocationBeacon }) {
               <p className="text-[11px] opacity-80 leading-snug">{current.hint}</p>
               {sharing && (
                 <p className="text-[11px] opacity-70 leading-snug mt-0.5">
-                  Mantenha esta aba aberta: com a tela bloqueada, o navegador para de enviar a posição.
+                  {native
+                    ? "Pode bloquear a tela: a localização continua sendo enviada durante a rota (aviso “Rota em andamento” na barra de notificações)."
+                    : "Mantenha esta aba aberta: com a tela bloqueada, o navegador para de enviar a posição."}
                 </p>
               )}
             </div>
