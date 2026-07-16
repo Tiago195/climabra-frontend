@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/authContext"
 import {
@@ -25,6 +28,7 @@ import { getApiErrorMessage } from "@/services/apiError"
 const keyOf = (dayOfWeek: number, shift: Shift) => `${dayOfWeek}-${shift}`
 
 export function Availability() {
+  const navigate = useNavigate()
   const { token } = useAuth()
   const [availability, setAvailability] = useState<AvailabilityDTO[]>([])
   const [loading, setLoading] = useState(true)
@@ -39,6 +43,10 @@ export function Availability() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogInitialDate, setDialogInitialDate] = useState<string | undefined>(undefined)
   const [deletingExceptionId, setDeletingExceptionId] = useState<string | null>(null)
+  /** Dia selecionado no calendário do card de bloqueios (D4) — só destaque visual. */
+  const [selectedExceptionDate, setSelectedExceptionDate] = useState<string | null>(null)
+  /** Incrementado após criar/excluir bloqueio p/ o `MonthCalendar` refetchar (ele busca sozinho). */
+  const [calendarRefreshToken, setCalendarRefreshToken] = useState(0)
 
   const hasChanges = Object.keys(localConfig).length > 0
 
@@ -51,7 +59,7 @@ export function Availability() {
 
     availabilityService.listExceptions(token)
       .then(setExceptions)
-      .catch(e => toast.error(getApiErrorMessage(e, "Erro ao carregar exceções")))
+      .catch(e => toast.error(getApiErrorMessage(e, "Erro ao carregar bloqueios")))
       .finally(() => setLoadingExceptions(false))
   }, [token])
 
@@ -158,6 +166,8 @@ export function Availability() {
       next.sort((a, b) => a.startDate.localeCompare(b.startDate))
       return next
     })
+    setSelectedExceptionDate(null)
+    setCalendarRefreshToken(v => v + 1)
   }
 
   const handleDeleteException = async (id: string) => {
@@ -166,9 +176,10 @@ export function Availability() {
     try {
       await availabilityService.deleteException(token, id)
       setExceptions(prev => prev.filter(e => e.id !== id))
-      toast.success("Exceção removida")
+      setCalendarRefreshToken(v => v + 1)
+      toast.success("Bloqueio removido")
     } catch (e) {
-      toast.error(getApiErrorMessage(e, "Erro ao remover exceção"))
+      toast.error(getApiErrorMessage(e, "Erro ao remover bloqueio"))
     } finally {
       setDeletingExceptionId(null)
     }
@@ -176,11 +187,23 @@ export function Availability() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-5 pb-24">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Configurar Agenda</h1>
-        <p className="text-gray-500 text-sm">
-          Defina os turnos (manhã, tarde, noite) e a capacidade de cada dia
-        </p>
+      {/* Header de sub-tela (AGENDA-UNI H2/D3): back para a Agenda + título da seção. */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11 -ml-2 shrink-0"
+          aria-label="Voltar para Agenda"
+          onClick={() => navigate("/dashboard/agenda")}
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-gray-900">Disponibilidade</h1>
+          <p className="text-gray-500 text-sm">
+            Defina os turnos (manhã, tarde, noite) e a capacidade de cada dia
+          </p>
+        </div>
       </div>
 
       <AvailabilityInfoCard />
@@ -225,8 +248,11 @@ export function Availability() {
       ) : (
         <>
           <ExceptionsCalendarCard
-            exceptions={exceptions}
+            token={token!}
+            selectedDate={selectedExceptionDate}
+            onSelectDate={setSelectedExceptionDate}
             onAddClick={handleOpenAddException}
+            refreshToken={calendarRefreshToken}
           />
           <Card>
             <CardContent className="pt-6">

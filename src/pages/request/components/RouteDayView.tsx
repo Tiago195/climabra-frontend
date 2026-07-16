@@ -34,6 +34,8 @@ import { RouteMap } from "./RouteMap"
 
 interface Props {
   token: string
+  /** Dia da rota ("YYYY-MM-DD"). Default = hoje. Permite navegar a rota de qualquer dia (D2b). */
+  date?: string
   appointments: IAppointmentDetailResponse[]
   clientsById: Map<string, IClientResponse>
   creatingReportFor: string | null
@@ -66,10 +68,12 @@ const STATUS_META: Record<RunStatus, { label: string; cls: string }> = {
  * turno (congela a ordem) e "Estou indo" por visita. A ordem vem toda do backend. Mobile-first.
  */
 export function RouteDayView({
-  token, appointments, clientsById, creatingReportFor,
+  token, date, appointments, clientsById, creatingReportFor,
   onCreateReport, onComplete, onCancel, onApptMoved,
 }: Props) {
-  const today = useMemo(() => todayISO(), [])
+  const fallbackToday = useMemo(() => todayISO(), [])
+  // `date` controlado pelo pai (seletor ‹‹ HOJE ››); sem ele, cai no dia de hoje.
+  const today = date ?? fallbackToday
   const [plan, setPlan] = useState<IRoutePlanResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [busyShift, setBusyShift] = useState<Shift | null>(null)
@@ -104,6 +108,19 @@ export function RouteDayView({
     for (const s of plan?.sections ?? []) m.set(s.shift, s)
     return m
   }, [plan])
+
+  // Numeração GLOBAL do dia para as bolinhas das paradas: continua de onde o turno anterior parou
+  // (Tarde 1–2, Noite 3–4), espelhando `orderedStops`/o mapa (que numera 1..N o dia inteiro). Deriva
+  // das seções na ordem manhã→tarde→noite — o mesmo encadeamento do backend — então o número bate com
+  // a ordem dos cards e se recalcula sozinho no drag&drop (as seções re-renderizam do plano novo).
+  const globalIndexById = useMemo(() => {
+    const m = new Map<string, number>()
+    let n = 0
+    for (const shift of SHIFT_ORDER) {
+      for (const id of sectionByShift.get(shift)?.appointmentIds ?? []) m.set(id, ++n)
+    }
+    return m
+  }, [sectionByShift])
 
   // Visitas de hoje sem coordenadas (fora do plano) — agrupadas por turno.
   const uncoveredByShift = useMemo(() => {
@@ -222,7 +239,7 @@ export function RouteDayView({
       <Card>
         <CardContent className="py-12 text-center text-sm text-gray-500">
           <Route className="w-10 h-10 mx-auto text-gray-300 mb-3" />
-          Nenhuma visita para hoje
+          Nenhuma visita neste dia
         </CardContent>
       </Card>
     )
@@ -238,7 +255,7 @@ export function RouteDayView({
         <CardContent className="py-3 space-y-2">
           <div className="flex items-center gap-1.5 text-xs font-medium text-gray-700">
             <Navigation className="w-3.5 h-3.5 text-blue-600" />
-            <span>Rota de hoje — {totalStops} parada{totalStops === 1 ? "" : "s"}</span>
+            <span>Rota do dia — {totalStops} parada{totalStops === 1 ? "" : "s"}</span>
           </div>
           {totalStops > 0 && (
             <p className="text-[11px] text-gray-500">
@@ -342,7 +359,7 @@ export function RouteDayView({
             >
               <SortableContext items={ids} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
-                  {ids.map((id, idx) => {
+                  {ids.map(id => {
                     const row = rowById.get(id)
                     if (!row) return null
                     const client = clientsById.get(row.client.id)
@@ -351,7 +368,7 @@ export function RouteDayView({
                       <RouteStopCard
                         key={id}
                         id={id}
-                        index={idx + 1}
+                        index={globalIndexById.get(id)}
                         row={row}
                         client={client}
                         etaMin={meta?.cumulativeMin}

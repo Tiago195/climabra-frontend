@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Calendar, Info, Sunrise, Sun, Moon } from "lucide-react"
+import { Calendar, Info, Sunrise, Sun, Moon, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/authContext"
 import {
@@ -21,6 +21,12 @@ interface AddExceptionDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   initialDate?: string
+  /**
+   * Nº de visitas ainda `scheduled` no dia `initialDate` (D6). Quando > 0, mostra
+   * aviso de conflito antes de confirmar o bloqueio ("exigirá remarcar N visitas").
+   * Só vem do sheet do dia (H4); na Disponibilidade fica indefinido (sem aviso).
+   */
+  conflictCount?: number
   onCreated: (exception: IExceptionResponse) => void
 }
 
@@ -30,7 +36,7 @@ const SHIFT_ICONS: Record<Shift, typeof Sunrise> = {
   night: Moon,
 }
 
-export function AddExceptionDialog({ open, onOpenChange, initialDate, onCreated }: AddExceptionDialogProps) {
+export function AddExceptionDialog({ open, onOpenChange, initialDate, conflictCount, onCreated }: AddExceptionDialogProps) {
   const { token } = useAuth()
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
@@ -223,6 +229,17 @@ export function AddExceptionDialog({ open, onOpenChange, initialDate, onCreated 
               className="h-9 text-sm"
             />
           </div>
+
+          {/* Aviso de conflito (D6) — dia pré-selecionado com visitas ainda agendadas. */}
+          {conflictCount != null && conflictCount > 0 && (
+            <div className="flex items-start gap-2 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2.5">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-600 mt-0.5 shrink-0" />
+              <p className="text-[11px] text-rose-800 leading-relaxed">
+                Este dia tem <strong>{conflictCount} visita{conflictCount > 1 ? "s" : ""} agendada{conflictCount > 1 ? "s" : ""}</strong>.
+                Bloquear exigirá remarcar {conflictCount > 1 ? "essas visitas" : "essa visita"}.
+              </p>
+            </div>
+          )}
 
           {/* Aviso */}
           <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">

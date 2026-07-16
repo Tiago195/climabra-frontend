@@ -398,7 +398,7 @@ export function Pipeline() {
 
   const openCard = (card: IPipelineCard) => {
     if (card.reportId) navigate(`/dashboard/reports/${card.reportId}`);
-    else navigate("/dashboard/requests");
+    else navigate("/dashboard/agenda?tab=calendario");
   };
 
   const startDecline = (card: IPipelineCard) => {

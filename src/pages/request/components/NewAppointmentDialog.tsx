@@ -26,13 +26,14 @@ import {
 import { reportService, type IOpenReport } from "@/services/report"
 import { getApiErrorMessage } from "@/services/apiError"
 import {
-  SHIFT_LABELS, SHIFT_COLORS, SHIFT_ICONS,
+  SHIFT_LABELS, SHIFT_COLORS, SHIFT_ICONS, SHIFT_ORDER,
   DAY_NAMES_SHORT, MONTH_NAMES_SHORT, trimTime,
 } from "@/lib/shifts"
 import { EQUIPMENT_TYPE_LABELS } from "@/lib/equipment"
 import {
   buildSlotSuggestions,
   nextBusinessDays,
+  isSlotInPast,
   type ScoredSlot,
 } from "@/lib/slotSuggestions"
 
@@ -44,6 +45,9 @@ interface Props {
   clients: IClientResponse[]
   appointments: IAppointmentDetailResponse[]
   onCreated: (appt: IAppointmentDetailResponse) => void
+  /** Pré-seleção de data/turno (vinda do sheet do dia — H4/T4.2). */
+  initialDate?: string
+  initialShift?: Shift
 }
 
 const DAYS_TO_LOAD = 14
@@ -64,6 +68,7 @@ const OPEN_REPORT_STATUS: Record<"approved" | "awaiting_execution", { label: str
 
 export function NewAppointmentDialog({
   open, onClose, token, publicToken, clients, appointments, onCreated,
+  initialDate, initialShift,
 }: Props) {
   const [clientId, setClientId] = useState("")
   const [visitType, setVisitType] = useState<VisitType>("standard")
@@ -71,6 +76,12 @@ export function NewAppointmentDialog({
   const [selectedEqs, setSelectedEqs] = useState<string[]>([])
   const [notes, setNotes] = useState("")
   const [picked, setPicked] = useState<{ date: string; shift: Shift } | null>(null)
+  // Modo "data travada" (H4/T4.2 → melhoria de UX): quando o dialog chega com `initialDate`
+  // (veio do "+ Nova visita neste dia" do sheet), o default é mostrar só a data escolhida +
+  // turnos daquele dia, em vez da lista completa de sugestões multi-data. "Ver outras datas"
+  // é o escape explícito para o modo de sempre (lista completa); nada de funcionalidade some,
+  // só a apresentação default muda.
+  const [showAllDates, setShowAllDates] = useState(false)
   const [slotsByDate, setSlotsByDate] = useState<Record<string, IShiftSlot[]>>({})
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -89,10 +100,12 @@ export function NewAppointmentDialog({
     setEquipments([])
     setSelectedEqs([])
     setNotes("")
-    setPicked(null)
+    // Pré-seleção vinda do sheet do dia (H4/T4.2): já chega com data (+ turno com vaga).
+    setPicked(initialDate ? { date: initialDate, shift: initialShift ?? "morning" } : null)
+    setShowAllDates(false)
     setOpenReports([])
     setSelectedReportId(null)
-  }, [open])
+  }, [open, initialDate, initialShift])
 
   // Laudos em aberto do cliente (só no modo execução) p/ vincular a visita (F2)
   useEffect(() => {
@@ -123,10 +136,12 @@ export function NewAppointmentDialog({
       .catch(() => setEquipments([]))
   }, [token, clientId])
 
-  // Pré-carrega slots dos próximos 14 dias úteis
+  // Pré-carrega slots dos próximos 14 dias úteis (+ a `initialDate` travada, se vier de
+  // fora dessa janela — ex.: sheet do dia num mês futuro do calendário).
   useEffect(() => {
     if (!open) return
     const dates = nextBusinessDays(DAYS_TO_LOAD)
+    if (initialDate && !dates.includes(initialDate)) dates.push(initialDate)
     setLoadingSlots(true)
     Promise.all(
       dates.map(date =>
@@ -141,7 +156,7 @@ export function NewAppointmentDialog({
         setSlotsByDate(map)
       })
       .finally(() => setLoadingSlots(false))
-  }, [open, publicToken])
+  }, [open, publicToken, initialDate])
 
   const suggestions: ScoredSlot[] = useMemo(() => {
     if (!client || Object.keys(slotsByDate).length === 0) return []
@@ -150,6 +165,40 @@ export function NewAppointmentDialog({
 
   const best = suggestions.slice(0, 4)
   const others = suggestions.slice(4, 10)
+
+  // Modo "data travada": só ativo quando o dialog chegou com `initialDate` (do sheet do
+  // dia) e o usuário não pediu "Ver outras datas". Sem `initialDate` (botão "+ Nova visita"
+  // do header) este bloco fica sempre `false` e nada muda no fluxo de hoje.
+  const lockedMode = !!initialDate && !showAllDates
+
+  type LockedShiftStatus = "available" | "full" | "blocked" | "noWork" | "past"
+  interface LockedShiftInfo {
+    shift: Shift
+    slot: IShiftSlot | null
+    scored: ScoredSlot | null
+    status: LockedShiftStatus
+  }
+
+  // Estado de cada turno (Manhã/Tarde/Noite) do dia travado — mesma fonte (slotsByDate) e
+  // mesmo critério de ocupação/proximidade das sugestões, só que recortado para 1 dia.
+  const lockedShiftInfo: LockedShiftInfo[] = useMemo(() => {
+    if (!initialDate) return []
+    const daySlots = slotsByDate[initialDate] ?? []
+    return SHIFT_ORDER.map(shift => {
+      const slot = daySlots.find(s => s.shift === shift) ?? null
+      const scored = suggestions.find(s => s.date === initialDate && s.shift === shift) ?? null
+      let status: LockedShiftStatus = "available"
+      if (!slot) status = "noWork"
+      else if (slot.blocked) status = "blocked"
+      else if (isSlotInPast(initialDate, slot.endTime)) status = "past"
+      else if (slot.available <= 0) status = "full"
+      return { shift, slot, scored, status }
+    })
+  }, [initialDate, slotsByDate, suggestions])
+
+  const lockedShiftsLoaded = !initialDate || Object.prototype.hasOwnProperty.call(slotsByDate, initialDate)
+  const noShiftAvailableForLockedDate =
+    lockedShiftsLoaded && lockedShiftInfo.length > 0 && lockedShiftInfo.every(i => i.status !== "available")
 
   const toggleEquipment = (id: string) => {
     setSelectedEqs(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
@@ -181,8 +230,15 @@ export function NewAppointmentDialog({
     }
   }
 
+  // Defensivo: se `picked` aponta pro dia travado, o turno escolhido precisa constar como
+  // disponível em `lockedShiftInfo` (protege contra o initialShift chegar desatualizado —
+  // ex. vaga ocupada entre o sheet e a abertura do dialog).
+  const pickedLockedShiftValid =
+    !picked || !initialDate || picked.date !== initialDate || !lockedShiftsLoaded ||
+    lockedShiftInfo.some(i => i.shift === picked.shift && i.status === "available")
+
   // Execução exige um laudo selecionado; os demais tipos exigem ≥1 equipamento.
-  const canSubmit = !!client && !!picked && !submitting && (
+  const canSubmit = !!client && !!picked && !submitting && pickedLockedShiftValid && (
     visitType === "execution" ? !!selectedReportId : selectedEqs.length > 0
   )
 
@@ -240,7 +296,9 @@ export function NewAppointmentDialog({
                 <Label className="text-xs">Cliente</Label>
                 <select
                   value={clientId}
-                  onChange={e => { setClientId(e.target.value); setPicked(null) }}
+                  // Trocar de cliente reseta a sugestão escolhida — exceto quando o dia
+                  // veio pré-selecionado do sheet (H4), aí o dia escolhido é preservado.
+                  onChange={e => { setClientId(e.target.value); if (!initialDate) setPicked(null) }}
                   className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Selecionar cliente...</option>
@@ -354,13 +412,146 @@ export function NewAppointmentDialog({
           {/* Sugestões */}
           {client && (
             <>
+              {lockedMode ? (
+                <>
+                  <div className="flex items-center justify-between px-1">
+                    <Label className="text-xs uppercase tracking-wide text-gray-500">
+                      Data selecionada
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => setShowAllDates(true)}
+                      className="text-[11px] font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                    >
+                      Ver outras datas
+                    </button>
+                  </div>
+
+                  {!lockedShiftsLoaded ? (
+                    <div className="flex items-center justify-center gap-2 py-6 text-sm text-gray-500">
+                      <Loader2 className="w-4 h-4 animate-spin" /> Carregando turnos...
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border-2 border-blue-200 bg-blue-50/40 p-3 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col items-center justify-center bg-white border border-gray-200 rounded-lg w-12 py-1 shrink-0">
+                          <span className="text-[9px] uppercase font-bold text-gray-400">
+                            {DAY_NAMES_SHORT[new Date(`${initialDate}T00:00:00`).getDay()]}
+                          </span>
+                          <span className="text-base font-bold text-gray-900 leading-none">
+                            {new Date(`${initialDate}T00:00:00`).getDate()}
+                          </span>
+                          <span className="text-[9px] text-gray-400">
+                            {MONTH_NAMES_SHORT[new Date(`${initialDate}T00:00:00`).getMonth()]}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-800 capitalize">
+                            {new Date(`${initialDate}T00:00:00`).toLocaleDateString("pt-BR", {
+                              weekday: "long", day: "2-digit", month: "long",
+                            })}
+                          </p>
+                          <p className="text-[11px] text-gray-500">Escolha o turno</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        {lockedShiftInfo.map(info => {
+                          const c = SHIFT_COLORS[info.shift]
+                          const Icon = SHIFT_ICONS[info.shift]
+                          const enabled = info.status === "available"
+                          const isPicked = enabled && picked?.date === initialDate && picked?.shift === info.shift
+                          const reason: Record<string, string> = {
+                            full: "Lotado",
+                            blocked: "Bloqueado",
+                            noWork: "Sem expediente",
+                            past: "Horário encerrado",
+                          }
+                          const hasProximity = info.scored != null && (
+                            info.scored.usesCoords ? info.scored.nearbyCount > 0 : info.scored.sameNeighborhoodCount > 0
+                          )
+                          return (
+                            <button
+                              key={info.shift}
+                              type="button"
+                              data-testid="locked-shift-option"
+                              disabled={!enabled}
+                              onClick={() => enabled && initialDate && setPicked({ date: initialDate, shift: info.shift })}
+                              className={`rounded-lg border-2 p-2 flex flex-col items-center text-center gap-0.5 transition-colors ${
+                                !enabled
+                                  ? "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed"
+                                  : isPicked
+                                    ? "border-blue-500 bg-blue-50"
+                                    : "border-gray-200 bg-white hover:border-blue-300"
+                              }`}
+                            >
+                              <div className={`w-5 h-5 rounded flex items-center justify-center ${enabled ? `${c.bg} ${c.text}` : "bg-gray-100 text-gray-400"}`}>
+                                <Icon className="w-3 h-3" />
+                              </div>
+                              <span className={`text-xs font-semibold ${enabled ? "text-gray-800" : "text-gray-500"}`}>
+                                {SHIFT_LABELS[info.shift]}
+                              </span>
+                              {info.slot && (
+                                <span className="text-[10px] text-gray-400">
+                                  {trimTime(info.slot.startTime)}–{trimTime(info.slot.endTime)}
+                                </span>
+                              )}
+                              {enabled && info.slot ? (
+                                <>
+                                  <span className="text-[11px] font-semibold text-green-700">
+                                    {info.slot.available} vaga{info.slot.available > 1 ? "s" : ""}
+                                  </span>
+                                  {hasProximity && (
+                                    <span className="text-[10px] text-green-700 flex items-center gap-0.5">
+                                      <MapPin className="w-2.5 h-2.5 shrink-0" /> próx.
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-[10px] font-medium text-gray-400">
+                                  {reason[info.status] ?? ""}
+                                </span>
+                              )}
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      {noShiftAvailableForLockedDate && (
+                        <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-amber-700 bg-amber-50 rounded-md px-2 py-1.5">
+                          <AlertCircle className="w-3 h-3 shrink-0" />
+                          <span>Nenhum turno disponível neste dia.</span>
+                          <button
+                            type="button"
+                            onClick={() => setShowAllDates(true)}
+                            className="underline font-semibold"
+                          >
+                            Ver outras datas
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+              <>
               <div className="flex items-center justify-between px-1">
                 <Label className="text-xs uppercase tracking-wide text-gray-500">
                   Melhores horários para esta rota
                 </Label>
-                <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                  <Navigation className="w-3 h-3" /> Otimizado
-                </span>
+                {initialDate ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllDates(false)}
+                    className="text-[11px] font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                  >
+                    Voltar à data escolhida
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                    <Navigation className="w-3 h-3" /> Otimizado
+                  </span>
+                )}
               </div>
 
               {loadingSlots ? (
@@ -500,6 +691,8 @@ export function NewAppointmentDialog({
                     })}
                   </div>
                 </details>
+              )}
+              </>
               )}
 
               <div className="space-y-1.5">

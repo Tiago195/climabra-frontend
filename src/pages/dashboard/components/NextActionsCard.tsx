@@ -63,8 +63,10 @@ export function NextActionsCard() {
       navigate(`/dashboard/reports/${action.reportId}`);
     } else if (action.type === "note_reminder" && action.clientId) {
       navigate(`/dashboard/clients/${action.clientId}`);
-    } else if (action.type === "open_submission" || action.type === "appointment_today") {
-      navigate("/dashboard/requests");
+    } else if (action.type === "appointment_today") {
+      navigate("/dashboard/agenda?tab=rota");
+    } else if (action.type === "open_submission") {
+      navigate("/dashboard/agenda?tab=calendario");
     } else if (action.clientId) {
       navigate(`/dashboard/clients/${action.clientId}`);
     }

@@ -147,6 +147,20 @@ export function formatDateBr(iso: string, opts: { withWeekday?: boolean } = {}):
   })
 }
 
+/**
+ * Título de dia por extenso ("Sexta, 17 de julho") — usado nos cards-por-dia da Agenda
+ * (Próximas) e do Histórico. Parseia o "YYYY-MM-DD" na mão (sem `new Date(iso)`) p/ não
+ * sofrer timezone shift, enxuga o "-feira" e capitaliza a inicial.
+ */
+export function formatDayLong(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number)
+  const dt = new Date(y, (m ?? 1) - 1, d ?? 1)
+  return dt
+    .toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })
+    .replace(/-feira/, "")
+    .replace(/^\w/, c => c.toUpperCase())
+}
+
 /** "01/06/2026 • Manhã (08:00–12:00)" */
 export function formatScheduledShift(
   scheduledDate: string,

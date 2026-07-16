@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom"
+import { createBrowserRouter, Navigate } from "react-router-dom"
 import { Layout } from "@/components/Layout"
 import { RequireAuth } from "@/components/RequireAuth"
 
@@ -37,8 +37,20 @@ export const router = createBrowserRouter([
         lazy: () => import("@/pages/clients/ClientDetail").then(({ ClientDetail }) => ({ Component: ClientDetail })),
       },
       {
+        // AGENDA-UNI (H1): rota única "Agenda" com segmentos Rota / Calendário / Histórico (?tab=).
+        path: "/dashboard/agenda",
+        lazy: () => import("@/pages/agenda/Agenda").then(({ Agenda }) => ({ Component: Agenda })),
+      },
+      {
+        // Disponibilidade é sub-tela da Agenda (⚙ no header, D3). AGENDA-UNI H2: header
+        // "‹ Disponibilidade" com back p/ Agenda, grade com vagas e "Bloqueios e folgas".
+        path: "/dashboard/agenda/disponibilidade",
+        lazy: () => import("@/pages/agenda/disponibilidade/Availability").then(({ Availability }) => ({ Component: Availability })),
+      },
+      {
+        // Redirect de compatibilidade: links/hábitos antigos → Agenda (segmento Calendário).
         path: "/dashboard/requests",
-        lazy: () => import("@/pages/request/Requests").then(({ Requests }) => ({ Component: Requests })),
+        element: <Navigate to="/dashboard/agenda?tab=calendario" replace />,
       },
       {
         path: "/dashboard/financeiro",
@@ -49,8 +61,9 @@ export const router = createBrowserRouter([
         lazy: () => import("@/pages/pipeline/Pipeline").then(({ Pipeline }) => ({ Component: Pipeline })),
       },
       {
+        // Redirect de compatibilidade: rota antiga da disponibilidade → sub-tela da Agenda.
         path: "/dashboard/availability",
-        lazy: () => import("@/pages/availability/Availability").then(({ Availability }) => ({ Component: Availability })),
+        element: <Navigate to="/dashboard/agenda/disponibilidade" replace />,
       },
       {
         path: "/dashboard/settings",

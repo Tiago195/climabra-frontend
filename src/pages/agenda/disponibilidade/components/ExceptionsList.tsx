@@ -48,9 +48,9 @@ export function ExceptionsList({ exceptions, onDelete, deletingId }: ExceptionsL
     return (
       <div className="flex flex-col items-center justify-center text-center py-10 px-4">
         <Calendar className="w-10 h-10 text-gray-300 mb-3" />
-        <p className="text-sm font-medium text-gray-700">Nenhuma exceção cadastrada</p>
+        <p className="text-sm font-medium text-gray-700">Nenhum bloqueio cadastrado</p>
         <p className="text-xs text-gray-500 mt-1">
-          Clique no calendário acima ou em "+ Nova exceção" para começar.
+          Clique no calendário acima ou em "+ Bloquear data" para começar.
         </p>
       </div>
     )
@@ -60,7 +60,7 @@ export function ExceptionsList({ exceptions, onDelete, deletingId }: ExceptionsL
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-gray-700">
-          Próximas exceções
+          Bloqueios e folgas
           <span className="text-gray-400 font-normal ml-1">({exceptions.length})</span>
         </h3>
       </div>
@@ -91,7 +91,7 @@ export function ExceptionsList({ exceptions, onDelete, deletingId }: ExceptionsL
                 className="text-gray-400 hover:text-red-600 hover:bg-red-50"
                 onClick={() => onDelete(e.id)}
                 disabled={isDeleting}
-                aria-label="Remover exceção"
+                aria-label="Remover bloqueio"
               >
                 <Trash2 className="w-4 h-4" />
               </Button>

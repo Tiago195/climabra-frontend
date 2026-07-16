@@ -1,14 +1,13 @@
-import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
   AirVent, FileText, MapPin, Clock, CheckCircle2, XCircle, UserX,
 } from "lucide-react"
-import { ShiftBadge } from "@/components/ShiftBadge"
 import { VisitTypePill } from "./VisitTypePill"
 import type { IAppointmentDetailResponse } from "@/services/appointment"
 import type { AppointmentStatus } from "@/services/enums"
 import type { IClientResponse } from "@/services/client"
-import { DAY_NAMES_SHORT, MONTH_NAMES_SHORT, relativeDateLabel } from "@/lib/shifts"
+import { relativeDateLabel } from "@/lib/shifts"
+import { VISIT_TYPE_META } from "@/lib/visitTypes"
 
 interface Props {
   row: IAppointmentDetailResponse
@@ -28,10 +27,15 @@ const PAST_STATUS_VISUAL: Record<Exclude<AppointmentStatus, "scheduled">, PastSt
   no_show:   { label: "Não compareceu", chip: "bg-amber-100 text-amber-700", Icon: UserX },
 }
 
-/** Card visualmente acinzentado de visita já finalizada (concluída/cancelada/no-show). */
+/**
+ * Entrada compacta de uma visita já finalizada (concluída/cancelada/no-show), empilhada
+ * DENTRO do card do dia no Histórico (mesmo padrão card-por-dia da Agenda). Mantém o fundo
+ * acinzentado `bg-gray-50/60` — a suíte E2E ancora nesse container (nome do cliente + chip
+ * de status + "Ver laudos"). Sem tile de data (o dia está no header do card) e sem badge de
+ * turno (o turno é o cabeçalho da seção). Accent fino à esquerda na cor do tipo (D5/D8).
+ */
 export function PastVisitCard({ row, client, onOpenReports }: Props) {
   const appt = row.appointment
-  const d = new Date(`${appt.scheduledDate}T00:00:00`)
   const status = appt.status as Exclude<AppointmentStatus, "scheduled">
   const visual = PAST_STATUS_VISUAL[status] ?? {
     label: "Finalizada",
@@ -45,71 +49,58 @@ export function PastVisitCard({ row, client, onOpenReports }: Props) {
   const showReportsLine = status === "completed" && row.equipments.length > 0
 
   return (
-    <Card className="bg-gray-50/60 border-gray-200">
-      <CardContent className="py-3 space-y-2">
-        <div className="flex items-start gap-2.5">
-          <div className="flex flex-col items-center justify-center bg-white rounded-lg w-11 py-1 shrink-0 ring-1 ring-gray-200">
-            <span className="text-[9px] uppercase font-bold text-gray-400">
-              {DAY_NAMES_SHORT[d.getDay()]}
+    <div
+      className="rounded-lg border border-gray-200 bg-gray-50/60 pl-3 pr-2.5 py-2.5 space-y-2"
+      style={{ borderLeftColor: VISIT_TYPE_META[appt.visitType].hex, borderLeftWidth: 3 }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-gray-700 truncate">{row.client.name}</p>
+          <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
+            <MapPin className="w-3 h-3 shrink-0" />
+            <span className="truncate">
+              {client?.neighborhood || "Sem bairro"}
+              {client?.city && `, ${client.city}`}
             </span>
-            <span className="text-base font-bold text-gray-600 leading-none">
-              {d.getDate()}
+            <span className="inline-flex items-center gap-0.5 text-gray-400 shrink-0 ml-1">
+              <Clock className="w-2.5 h-2.5" />
+              {relativeDateLabel(appt.scheduledDate)}
             </span>
-            <span className="text-[9px] text-gray-400">
-              {MONTH_NAMES_SHORT[d.getMonth()]}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-gray-700 truncate">{row.client.name}</p>
-              <span className={`inline-flex items-center gap-1 rounded-full font-medium text-[10px] px-1.5 py-0.5 ${visual.chip}`}>
-                <StatusIcon className="w-2.5 h-2.5" />
-                {visual.label}
-              </span>
-            </div>
-            <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
-              <MapPin className="w-3 h-3 shrink-0" />
-              <span className="truncate">
-                {client?.neighborhood || "Sem bairro"}
-                {client?.city && `, ${client.city}`}
-              </span>
-              <span className="ml-auto inline-flex items-center gap-0.5 text-gray-500 shrink-0">
-                <Clock className="w-2.5 h-2.5" />
-                {relativeDateLabel(appt.scheduledDate)}
-              </span>
-            </p>
-            <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
-              <VisitTypePill visitType={appt.visitType} />
-              <ShiftBadge shift={appt.shift} size="xs" />
-            </p>
-          </div>
-        </div>
-
-        {showReportsLine && (
-          <div className="flex items-center gap-2 bg-white/70 rounded-md px-2 py-1.5 ring-1 ring-gray-200">
-            <AirVent className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-            <p className="text-[11px] text-gray-700 flex-1 min-w-0 truncate">
-              {row.equipments.length} equipamento{row.equipments.length === 1 ? "" : "s"} ·{" "}
-              <span className="font-semibold">{doneReports} de {totalReports}</span>{" "}
-              laudo{totalReports === 1 ? "" : "s"} concluído{totalReports === 1 ? "" : "s"}
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onOpenReports}
-              className="h-7 text-[11px] gap-1 px-2"
-            >
-              <FileText className="w-3 h-3" /> Ver laudos
-            </Button>
-          </div>
-        )}
-
-        {!showReportsLine && appt.notes && (
-          <p className="text-[11px] text-gray-500 italic bg-white/70 rounded-md px-2 py-1.5 ring-1 ring-gray-200">
-            “{appt.notes}”
           </p>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <VisitTypePill visitType={appt.visitType} />
+          <span className={`inline-flex items-center gap-1 rounded-full font-medium text-[10px] px-1.5 py-0.5 ${visual.chip}`}>
+            <StatusIcon className="w-2.5 h-2.5" />
+            {visual.label}
+          </span>
+        </div>
+      </div>
+
+      {showReportsLine && (
+        <div className="flex items-center gap-2 bg-white/70 rounded-md px-2 py-1.5 ring-1 ring-gray-200">
+          <AirVent className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+          <p className="text-[11px] text-gray-700 flex-1 min-w-0 truncate">
+            {row.equipments.length} equipamento{row.equipments.length === 1 ? "" : "s"} ·{" "}
+            <span className="font-semibold">{doneReports} de {totalReports}</span>{" "}
+            laudo{totalReports === 1 ? "" : "s"} concluído{totalReports === 1 ? "" : "s"}
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onOpenReports}
+            className="h-7 text-[11px] gap-1 px-2 shrink-0"
+          >
+            <FileText className="w-3 h-3" /> Ver laudos
+          </Button>
+        </div>
+      )}
+
+      {!showReportsLine && appt.notes && (
+        <p className="text-[11px] text-gray-500 italic bg-white/70 rounded-md px-2 py-1.5 ring-1 ring-gray-200">
+          “{appt.notes}”
+        </p>
+      )}
+    </div>
   )
 }
