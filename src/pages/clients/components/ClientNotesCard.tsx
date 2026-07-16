@@ -9,19 +9,16 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { StickyNote, Phone, MessageCircle, CalendarCheck, Bell, Pencil, Trash2, Loader2 } from "lucide-react";
+import { StickyNote, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { clientNoteService, type IClientNote } from "@/services/clientNote";
 import type { NoteKind } from "@/services/enums";
-import { formatRelative } from "@/lib/utils";
+import { NoteTimeline, NOTE_KIND_META } from "@/components/NoteTimeline";
 import { getApiErrorMessage } from "@/services/apiError";
 
-const KIND_META: Record<NoteKind, { label: string; icon: typeof StickyNote; color: string }> = {
-  note:            { label: "Anotação",         icon: StickyNote,     color: "text-gray-500" },
-  call:            { label: "Ligação",          icon: Phone,          color: "text-blue-500" },
-  whatsapp:        { label: "WhatsApp",         icon: MessageCircle,  color: "text-green-600" },
-  visit_followup:  { label: "Retorno de visita", icon: CalendarCheck, color: "text-amber-600" },
-};
+// Tipos selecionáveis no composer — `whatsapp_in` (mensagem recebida) é gerado pelo webhook,
+// nunca escolhido à mão, então fica fora do dropdown (mas é renderizado na timeline).
+const COMPOSER_KINDS: NoteKind[] = ["note", "call", "whatsapp", "visit_followup"];
 
 /** dd/mm/aaaa HH:mm para o input datetime-local. */
 function toLocalInputValue(iso: string | null): string {
@@ -157,8 +154,8 @@ export function ClientNotesCard({ token, clientId }: Props) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(Object.keys(KIND_META) as NoteKind[]).map(k => (
-                  <SelectItem key={k} value={k}>{KIND_META[k].label}</SelectItem>
+                {COMPOSER_KINDS.map(k => (
+                  <SelectItem key={k} value={k}>{NOTE_KIND_META[k].label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -182,50 +179,8 @@ export function ClientNotesCard({ token, clientId }: Props) {
             <Skeleton className="h-14" />
             <Skeleton className="h-14" />
           </div>
-        ) : notes.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-2">Nenhuma anotação ainda.</p>
         ) : (
-          <div className="space-y-2">
-            {notes.map(note => {
-              const meta = KIND_META[note.kind];
-              const Icon = meta.icon;
-              return (
-                <div key={note.id} className="border rounded-lg p-3 bg-gray-50">
-                  <div className="flex items-start gap-2">
-                    <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${meta.color}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-medium text-gray-600">{meta.label}</span>
-                        <span className="text-[11px] text-gray-400 shrink-0">{formatRelative(note.createdAt)}</span>
-                      </div>
-                      <p className="text-sm text-gray-800 whitespace-pre-wrap break-words mt-0.5">{note.content}</p>
-                      {note.remindAt && (
-                        <p className="text-[11px] text-amber-600 flex items-center gap-1 mt-1">
-                          <Bell className="w-3 h-3" /> Lembrete: {new Date(note.remindAt).toLocaleString("pt-BR")}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      <button
-                        onClick={() => openEdit(note)}
-                        className="p-1.5 rounded hover:bg-gray-200 text-gray-500"
-                        title="Editar"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(note.id)}
-                        className="p-1.5 rounded hover:bg-gray-200 text-red-500"
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <NoteTimeline notes={notes} onEdit={openEdit} onDelete={handleDelete} />
         )}
       </CardContent>
 
@@ -246,8 +201,8 @@ export function ClientNotesCard({ token, clientId }: Props) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(Object.keys(KIND_META) as NoteKind[]).map(k => (
-                  <SelectItem key={k} value={k}>{KIND_META[k].label}</SelectItem>
+                {COMPOSER_KINDS.map(k => (
+                  <SelectItem key={k} value={k}>{NOTE_KIND_META[k].label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

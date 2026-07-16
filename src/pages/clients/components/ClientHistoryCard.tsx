@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { History, StickyNote, Phone, MessageCircle, CalendarCheck, FileText, Wallet, CalendarDays, AlertTriangle } from "lucide-react";
+import { History, StickyNote, Phone, MessageCircle, MessageCircleReply, CalendarCheck, FileText, Wallet, CalendarDays, AlertTriangle } from "lucide-react";
 import { clientNoteService, type IClientNote } from "@/services/clientNote";
 import { appointmentService } from "@/services/appointment";
 import { reportService } from "@/services/report";
@@ -10,7 +10,7 @@ import type { NoteKind } from "@/services/enums";
 import type { IEquipmentResponse } from "@/services/client";
 import { formatCents, formatRelative } from "@/lib/utils";
 
-type HistoryEventType = "note" | "call" | "whatsapp" | "visit_followup" | "report_sent" | "visit_completed" | "payment";
+type HistoryEventType = "note" | "call" | "whatsapp" | "whatsapp_in" | "visit_followup" | "report_sent" | "visit_completed" | "payment";
 
 interface HistoryEvent {
   id: string;
@@ -24,6 +24,7 @@ const EVENT_META: Record<HistoryEventType, { label: string; icon: typeof History
   note:             { label: "Anotação",         icon: StickyNote,    color: "text-gray-500" },
   call:             { label: "Ligação",          icon: Phone,         color: "text-blue-500" },
   whatsapp:         { label: "WhatsApp",         icon: MessageCircle, color: "text-green-600" },
+  whatsapp_in:      { label: "Mensagem recebida", icon: MessageCircleReply, color: "text-teal-600" },
   visit_followup:   { label: "Retorno de visita", icon: CalendarCheck, color: "text-amber-600" },
   report_sent:      { label: "Laudo enviado",    icon: FileText,      color: "text-indigo-500" },
   visit_completed:  { label: "Visita concluída", icon: CalendarDays,  color: "text-teal-600" },
@@ -34,6 +35,7 @@ const NOTE_TYPE: Record<NoteKind, HistoryEventType> = {
   note: "note",
   call: "call",
   whatsapp: "whatsapp",
+  whatsapp_in: "whatsapp_in",
   visit_followup: "visit_followup",
 };
 

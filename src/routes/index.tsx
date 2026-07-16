@@ -37,6 +37,10 @@ export const router = createBrowserRouter([
         lazy: () => import("@/pages/clients/ClientDetail").then(({ ClientDetail }) => ({ Component: ClientDetail })),
       },
       {
+        path: "/dashboard/leads",
+        lazy: () => import("@/pages/leads/Leads").then(({ Leads }) => ({ Component: Leads })),
+      },
+      {
         // AGENDA-UNI (H1): rota única "Agenda" com segmentos Rota / Calendário / Histórico (?tab=).
         path: "/dashboard/agenda",
         lazy: () => import("@/pages/agenda/Agenda").then(({ Agenda }) => ({ Component: Agenda })),

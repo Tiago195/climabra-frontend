@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Building2, CreditCard, Receipt, Bell, Users } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Building2, CreditCard, Receipt, Bell, Users, MessageCircle } from "lucide-react";
 import { PaymentsSection } from "./components/PaymentsSection";
 import { SubscriptionSection } from "./components/SubscriptionSection";
 import { NotificationsSection } from "./components/NotificationsSection";
+import { WhatsappSection } from "./components/WhatsappSection";
 import {
   Select,
   SelectContent,
@@ -15,12 +17,20 @@ const sections = [
   { key: "company", label: "Perfil da empresa", icon: Building2, soon: true },
   { key: "payments", label: "Pagamentos", icon: CreditCard, soon: false },
   { key: "subscription", label: "Assinatura", icon: Receipt, soon: false },
+  { key: "whatsapp", label: "WhatsApp", icon: MessageCircle, soon: false },
   { key: "notifications", label: "Notificações", icon: Bell, soon: false },
   { key: "team", label: "Equipe", icon: Users, soon: true },
 ];
 
+/** Seções que abrem diretamente por deep-link (?section=…), ex.: banner de WhatsApp desconectado. */
+const LINKABLE = new Set(["payments", "subscription", "whatsapp", "notifications"]);
+
 export function Settings() {
-  const [active, setActive] = useState("payments");
+  const [searchParams] = useSearchParams();
+  const initial = searchParams.get("section");
+  const [active, setActive] = useState(
+    initial && LINKABLE.has(initial) ? initial : "payments",
+  );
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -84,6 +94,7 @@ export function Settings() {
         <div className="min-w-0">
           {active === "payments" && <PaymentsSection />}
           {active === "subscription" && <SubscriptionSection />}
+          {active === "whatsapp" && <WhatsappSection />}
           {active === "notifications" && <NotificationsSection />}
         </div>
       </div>

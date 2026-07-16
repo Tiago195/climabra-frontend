@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, Users, CalendarDays, Settings, Wallet, Filter } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, Settings, Wallet, Filter, UserPlus } from "lucide-react";
 
 export type NavItem = {
   to: string;
@@ -15,6 +15,7 @@ export type NavItem = {
 export const navItems: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/dashboard/clients", label: "Clientes", icon: Users },
+  { to: "/dashboard/leads", label: "Leads", icon: UserPlus },
   { to: "/dashboard/agenda", label: "Agenda", icon: CalendarDays },
   { to: "/dashboard/funil", label: "Funil", icon: Filter },
   { to: "/dashboard/financeiro", label: "Financeiro", icon: Wallet },

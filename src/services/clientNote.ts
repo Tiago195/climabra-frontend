@@ -12,10 +12,14 @@ const authHeader = (token: string) => ({ headers: { Authorization: `Bearer ${tok
 
 export interface IClientNote {
   id: string
-  clientId: string
+  /** Dono cliente OU lead (XOR — Bloco B). Um dos dois é null. */
+  clientId: string | null
+  leadId: string | null
   providerId: string
   content: string
   kind: NoteKind
+  /** Id da mensagem no WhatsApp — só em `whatsapp_in` (mensagem recebida). */
+  waMessageId: string | null
   remindAt: string | null
   createdAt: string
   updatedAt: string

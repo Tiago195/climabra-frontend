@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/authContext";
 import { ProfileGateProvider } from "@/components/CompleteProfileDialog";
 import { SubscriptionGateProvider, SubscriptionBanner } from "@/components/SubscriptionGate";
+import { WhatsappDisconnectedBanner } from "@/components/WhatsappDisconnectedBanner";
 import { useLocation, Outlet, useNavigate } from "react-router-dom";
 import { ChevronsLeft, ChevronsRight, Wind } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -106,6 +107,7 @@ export function Layout() {
 
             <main className="flex-1 container mx-auto p-4 md:p-8 pb-24 md:pb-8">
               <SubscriptionBanner />
+              <WhatsappDisconnectedBanner />
               <Outlet />
             </main>
           </div>
